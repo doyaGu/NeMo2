@@ -11,13 +11,7 @@ CKERROR CKBehaviorLink::SetInBehaviorIO(CKBehaviorIO *ckbioin) {
         return CKERR_INVALIDPARAMETER;
 
     if (m_InIO) {
-        XSObjectPointerArray &links = m_InIO->m_Links;
-        for (auto it = links.Begin(); it != links.End(); ++it) {
-            if (*it == this) {
-                links.Remove(*it);
-                break;
-            }
-        }
+        m_InIO->m_Links.RemoveObject(this);
     }
     m_InIO = ckbioin;
     m_InIO->m_Links.AddIfNotHere(this);
@@ -75,12 +69,7 @@ CKERROR CKBehaviorLink::Load(CKStateChunk *chunk, CKFile *file) {
     CKObject::Load(chunk, file);
 
     if (m_InIO) {
-        for (auto it = m_InIO->m_Links.Begin(); it != m_InIO->m_Links.End(); ++it) {
-            if (*it == this) {
-                m_InIO->m_Links.Remove(*it);
-                break;
-            }
-        }
+        m_InIO->m_Links.RemoveObject(this);
     }
 
     if (chunk->SeekIdentifier(CK_STATESAVE_BEHAV_LINK_NEWDATA)) {
@@ -119,13 +108,7 @@ void CKBehaviorLink::PreDelete() {
 
     if (m_InIO) {
         if (!m_InIO->IsToBeDeleted()) {
-            XSObjectPointerArray &links = m_InIO->m_Links;
-            for (auto it = links.Begin(); it != links.End(); ++it) {
-                if (*it == this) {
-                    links.Remove(*it);
-                    break;
-                }
-            }
+            m_InIO->m_Links.RemoveObject(this);
         }
         CKBehavior *owner = m_InIO->GetOwner();
         if (owner && !owner->IsToBeDeleted()) {
