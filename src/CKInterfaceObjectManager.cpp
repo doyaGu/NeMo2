@@ -17,7 +17,7 @@ void CKInterfaceObjectManager::AddStateChunk(CKStateChunk *chunk) {
     if (m_Chunks)
         memcpy(chunks, m_Chunks, sizeof(CKStateChunk *) * m_Count);
     if (m_Chunks)
-        delete m_Chunks;
+        delete[] m_Chunks;
 
     m_Chunks = chunks;
     m_Chunks[m_Count] = chunk;
@@ -66,7 +66,7 @@ CKInterfaceObjectManager::~CKInterfaceObjectManager() {
             delete chunk;
     }
 
-    delete m_Chunks;
+    delete[] m_Chunks;
     m_Chunks = nullptr;
 }
 
