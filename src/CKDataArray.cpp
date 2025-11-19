@@ -207,12 +207,13 @@ void CKDataArray::RemoveColumn(int c) {
 
     // Remove column format
     ColumnFormat *format = m_FormatArray[c];
+    CK_ARRAYTYPE colType = format->m_Type;
+
     delete[] format->m_Name;
     delete format;
     m_FormatArray.RemoveAt(c);
 
     // Remove column data from all rows
-    CK_ARRAYTYPE colType = format->m_Type;
     for (int i = 0; i < m_DataMatrix.Size(); ++i) {
         CKDataRow *row = m_DataMatrix[i];
         CKDWORD *element = &(*row)[c];
@@ -1032,6 +1033,8 @@ CKDataRow *CKDataArray::InsertRow(int n) {
             if (param) {
                 param->SetOwner(this);
                 (*newRow)[i] = reinterpret_cast<CKDWORD>(param);
+            } else {
+                (*newRow)[i] = 0;
             }
         } else {
             (*newRow)[i] = 0;
@@ -1593,8 +1596,10 @@ CKDWORD CKDataArray::Sum(int c) {
             CKDWORD *begin = row->Begin();
             CKDWORD *end = row->End();
 
-            float *valuePtr = reinterpret_cast<float *>(c < (end - begin) ? &begin[c] : end);
-            floatSum += *valuePtr;
+            if (c < (end - begin)) {
+                float *valuePtr = reinterpret_cast<float *>(&begin[c]);
+                floatSum += *valuePtr;
+            }
         }
         return reinterpret_cast<CKDWORD &>(floatSum);
     }
@@ -1624,8 +1629,10 @@ CKDWORD CKDataArray::Product(int c) {
             CKDWORD *begin = row->Begin();
             CKDWORD *end = row->End();
 
-            float *valuePtr = reinterpret_cast<float *>((c < end - begin) ? &begin[c] : end);
-            floatProduct *= *valuePtr;
+            if (c < (end - begin)) {
+                float *valuePtr = reinterpret_cast<float *>(&begin[c]);
+                floatProduct *= *valuePtr;
+            }
         }
         return reinterpret_cast<CKDWORD &>(floatProduct);
     }
@@ -2075,7 +2082,7 @@ int CKDataArray::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
             CKParameter *param = (CKParameter *) element;
             if (param) {
                 CK_ID *idPtr = (CK_ID *) param->GetReadDataPtr();
-                if (*idPtr == targetId) {
+                if (idPtr && *idPtr == targetId) {
                     return 1;
                 }
             }
@@ -2143,9 +2150,11 @@ CKERROR CKDataArray::PrepareDependencies(CKDependenciesContext &context) {
                             CK_CLASSID paramClass = pm->TypeToClassID(param->GetType());
                             if (paramClass != 0) {
                                 CK_ID *idPtr = (CK_ID *) param->GetReadDataPtr();
-                                CKObject *obj = m_Context->GetObject(*idPtr);
-                                if (obj && !CKIsChildClassOf(obj, CKCID_LEVEL) && !CKIsChildClassOf(obj, CKCID_SCENE)) {
-                                    obj->PrepareDependencies(context);
+                                if (idPtr) {
+                                    CKObject *obj = m_Context->GetObject(*idPtr);
+                                    if (obj && !CKIsChildClassOf(obj, CKCID_LEVEL) && !CKIsChildClassOf(obj, CKCID_SCENE)) {
+                                        obj->PrepareDependencies(context);
+                                    }
                                 }
                             }
                         }
