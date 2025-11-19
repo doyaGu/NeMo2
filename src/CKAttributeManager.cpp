@@ -101,6 +101,10 @@ void CKAttributeManager::UnRegisterAttribute(CKSTRING atname) {
 CKSTRING CKAttributeManager::GetAttributeNameByType(CKAttributeType AttribType) {
     if (AttribType < 0 || AttribType >= m_AttributeInfoCount || !m_AttributeInfos)
         return nullptr;
+
+    if (!m_AttributeInfos[AttribType])
+        return nullptr;
+
     return m_AttributeInfos[AttribType]->Name;
 }
 
@@ -125,7 +129,7 @@ CKAttributeType CKAttributeManager::GetAttributeTypeByName(CKSTRING AttribName) 
 }
 
 void CKAttributeManager::SetAttributeNameByType(CKAttributeType AttribType, CKSTRING name) {
-    if (AttribType < 0 || AttribType >= m_AttributeInfoCount || !m_AttributeInfos)
+    if (!name || AttribType < 0 || AttribType >= m_AttributeInfoCount || !m_AttributeInfos)
         return;
     CKAttributeDesc *desc = m_AttributeInfos[AttribType];
     if (!desc)
@@ -256,7 +260,7 @@ const XObjectPointerArray &CKAttributeManager::GetAttributeListPtr(CKAttributeTy
 }
 
 const XObjectPointerArray &CKAttributeManager::GetGlobalAttributeListPtr(CKAttributeType AttribType) {
-    if (AttribType < 0 || AttribType >= m_AttributeInfoCount)
+    if (AttribType < 0 || AttribType >= m_AttributeInfoCount || !m_AttributeInfos)
         return m_Context->m_GlobalAttributeList;
 
     CKAttributeDesc *desc = m_AttributeInfos[AttribType];
@@ -498,7 +502,7 @@ void CKAttributeManager::AddAttributeToObject(CKAttributeType AttribType, CKBeOb
 }
 
 void CKAttributeManager::RemoveAttributeFromObject(CKAttributeType AttribType, CKBeObject *beo) {
-    if (AttribType < 0 || !beo)
+    if (AttribType < 0 || AttribType >= m_AttributeInfoCount || !m_AttributeInfos || !beo)
         return;
 
     CKAttributeDesc *desc = m_AttributeInfos[AttribType];
@@ -513,12 +517,15 @@ void CKAttributeManager::RemoveAttributeFromObject(CKAttributeType AttribType, C
 }
 
 void CKAttributeManager::RefreshList(CKObject *obj, CKScene *scene) {
+    if (!obj || !scene || !m_AttributeInfos)
+        return;
+
     if (CKIsChildClassOf(obj, CKCID_BEOBJECT) && scene == m_Context->GetCurrentScene()) {
         CKBeObject *beo = (CKBeObject *) obj;
         const int count = beo->GetAttributeCount();
         for (int i = 0; i < count; ++i) {
             CKAttributeType type = beo->GetAttributeType(i);
-            if (type >= 0) {
+            if (type >= 0 && type < m_AttributeInfoCount) {
                 CKAttributeDesc *desc = m_AttributeInfos[type];
                 if (desc)
                     desc->AttributeList.AddIfNotHere(beo);
@@ -574,6 +581,9 @@ void CKAttributeManager::ObjectAddedToScene(CKBeObject *beo, CKScene *scene) {
 }
 
 void CKAttributeManager::ObjectRemovedFromScene(CKBeObject *beo, CKScene *scene) {
+    if (!beo || !scene)
+        return;
+
     CKScene *currentScene = m_Context->GetCurrentScene();
     if (currentScene != scene)
         return;
@@ -779,9 +789,11 @@ CKERROR CKAttributeManager::LoadData(CKStateChunk *chunk, CKFile *LoadedFile) {
             }
 
             m_ConversionTable[i] = RegisterNewAttributeType(name, paramType, compatCid, (CK_ATTRIBUT_FLAGS) flags);
-            CKAttributeDesc *desc = m_AttributeInfos[m_ConversionTable[i]];
-            if (desc && !(desc->Flags & CK_ATTRIBUT_SYSTEM)) {
-                desc->AttributeCategory = newCategoryIdx;
+            if (m_ConversionTable[i] >= 0 && m_ConversionTable[i] < m_AttributeInfoCount) {
+                CKAttributeDesc *desc = m_AttributeInfos[m_ConversionTable[i]];
+                if (desc && !(desc->Flags & CK_ATTRIBUT_SYSTEM)) {
+                    desc->AttributeCategory = newCategoryIdx;
+                }
             }
         } else {
             m_ConversionTable[i] = -1;
@@ -851,7 +863,7 @@ CKStateChunk *CKAttributeManager::SaveData(CKFile *SavedFile) {
 
     for (CKAttributeType i = 0; i < m_AttributeInfoCount; ++i) {
         CKAttributeDesc *desc = m_AttributeInfos[i];
-        if (attributeMask.IsSet(i) && desc->AttributeCategory >= 0) {
+        if (desc && attributeMask.IsSet(i) && desc->AttributeCategory >= 0) {
             categoryMask.Set(desc->AttributeCategory);
         }
     }
