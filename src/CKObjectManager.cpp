@@ -84,7 +84,7 @@ CKERROR CKObjectManager::ClearAllObjects() {
     m_Context->m_InClearAll = TRUE;
 
     // Mark all objects for deletion
-    for (int id = m_ObjectCount - 1; id > 0; --id) {
+    for (int id = m_ObjectCount - 1; id >= 0; --id) {
         CKObject *obj = m_Objects[id];
         if (obj)
             obj->ModifyObjectFlags(CK_OBJECT_TOBEDELETED, 0);
@@ -225,6 +225,9 @@ CKERROR CKObjectManager::DeleteObjects(CK_ID *obj_ids, int Count, CK_CLASSID cid
     XBitArray notifiedClasses;
     for (int i = 0; i < Count; ++i) {
         CK_ID id = obj_ids[i];
+        if (id >= m_ObjectCount)
+            continue;
+
         CKObject *obj = m_Objects[id];
         if (obj) {
             notifiedClasses.Set(obj->GetClassID());
@@ -260,6 +263,9 @@ CKERROR CKObjectManager::DeleteObjects(CK_ID *obj_ids, int Count, CK_CLASSID cid
 
     for (int i = 0; i < Count; ++i) {
         CK_ID id = obj_ids[i];
+        if (id >= m_ObjectCount)
+            continue;
+
         CKObject *obj = m_Objects[id];
         if (obj) {
             obj->PreDelete();
@@ -268,6 +274,9 @@ CKERROR CKObjectManager::DeleteObjects(CK_ID *obj_ids, int Count, CK_CLASSID cid
 
     for (int i = 0; i < Count; ++i) {
         CK_ID id = obj_ids[i];
+        if (id >= m_ObjectCount)
+            continue;
+
         CKObject *obj = m_Objects[id];
         if (obj) {
             delete obj;
@@ -509,7 +518,7 @@ int CKObjectManager::CheckIDArray(CK_ID *obj_ids, int Count) {
     readCursor++;
     while (readCursor < Count) {
         CK_ID id = obj_ids[readCursor];
-        if (m_Objects[id]) {
+        if (id < m_ObjectCount && m_Objects[id]) {
             obj_ids[writeCursor] = id; // Copy it to the next available valid slot
             ++writeCursor;
         }
@@ -529,8 +538,11 @@ int CKObjectManager::CheckIDArrayPredeleted(CK_ID *obj_ids, int Count) {
     // Phase 1: Fast path.
     while (readCursor < Count) {
         CK_ID id = obj_ids[readCursor];
-        CKObject *obj = m_Objects[id];
+        if (id >= m_ObjectCount) {
+            break;
+        }
 
+        CKObject *obj = m_Objects[id];
         if (!obj || obj->IsToBeDeleted()) {
             // Found a null or "to-be-deleted" object. Break to slow path.
             break;
@@ -544,11 +556,12 @@ int CKObjectManager::CheckIDArrayPredeleted(CK_ID *obj_ids, int Count) {
     readCursor++; // Skip the invalid/pre-deleted element.
     while (readCursor < Count) {
         CK_ID id = obj_ids[readCursor];
-        CKObject *obj = m_Objects[id];
-
-        if (obj && !obj->IsToBeDeleted()) {
-            obj_ids[writeCursor] = id;
-            ++writeCursor;
+        if (id < m_ObjectCount) {
+            CKObject *obj = m_Objects[id];
+            if (obj && !obj->IsToBeDeleted()) {
+                obj_ids[writeCursor] = id;
+                ++writeCursor;
+            }
         }
         ++readCursor;
     }
@@ -576,6 +589,8 @@ int CKObjectManager::GetDynamicIDCount() {
 }
 
 CK_ID CKObjectManager::GetDynamicID(int index) {
+    if (index < 0 || index >= m_DynamicObjects.Size())
+        return 0;
     return m_DynamicObjects[index];
 }
 
