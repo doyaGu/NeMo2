@@ -30,6 +30,8 @@ CKObject *CKContext::CreateObject(CK_CLASSID cid, CKSTRING Name, CK_OBJECTCREATI
     CKObject *obj = nullptr;
     CK_CREATIONMODE creationMode = CKLOAD_OK;
     char *buffer = GetStringBuffer(512);
+    if (!buffer)
+        return nullptr;
 
     CKDWORD creationOptions = (Options & CK_OBJECTCREATION_FLAGSMASK);
     CKClassDesc &classDesc = g_CKClassInfo[cid];
@@ -384,12 +386,15 @@ void CKContext::SetCurrentLevel(CKLevel *level) {
 }
 
 CKParameterIn *CKContext::CreateCKParameterIn(CKSTRING Name, CKParameterType type, CKBOOL Dynamic) {
-    CKParameterIn *pIn = nullptr;
-    if (m_ParameterManager->CheckParamTypeValidity(type)) {
-        pIn = (CKParameterIn *) CreateObject(
+    if (!m_ParameterManager->CheckParamTypeValidity(type))
+        return nullptr;
+
+    CKParameterIn *pIn = (CKParameterIn *) CreateObject(
             CKCID_PARAMETERIN, Name, Dynamic ? CK_OBJECTCREATION_DYNAMIC : CK_OBJECTCREATION_NONAMECHECK);
+
+    if (pIn)
         pIn->SetType(type);
-    }
+
     return pIn;
 }
 
@@ -411,7 +416,10 @@ CKParameterOut *CKContext::CreateCKParameterOut(CKSTRING Name, CKParameterType t
 
     CKParameterOut *pOut = (CKParameterOut *) CreateObject(
         CKCID_PARAMETEROUT, Name, Dynamic ? CK_OBJECTCREATION_DYNAMIC : CK_OBJECTCREATION_NONAMECHECK);
-    pOut->SetType(type);
+
+    if (pOut)
+        pOut->SetType(type);
+
     return pOut;
 }
 
@@ -729,6 +737,8 @@ int CKContext::GetInactiveManagerCount() {
 }
 
 CKBaseManager *CKContext::GetInactiveManager(int index) {
+    if (index < 0 || index >= m_InactiveManagers.Size())
+        return nullptr;
     return m_InactiveManagers[index];
 }
 
@@ -796,10 +806,10 @@ CKGUID CKContext::GetSecureGuid() {
     do {
         guid.d1 = (rand() & 0xFFFF) | ((rand() & 0xFFFF) << 16);
         guid.d2 = (rand() & 0xFFFF) | ((rand() & 0xFFFF) << 16);
-    } while (!CKGetObjectDeclarationFromGuid(guid) &&
-        (m_ParameterManager->OperationGuidToCode(guid) >= 0 ||
-            m_ParameterManager->ParameterGuidToType(guid) >= 0 ||
-            GetManagerByGuid(guid) != nullptr));
+    } while (CKGetObjectDeclarationFromGuid(guid) ||
+        m_ParameterManager->OperationGuidToCode(guid) >= 0 ||
+        m_ParameterManager->ParameterGuidToType(guid) >= 0 ||
+        GetManagerByGuid(guid) != nullptr);
 
     return guid;
 }
@@ -1635,7 +1645,7 @@ void CKContext::DeferredDestroyObjects(CK_ID *obj_ids, int Count, CKDependencies
 
 void *CKContext::AllocateMemoryPool(int count, int &index) {
     int newIndex = m_MemoryPoolMask.GetUnsetBitPosition(0);
-    while (m_MemoryPools.Size() < newIndex) {
+    while (m_MemoryPools.Size() <= newIndex) {
         m_MemoryPools.PushBack(new VxMemoryPool);
     }
 
