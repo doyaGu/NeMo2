@@ -20,6 +20,8 @@ CKERROR CKBehaviorManager::Execute(float delta) {
     // Process behavior activation first
     for (auto it = m_BeObjects.Begin(); it != m_BeObjects.End(); ++it) {
         CKBeObject *beo = (CKBeObject *) *it;
+        if (!beo) continue;
+
         const int scriptCount = beo->GetScriptCount();
         for (int i = 0; i < scriptCount; ++i) {
             CKBehavior *beh = beo->GetScript(i);
@@ -36,6 +38,7 @@ CKERROR CKBehaviorManager::Execute(float delta) {
     // Main execution loop
     for (auto it = m_BeObjects.Begin(); it != m_BeObjects.End(); ++it) {
         CKBeObject *obj = (CKBeObject *)*it;
+        if (!obj) continue;
 
         if (m_Context->m_ProfilingEnabled) {
             behaviorProfiler.Reset();
@@ -130,7 +133,8 @@ void CKBehaviorManager::RemoveAllObjects() {
 
     for (auto it = m_Behaviors.Begin(); it != m_Behaviors.End(); ++it) {
         CKBehavior *beh = (CKBehavior *) *it;
-        beh->m_Flags &= ~CKBEHAVIOR_EXECUTEDLASTFRAME;
+        if (beh)
+            beh->m_Flags &= ~CKBEHAVIOR_EXECUTEDLASTFRAME;
     }
     m_Behaviors.Clear();
 }
@@ -203,7 +207,8 @@ CKERROR CKBehaviorManager::OnCKPause() {
 CKERROR CKBehaviorManager::PreProcess() {
     for (auto it = m_Behaviors.Begin(); it != m_Behaviors.End(); ++it) {
         CKBehavior *beh = (CKBehavior *) *it;
-        beh->m_Flags &= ~CKBEHAVIOR_EXECUTEDLASTFRAME;
+        if (beh)
+            beh->m_Flags &= ~CKBEHAVIOR_EXECUTEDLASTFRAME;
     }
     m_Behaviors.Clear();
     return CK_OK;
