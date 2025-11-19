@@ -1269,13 +1269,11 @@ CKParameterOperation *CKBehavior::RemoveParameterOperation(int pos) {
         return nullptr;
 
     XObjectPointerArray &operations = m_GraphData->m_Operations;
-    if (pos < 0 || pos >= operations.Size())
+    CKObject **op = operations.RemoveAt(pos);
+    if (!op)
         return nullptr;
 
-    CKParameterOperation *op = (CKParameterOperation *) operations[pos];
-    if (op)
-        op->SetOwner(nullptr);
-    return op;
+    return (CKParameterOperation *)*op;
 }
 
 CKParameterOperation *CKBehavior::RemoveParameterOperation(CKParameterOperation *op) {
@@ -1355,7 +1353,9 @@ CKERROR CKBehavior::SetOwner(CKBeObject *owner, CKBOOL callback) {
     // Update local parameters and sub-behaviors
     for (auto it = m_LocalParameter.Begin(); it != m_LocalParameter.End(); ++it) {
         CKParameterLocal *param = (CKParameterLocal *) *it;
-        param->SetOwner(this);
+        if (param) {
+            param->SetOwner(this);
+        }
     }
 
     CKBeObject *actualOwner = GetOwner();
@@ -2269,6 +2269,8 @@ void CKBehavior::SetPrototypeGuid(CKGUID ckguid) {
 void CKBehavior::SetParent(CKBehavior *parent) {
     if (parent) {
         m_BehParent = parent->GetID();
+    } else {
+        m_BehParent = 0;
     }
 }
 
@@ -2285,7 +2287,9 @@ void CKBehavior::ResetExecutionTime() {
         for (XObjectPointerArray::Iterator it = m_GraphData->m_SubBehaviors.Begin();
              it != m_GraphData->m_SubBehaviors.End(); ++it) {
             CKBehavior *subBeh = (CKBehavior *) *it;
-            subBeh->ResetExecutionTime();
+            if (subBeh) {
+                subBeh->ResetExecutionTime();
+            }
         }
     }
 }
@@ -2349,9 +2353,9 @@ void CKBehavior::WarnInfiniteLoop() {
     const char *name = (owner && owner->m_Name) ? owner->m_Name : "?";
 
     if (m_Name) {
-        sprintf(buffer, "ERROR: Infinite Loop Detected. Object %s: In Behavior %s", name, m_Name);
+        snprintf(buffer, sizeof(buffer), "ERROR: Infinite Loop Detected. Object %s: In Behavior %s", name, m_Name);
     } else {
-        strcpy(buffer, "ERROR : Infinite Loop Detected. Object ? : In Behavior ?");
+        snprintf(buffer, sizeof(buffer), "ERROR: Infinite Loop Detected. Object ? : In Behavior ?");
     }
 
     m_Context->OutputToConsole(buffer, true);
@@ -2727,6 +2731,8 @@ void CKBehavior::HierarchyPostLoad() {
     int paramIndex = 0;
     for (auto it = m_InParameter.Begin(); it != m_InParameter.End(); ++it, ++paramIndex) {
         CKParameterIn *param = (CKParameterIn *) *it;
+        if (!param) continue;
+
         param->SetOwner(this);
 
         if (proto) {
@@ -2751,6 +2757,8 @@ void CKBehavior::HierarchyPostLoad() {
     paramIndex = 0;
     for (auto it = m_OutParameter.Begin(); it != m_OutParameter.End(); ++it, ++paramIndex) {
         CKParameterOut *param = (CKParameterOut *) *it;
+        if (!param) continue;
+
         if (!(param->GetObjectFlags() & CK_OBJECT_NAMESHARED)) {
             param->SetOwner(this);
 
@@ -2767,6 +2775,8 @@ void CKBehavior::HierarchyPostLoad() {
     paramIndex = 0;
     for (auto it = m_LocalParameter.Begin(); it != m_LocalParameter.End(); ++it, ++paramIndex) {
         CKParameterLocal *param = (CKParameterLocal *) *it;
+        if (!param) continue;
+
         param->SetOwner(this);
 
         if (proto) {
@@ -2781,6 +2791,8 @@ void CKBehavior::HierarchyPostLoad() {
     int ioIndex = 0;
     for (auto it = m_InputArray.Begin(); it != m_InputArray.End(); ++it, ++ioIndex) {
         CKBehaviorIO *io = (CKBehaviorIO *) *it;
+        if (!io) continue;
+
         io->SetOwner(this);
 
         if (proto) {
@@ -2795,6 +2807,8 @@ void CKBehavior::HierarchyPostLoad() {
     ioIndex = 0;
     for (auto it = m_OutputArray.Begin(); it != m_OutputArray.End(); ++it, ++ioIndex) {
         CKBehaviorIO *io = (CKBehaviorIO *) *it;
+        if (!io) continue;
+
         io->SetOwner(this);
 
         if (proto) {
@@ -2810,9 +2824,11 @@ void CKBehavior::HierarchyPostLoad() {
         // Handle sub-behaviors
         for (XObjectPointerArray::Iterator it = m_GraphData->m_SubBehaviors.Begin(); it != m_GraphData->m_SubBehaviors.End(); ++it) {
             CKBehavior *subBeh = (CKBehavior *) *it;
-            subBeh->SetParent(this);
-            subBeh->m_Flags &= ~CKBEHAVIOR_DEACTIVATENEXTFRAME;
-            subBeh->HierarchyPostLoad();
+            if (subBeh) {
+                subBeh->SetParent(this);
+                subBeh->m_Flags &= ~CKBEHAVIOR_DEACTIVATENEXTFRAME;
+                subBeh->HierarchyPostLoad();
+            }
         }
 
         SortSubs();
@@ -2820,8 +2836,10 @@ void CKBehavior::HierarchyPostLoad() {
         // Update parameter operations
         for (XObjectPointerArray::Iterator it = m_GraphData->m_Operations.Begin(); it != m_GraphData->m_Operations.End(); ++it) {
             CKParameterOperation *op = (CKParameterOperation *) *it;
-            op->SetOwner(this);
-            op->Update();
+            if (op) {
+                op->SetOwner(this);
+                op->Update();
+            }
         }
     }
 }
