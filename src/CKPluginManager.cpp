@@ -218,6 +218,9 @@ CKPluginEntry *CKPluginManager::FindComponent(CKGUID Component, int catIdx) {
         return nullptr;
     }
 
+    if (catIdx >= m_PluginCategories.Size())
+        return nullptr;
+
     CKPluginCategory &cat = m_PluginCategories[catIdx];
     for (XArray<CKPluginEntry *>::Iterator eit = cat.m_Entries.Begin(); eit != cat.m_Entries.End(); ++eit) {
         if ((*eit)->m_PluginInfo.m_GUID == Component) {
@@ -272,6 +275,8 @@ int CKPluginManager::GetCategoryCount() {
 }
 
 CKSTRING CKPluginManager::GetCategoryName(int catIdx) {
+    if (catIdx < 0 || catIdx >= m_PluginCategories.Size())
+        return nullptr;
     return m_PluginCategories[catIdx].m_Name.Str();
 }
 
@@ -395,7 +400,9 @@ CKERROR CKPluginManager::ReLoadPluginDll(int PluginDllIdx) {
                 case CKPLUGIN_SOUND_READER:
                 case CKPLUGIN_MODEL_READER:
                 case CKPLUGIN_MOVIE_READER: {
-                    entry->m_ReadersInfo->m_GetReaderFct = (CKReaderGetReaderFunction) shl.GetFunctionPtr("CKGetReader");
+                    if (entry->m_ReadersInfo) {
+                        entry->m_ReadersInfo->m_GetReaderFct = (CKReaderGetReaderFunction) shl.GetFunctionPtr("CKGetReader");
+                    }
                     break;
                 }
                 case CKPLUGIN_BEHAVIOR_DLL: {
@@ -415,11 +422,18 @@ CKERROR CKPluginManager::ReLoadPluginDll(int PluginDllIdx) {
 }
 
 int CKPluginManager::GetPluginCount(int catIdx) {
+    if (catIdx < 0 || catIdx >= m_PluginCategories.Size())
+        return 0;
     return m_PluginCategories[catIdx].m_Entries.Size();
 }
 
 CKPluginEntry *CKPluginManager::GetPluginInfo(int catIdx, int PluginIdx) {
-    return m_PluginCategories[catIdx].m_Entries[PluginIdx];
+    if (catIdx < 0 || catIdx >= m_PluginCategories.Size())
+        return nullptr;
+    CKPluginCategory &cat = m_PluginCategories[catIdx];
+    if (PluginIdx < 0 || PluginIdx >= cat.m_Entries.Size())
+        return nullptr;
+    return cat.m_Entries[PluginIdx];
 }
 
 CKBOOL CKPluginManager::SetReaderOptionData(CKContext *context, void *memdata, CKParameterOut *Param, CKFileExtension ext, CKGUID *guid) {
@@ -1072,6 +1086,9 @@ CKDataReader *CKPluginManager::EXTFindReader(CKFileExtension &ext, int Category)
     }
 
     if (!entry)
+        return nullptr;
+
+    if (!entry->m_ReadersInfo)
         return nullptr;
 
     auto *fct = entry->m_ReadersInfo->m_GetReaderFct;
