@@ -891,7 +891,7 @@ public:
      * @brief Requests that the string capacity be at least enough to contain `iLength` characters.
      * @param iLength The new capacity of the string.
      */
-    VX_EXPORT void Reserve(XDWORD iLength);
+    VX_EXPORT void Reserve(XWORD iLength);
 
     /**
      * @brief Resizes the string to a length of `iLength` characters.

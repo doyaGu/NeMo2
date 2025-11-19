@@ -484,7 +484,7 @@ XString &XString::operator<<(float iValue) {
 //     return *this;
 // }
 
-void XString::Reserve(XDWORD iLength) {
+void XString::Reserve(XWORD iLength) {
     if (iLength + 1 > m_Allocated) {
         m_Allocated = iLength + 1;
         char *buf = new char[m_Allocated];
