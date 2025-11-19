@@ -14,13 +14,13 @@ CKBOOL XObjectPointerArray::Check() {
     int i;
     for (i = 0; i < size; ++i) {
         CKObject *obj = *it++;
-        if (obj->IsToBeDeleted())
+        if (!obj || obj->IsToBeDeleted())
             break;
     }
 
     if (i + 1 < size) {
         for (int j = size - 1; j > 0; --j) {
-            if (!(*it)->IsToBeDeleted())
+            if (*it && !(*it)->IsToBeDeleted())
                 m_Begin[i++] = *it;
             ++it;
         }
@@ -59,7 +59,8 @@ void XObjectPointerArray::Remap(CKDependenciesContext &context) {
 void XSObjectArray::ConvertFromObjects(const XSArray<CKObject *> &array) {
     Clear();
     for (auto it = array.Begin(); it != array.End(); ++it) {
-        PushBack((*it)->GetID());
+        if (it && *it)
+            PushBack((*it)->GetID());
     }
 }
 
@@ -83,6 +84,9 @@ CKBOOL XSObjectArray::AddIfNotHere(CK_ID id) {
 }
 
 CKBOOL XSObjectArray::AddIfNotHere(CKObject *obj) {
+    if (!obj)
+        return FALSE;
+
     CK_ID id = obj->GetID();
     for (CK_ID *it = m_Begin; it != m_End; ++it) {
         if (*it == id)
@@ -174,7 +178,8 @@ void XObjectArray::ConvertFromObjects(const XObjectPointerArray &array) {
     Clear();
     Reserve(array.Size());
     for (auto it = array.Begin(); it != array.End(); ++it) {
-        PushBack((*it)->GetID());
+        if (it && *it)
+            PushBack((*it)->GetID());
     }
 }
 
@@ -197,6 +202,9 @@ CKBOOL XObjectArray::AddIfNotHere(CK_ID id) {
 }
 
 CKBOOL XObjectArray::AddIfNotHere(CKObject *obj) {
+    if (!obj)
+        return FALSE;
+
     CK_ID id = obj->GetID();
     for (CK_ID *it = m_Begin; it != m_End; ++it) {
         if (*it == id)
@@ -267,13 +275,13 @@ CKBOOL XSObjectPointerArray::Check() {
     int i;
     for (i = 0; i < size; ++i) {
         CKObject *obj = *it++;
-        if (obj->IsToBeDeleted())
+        if (!obj || obj->IsToBeDeleted())
             break;
     }
 
     if (i + 1 < size) {
         for (int j = size - 1; j > 0; --j) {
-            if (!(*it)->IsToBeDeleted())
+            if (*it && !(*it)->IsToBeDeleted())
                 m_Begin[i++] = *it;
             ++it;
         }
