@@ -196,6 +196,8 @@ CKSceneObjectDesc *CKScene::GetSceneObjectDesc(CKSceneObject *o) {
 }
 
 void CKScene::Activate(CKSceneObject *o, CKBOOL Reset) {
+    if (!o) return;
+
     if (CKIsChildClassOf(o, CKCID_BEHAVIOR)) {
         ActivateScript((CKBehavior *) o, TRUE, Reset);
     } else if (CKIsChildClassOf(o, CKCID_BEOBJECT)) {
@@ -204,6 +206,8 @@ void CKScene::Activate(CKSceneObject *o, CKBOOL Reset) {
 }
 
 void CKScene::DeActivate(CKSceneObject *o) {
+    if (!o) return;
+
     if (CKIsChildClassOf(o, CKCID_BEHAVIOR)) {
         ActivateScript((CKBehavior *) o, FALSE, FALSE);
     } else if (CKIsChildClassOf(o, CKCID_BEOBJECT)) {
@@ -522,7 +526,8 @@ void CKScene::Init(XObjectPointerArray &renderContexts, CK_SCENEOBJECTACTIVITY_F
 
     for (XObjectPointerArray::Iterator rit = renderContexts.Begin(); rit != renderContexts.End(); ++rit) {
         CKRenderContext *rc = (CKRenderContext *)*rit;
-        rc->AddRemoveSequence(TRUE);
+        if (rc)
+            rc->AddRemoveSequence(TRUE);
     }
 
     for (CKSceneObjectIterator it = GetObjectIterator(); !it.End(); it++) {
@@ -534,7 +539,8 @@ void CKScene::Init(XObjectPointerArray &renderContexts, CK_SCENEOBJECTACTIVITY_F
             CKRenderObject *renderObj = (CKRenderObject *)obj;
             for (XObjectPointerArray::Iterator rit = renderContexts.Begin(); rit != renderContexts.End(); ++rit) {
                 CKRenderContext *rc = (CKRenderContext *)*rit;
-                rc->AddObject(renderObj);
+                if (rc)
+                    rc->AddObject(renderObj);
             }
         }
 
@@ -586,7 +592,8 @@ void CKScene::Init(XObjectPointerArray &renderContexts, CK_SCENEOBJECTACTIVITY_F
 void CKScene::Stop(XObjectPointerArray &renderContexts, CKBOOL reset) {
     for (XObjectPointerArray::Iterator rit = renderContexts.Begin(); rit != renderContexts.End(); ++rit) {
         CKRenderContext *rc = (CKRenderContext *)*rit;
-        rc->AddRemoveSequence(TRUE);
+        if (rc)
+            rc->AddRemoveSequence(TRUE);
     }
 
     for (CKSceneObjectIterator it = GetObjectIterator(); !it.End(); it++) {
@@ -596,7 +603,8 @@ void CKScene::Stop(XObjectPointerArray &renderContexts, CKBOOL reset) {
             CKRenderObject *renderObj = (CKRenderObject *) obj;
             for (XObjectPointerArray::Iterator rit = renderContexts.Begin(); rit != renderContexts.End(); ++rit) {
                 CKRenderContext *rc = (CKRenderContext *)*rit;
-                rc->RemoveObject(renderObj);
+                if (rc)
+                    rc->RemoveObject(renderObj);
             }
 
             if (obj->GetClassID() == CKCID_PLACE) {
@@ -605,7 +613,8 @@ void CKScene::Stop(XObjectPointerArray &renderContexts, CKBOOL reset) {
                     CK3dEntity *child = place->GetChild(i);
                     for (XObjectPointerArray::Iterator rit = renderContexts.Begin(); rit != renderContexts.End(); ++rit) {
                         CKRenderContext *rc = (CKRenderContext *)*rit;
-                        rc->RemoveObject(child);
+                        if (rc)
+                            rc->RemoveObject(child);
                     }
                 }
             }
@@ -615,9 +624,11 @@ void CKScene::Stop(XObjectPointerArray &renderContexts, CKBOOL reset) {
     if (reset) {
         for (XObjectPointerArray::Iterator rit = renderContexts.Begin(); rit != renderContexts.End(); ++rit) {
             CKRenderContext *rc = (CKRenderContext *)*rit;
-            rc->AddRemoveSequence(FALSE);
+            if (rc)
+                rc->AddRemoveSequence(FALSE);
         }
     }
+
 }
 
 void CKScene::Launch() {
