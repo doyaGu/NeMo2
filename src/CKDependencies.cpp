@@ -21,6 +21,8 @@ int CKDependenciesContext::GetObjectsCount() {
 }
 
 CKObject *CKDependenciesContext::GetObjects(int i) {
+    if (i < 0 || i >= m_Objects.Size())
+        return nullptr;
     return m_CKContext->GetObject(m_Objects[i]);
 }
 
@@ -180,9 +182,11 @@ void CKDependenciesContext::Clear() {
 
 CKERROR CKDependenciesContext::FinishPrepareDependencies(CKObject *iMySelf, CK_CLASSID Cid) {
     if (iMySelf->GetClassID() == Cid && m_Dependencies) {
-        CKObject *obj = m_DynamicObjects.Back();
-        if (obj)
-            m_Dependencies->Remove(obj->GetID());
+        if (!m_DynamicObjects.IsEmpty()) {
+            CKObject *obj = m_DynamicObjects.Back();
+            if (obj)
+                m_Dependencies->Remove(obj->GetID());
+        }
     }
     return CK_OK;
 }
