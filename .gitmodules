@@ -4,9 +4,6 @@
 [submodule "deps/spdlog"]
 	path = deps/spdlog
 	url = https://github.com/gabime/spdlog.git
-[submodule "deps/cpp-dump"]
-	path = deps/cpp-dump
-	url = https://github.com/philip82148/cpp-dump.git
 [submodule "deps/yyjson"]
 	path = deps/yyjson
 	url = https://github.com/ibireme/yyjson.git
