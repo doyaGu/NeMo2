@@ -223,7 +223,7 @@ void CKStateChunk::WriteIdentifier(CKDWORD id) {
 }
 
 CKDWORD CKStateChunk::ReadIdentifier() {
-    if (m_ChunkParser->CurrentPos >= m_ChunkSize)
+    if (!m_ChunkParser || m_ChunkParser->CurrentPos >= m_ChunkSize)
         return 0;
     m_ChunkParser->PrevIdentifierPos = m_ChunkParser->CurrentPos;
     m_ChunkParser->CurrentPos += 2;
@@ -251,16 +251,8 @@ CKBOOL CKStateChunk::SeekIdentifier(CKDWORD identifier) {
                 return FALSE;
 
             i = m_Data[i + 1];
-            if (i == 0) {
-                while (i < m_ChunkSize && m_Data[i] != identifier) {
-                    if (i + 1 >= m_ChunkSize)
-                        return FALSE;
-
-                    i = m_Data[i + 1];
-                    if (i == j)
-                        return FALSE;
-                }
-            }
+            if (i == 0)
+                return FALSE;
         }
     } else {
         i = 0;
@@ -269,7 +261,7 @@ CKBOOL CKStateChunk::SeekIdentifier(CKDWORD identifier) {
                 return FALSE;
 
             i = m_Data[i + 1];
-            if (i == j)
+            if (i == 0)
                 return FALSE;
         }
     }
@@ -551,6 +543,8 @@ int CKStateChunk::ReadArray_LEndian16(void **array) {
 }
 
 int CKStateChunk::ReadManagerIntSequence() {
+    if (!m_ChunkParser || m_ChunkParser->CurrentPos >= m_ChunkSize)
+        return 0;
     return m_Data[m_ChunkParser->CurrentPos++];
 }
 
@@ -881,6 +875,9 @@ void CKStateChunk::StartSubChunkSequence(int count) {
 }
 
 int CKStateChunk::StartReadSequence() {
+    if (!m_ChunkParser || m_ChunkParser->CurrentPos >= m_ChunkSize)
+        return 0;
+
     return m_Data[m_ChunkParser->CurrentPos++];
 }
 
@@ -1015,7 +1012,7 @@ void CKStateChunk::WriteByte(CKCHAR byte) {
 }
 
 CKBYTE CKStateChunk::ReadByte() {
-    if (m_ChunkParser->CurrentPos >= m_ChunkSize)
+    if (!m_ChunkParser || m_ChunkParser->CurrentPos >= m_ChunkSize)
         return 0;
     return m_Data[m_ChunkParser->CurrentPos++];
 }
@@ -1026,7 +1023,7 @@ void CKStateChunk::WriteWord(CKWORD data) {
 }
 
 CKWORD CKStateChunk::ReadWord() {
-    if (m_ChunkParser->CurrentPos >= m_ChunkSize)
+    if (!m_ChunkParser || m_ChunkParser->CurrentPos >= m_ChunkSize)
         return 0;
     return m_Data[m_ChunkParser->CurrentPos++];
 }
@@ -1069,7 +1066,7 @@ void CKStateChunk::WriteGuid(CKGUID data) {
 
 CKGUID CKStateChunk::ReadGuid() {
     CKGUID guid;
-    if (m_ChunkParser->CurrentPos >= m_ChunkSize)
+    if (m_ChunkParser->CurrentPos + 2 > m_ChunkSize)
         return guid;
     guid.d1 = m_Data[m_ChunkParser->CurrentPos++];
     guid.d2 = m_Data[m_ChunkParser->CurrentPos++];
@@ -1275,14 +1272,15 @@ void CKStateChunk::WriteVector(const VxVector *v) {
 }
 
 void CKStateChunk::ReadVector(VxVector &v) {
-    if (!m_ChunkParser || m_ChunkParser->CurrentPos >= m_ChunkSize) {
+    const int vectorInts = sizeof(VxVector) / sizeof(int);
+    if (!m_ChunkParser || m_ChunkParser->CurrentPos + vectorInts > m_ChunkSize) {
         if (m_File)
             m_File->m_Context->OutputToConsole("Chunk Read error");
         return;
     }
 
     memcpy(&v, &m_Data[m_ChunkParser->CurrentPos], sizeof(VxVector));
-    m_ChunkParser->CurrentPos += sizeof(VxVector) / sizeof(int);
+    m_ChunkParser->CurrentPos += vectorInts;
 }
 
 void CKStateChunk::ReadVector(VxVector *v) {
@@ -1297,14 +1295,15 @@ void CKStateChunk::WriteMatrix(const VxMatrix &mat) {
 }
 
 void CKStateChunk::ReadMatrix(VxMatrix &mat) {
-    if (!m_ChunkParser || m_ChunkParser->CurrentPos >= m_ChunkSize) {
+    const int matrixInts = sizeof(VxMatrix) / sizeof(int);  // 16 ints
+    if (!m_ChunkParser || m_ChunkParser->CurrentPos + matrixInts > m_ChunkSize) {
         if (m_File)
             m_File->m_Context->OutputToConsole("Chunk Read error");
         return;
     }
 
     memcpy(&mat, &m_Data[m_ChunkParser->CurrentPos], sizeof(VxMatrix));
-    m_ChunkParser->CurrentPos += sizeof(VxMatrix) / sizeof(int);
+    m_ChunkParser->CurrentPos += matrixInts;
 }
 
 int CKStateChunk::ConvertToBuffer(void *buffer) {
@@ -1361,10 +1360,15 @@ CKBOOL CKStateChunk::ConvertFromBuffer(void *buffer) {
 
     Clear();
     int val = buf[pos++];
-    m_DataVersion = (short) (val & 0x0000FFFF);
-    m_DataVersion &= 0x00FF;
-    m_ChunkVersion = (short) ((val & 0xFFFF0000) >> 16);
-    m_ChunkVersion &= 0x00FF;
+
+    // Extract raw version data - do NOT mask off high bytes yet
+    // as VERSION3/4 formats encode options and classID in the high bytes
+    int rawDataVersion = (val & 0x0000FFFF);
+    int rawChunkVersion = ((val & 0xFFFF0000) >> 16);
+
+    // For older formats, only the low byte is the actual version
+    m_DataVersion = (short) (rawDataVersion & 0x00FF);
+    m_ChunkVersion = (short) (rawChunkVersion & 0x00FF);
 
     if (m_ChunkVersion < CHUNK_VERSION2) {
         m_ChunkClassID = buf[pos++];
@@ -1457,14 +1461,14 @@ CKBOOL CKStateChunk::ConvertFromBuffer(void *buffer) {
         m_File = nullptr;
         return TRUE;
     } else if (m_ChunkVersion <= CHUNK_VERSION4) {
-        m_DataVersion = (short) (val & 0x0000FFFF);
-        m_ChunkVersion = (short) ((val & 0xFFFF0000) >> 16);
+        // VERSION3/4 format packs data as:
+        // [ChunkVersion(high8:options, low8:version)][DataVersion(high8:classID, low8:version)]
 
-        CKBYTE chunkOptions = (m_ChunkVersion & 0xFF00) >> 8;
+        // Extract options and classID from the high bytes BEFORE they were masked
+        CKBYTE chunkOptions = (rawChunkVersion & 0xFF00) >> 8;
+        m_ChunkClassID = (rawDataVersion & 0xFF00) >> 8;
 
-        m_ChunkClassID = (m_DataVersion & 0xFF00) >> 8;
         m_ChunkSize = buf[pos++];
-
         if (m_ChunkSize != 0) {
             m_Data = new int[m_ChunkSize];
             if (m_Data) {
@@ -1518,8 +1522,6 @@ CKBOOL CKStateChunk::ConvertFromBuffer(void *buffer) {
             }
         }
 
-        m_DataVersion &= 0x00FF;
-        m_ChunkVersion &= 0x00FF;
         return TRUE;
     }
 
