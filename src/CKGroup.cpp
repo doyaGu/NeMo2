@@ -52,6 +52,9 @@ CKBeObject *CKGroup::RemoveObject(int pos) {
 }
 
 void CKGroup::RemoveObject(CKBeObject *obj) {
+    if (!obj)
+        return;
+
     if (m_ObjectArray.Remove(obj)) {
         obj->RemoveFromGroup(this);
         m_ClassIdUpdated = FALSE;
@@ -59,7 +62,7 @@ void CKGroup::RemoveObject(CKBeObject *obj) {
 }
 
 void CKGroup::Clear() {
-    for (int i = 0; i < m_ObjectArray.Size(); ++i) {
+    for (int i = m_ObjectArray.Size() - 1; i >= 0; --i) {
         CKBeObject *o = (CKBeObject *)m_ObjectArray[i];
         if (o) {
             o->RemoveFromGroup(this);
@@ -218,15 +221,20 @@ CKERROR CKGroup::Load(CKStateChunk *chunk, CKFile *file) {
 void CKGroup::PostLoad() {
     for (XObjectPointerArray::Iterator it = m_ObjectArray.Begin(); it != m_ObjectArray.End();) {
         CKBeObject *o = (CKBeObject *)*it;
-        if (o && CKIsChildClassOf(o, CKCID_BEOBJECT)) {
-            if (!o->IsInGroup(this)) {
-                o->AddToGroup(this);
-            }
-            ++it;
-        } else {
+        if (!o || !CKIsChildClassOf(o, CKCID_BEOBJECT)) {
             it = m_ObjectArray.Remove(it);
+        } else {
+            ++it;
         }
     }
+
+    for (XObjectPointerArray::Iterator it = m_ObjectArray.Begin(); it != m_ObjectArray.End(); ++it) {
+        CKBeObject *o = (CKBeObject *)*it;
+        if (!o->IsInGroup(this)) {
+            o->AddToGroup(this);
+        }
+    }
+
     CKObject::PostLoad();
 }
 
