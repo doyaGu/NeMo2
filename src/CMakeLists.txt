@@ -280,7 +280,10 @@ add_library(VxMath SHARED
 )
 
 # Set target properties
-set_target_properties(VxMath PROPERTIES OUTPUT_NAME "VxMath")
+set_target_properties(VxMath PROPERTIES
+        OUTPUT_NAME "VxMath"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
 
 # Compile definitions
 target_compile_definitions(VxMath PRIVATE VX_API)
@@ -311,7 +314,10 @@ add_library(CK2 SHARED
 # Add library alias for consistent usage
 add_library(NeMo2::CK2 ALIAS CK2)
 
-set_target_properties(CK2 PROPERTIES OUTPUT_NAME "CK2")
+set_target_properties(CK2 PROPERTIES
+        OUTPUT_NAME "CK2"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
 
 # Compile definitions
 target_compile_definitions(CK2 PRIVATE CK_API)
