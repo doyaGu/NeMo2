@@ -48,14 +48,15 @@ int CKObject::CanBeHide() {
 }
 
 CKObject::CKObject(CKContext *Context, CKSTRING name) {
-    if (name)
-        SetName(name);
-    else
-        m_Name = nullptr;
-
+    m_Name = nullptr;
     m_ID = 0;
     m_ObjectFlags = CK_OBJECT_VISIBLE;
     m_Context = Context;
+
+    if (name) {
+        m_Name = CKStrdup(name);
+    }
+
     if (m_Context) {
         m_ID = m_Context->m_ObjectManager->RegisterObject(this);
     }
