@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include "Player.h"
-#include "Logger.h"
 
 class PlayerTest : public ::testing::Test {
 protected:
