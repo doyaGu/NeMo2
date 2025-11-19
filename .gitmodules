@@ -10,6 +10,3 @@
 [submodule "deps/stb"]
 	path = deps/stb
 	url = https://github.com/nothings/stb.git
-[submodule "deps/cpptrace"]
-	path = deps/cpptrace
-	url = https://github.com/jeremy-rifkin/cpptrace.git
