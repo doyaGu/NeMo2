@@ -40,14 +40,13 @@ void CKTimeManager::SetMaximumDeltaTime(float DtMax) {
 }
 
 void CKTimeManager::GetTimeToWaitForLimits(float &TimeBeforeRender, float &TimeBeforeBeh) {
-    float timeBeforeRender = TimeBeforeRender;
     if (m_LimitOptions & (CK_FRAMERATE_SYNC | CK_FRAMERATE_FREE))
         TimeBeforeRender = 0.0f;
     else
         TimeBeforeRender = m_LimitFPSDeltaTime - m_FpsChrono.Current();
 
     if (m_LimitOptions & CK_BEHRATE_SYNC)
-        TimeBeforeBeh = timeBeforeRender;
+        TimeBeforeBeh = TimeBeforeRender;
     else
         TimeBeforeBeh = m_LimitBehDeltaTime - m_BehChrono.Current();
 }
@@ -146,7 +145,9 @@ CKERROR CKTimeManager::LoadData(CKStateChunk *chunk, CKFile *LoadedFile) {
     {
         SetFrameRateLimit(chunk->ReadFloat());
         SetBehavioralRateLimit(chunk->ReadFloat());
-        SetMaximumDeltaTime(1000.0f / chunk->ReadFloat());
+        float savedRate = chunk->ReadFloat();
+        if (savedRate > 0.0f)
+            SetMaximumDeltaTime(1000.0f / savedRate);
         m_TimeScaleFactor = chunk->ReadFloat();
         m_LimitOptions = chunk->ReadDword();
         if (size > 20)
@@ -160,7 +161,7 @@ CKERROR CKTimeManager::LoadData(CKStateChunk *chunk, CKFile *LoadedFile) {
 
 CKStateChunk *CKTimeManager::SaveData(CKFile *SavedFile) {
     if (SavedFile->m_IndexByClassId[CKCID_LEVEL].Size() == 0)
-        return CK_OK;
+        return nullptr;
 
     CKStateChunk *chunk = CreateCKStateChunk(CKCID_OBJECT, SavedFile);
     if (chunk)
@@ -176,7 +177,7 @@ CKStateChunk *CKTimeManager::SaveData(CKFile *SavedFile) {
         chunk->CloseChunk();
     }
 
-    return CK_OK;
+    return chunk;
 }
 
 CKTimeManager::CKTimeManager(CKContext *Context) : CKBaseManager(Context, TIME_MANAGER_GUID, "Time Manager") {
