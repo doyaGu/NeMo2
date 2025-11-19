@@ -15,7 +15,7 @@ jobs:
         configuration: [Release, Debug]
 
     env:
-      PROJECT_NAME: CK2
+      PROJECT_NAME: NeMo2
       BASE_BUILD_DIR: ${{ github.workspace }}/build
       BASE_DIST_DIR: ${{ github.workspace }}/dist
 
