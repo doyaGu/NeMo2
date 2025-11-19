@@ -252,8 +252,11 @@ CKERROR CKBeObject::RemoveAllScripts() {
 
     for (XObjectPointerArray::Iterator it = m_ScriptArray->Begin(); it != m_ScriptArray->End(); ++it) {
         CKBehavior *script = (CKBehavior *) *it;
-        if (script->GetFlags() & CKBEHAVIOR_SCRIPT)
-            RemoveFromSelfScenes(script);
+        if (script) {
+            script->SetOwner(nullptr, TRUE);
+            if (script->GetFlags() & CKBEHAVIOR_SCRIPT)
+                RemoveFromSelfScenes(script);
+        }
     }
 
     delete m_ScriptArray;
@@ -694,7 +697,7 @@ CKERROR CKBeObject::PrepareDependencies(CKDependenciesContext &context) {
             // Incremental mode: Process each script individually
             for (int i = 0; i < GetScriptCount(); ++i) {
                 CKBehavior *script = GetScript(i);
-                if (!(script->GetFlags() & CKBEHAVIOR_LOCKED)) {
+                if (script && !(script->GetFlags() & CKBEHAVIOR_LOCKED)) {
                     script->PrepareDependencies(context);
                 }
             }
@@ -878,7 +881,7 @@ void CKBeObject::AddToSelfScenes(CKSceneObject *o) {
     CK_ID *ids = m_Context->GetObjectsListByClassID(CKCID_SCENE);
     for (int i = 0; i < count; ++i) {
         CKScene *scene = (CKScene *) m_Context->GetObject(ids[i]);
-        if (IsInScene(scene)) {
+        if (scene && IsInScene(scene)) {
             o->AddToScene(scene, TRUE);
         }
     }
@@ -889,7 +892,7 @@ void CKBeObject::RemoveFromSelfScenes(CKSceneObject *o) {
     CK_ID *ids = m_Context->GetObjectsListByClassID(CKCID_SCENE);
     for (int i = 0; i < count; ++i) {
         CKScene *scene = (CKScene *) m_Context->GetObject(ids[i]);
-        if (IsInScene(scene)) {
+        if (scene && IsInScene(scene)) {
             o->RemoveFromScene(scene, TRUE);
         }
     }
@@ -954,7 +957,8 @@ void CKBeObject::ResetExecutionTime() {
         XObjectPointerArray &array = *m_ScriptArray;
         for (int i = 0; i < array.Size(); ++i) {
             CKBehavior *beh = (CKBehavior *) array[i];
-            beh->ResetExecutionTime();
+            if (beh)
+                beh->ResetExecutionTime();
         }
     }
 }
