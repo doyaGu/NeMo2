@@ -64,12 +64,13 @@ CKBOOL CKDebugContext::DebugStep() {
                 CK_ID id = ScriptsToExecute.RemoveFront();
                 CKBehavior *beh = (CKBehavior *) m_Context->GetObject(id);
                 CurrentScript = beh;
-                if (beh) {
-                    CK_BEHAVIOR_FLAGS flags = beh->GetFlags();
-                    if ((flags & (CKBEHAVIOR_ACTIVATENEXTFRAME | CKBEHAVIOR_DEACTIVATENEXTFRAME)) != 0) {
-                        CurrentScript->Activate(flags & CKBEHAVIOR_ACTIVATENEXTFRAME, flags & CKBEHAVIOR_RESETNEXTFRAME);
-                        CurrentScript->ModifyFlags(0, CKBEHAVIOR_ACTIVATENEXTFRAME | CKBEHAVIOR_RESETNEXTFRAME | CKBEHAVIOR_DEACTIVATENEXTFRAME);
-                    }
+                if (!beh)
+                    continue;
+
+                CK_BEHAVIOR_FLAGS flags = beh->GetFlags();
+                if ((flags & (CKBEHAVIOR_ACTIVATENEXTFRAME | CKBEHAVIOR_DEACTIVATENEXTFRAME)) != 0) {
+                    CurrentScript->Activate(flags & CKBEHAVIOR_ACTIVATENEXTFRAME, flags & CKBEHAVIOR_RESETNEXTFRAME);
+                    CurrentScript->ModifyFlags(0, CKBEHAVIOR_ACTIVATENEXTFRAME | CKBEHAVIOR_RESETNEXTFRAME | CKBEHAVIOR_DEACTIVATENEXTFRAME);
                 }
                 if (CurrentScript->IsActive())
                     break;
