@@ -455,6 +455,8 @@ CK_DEPENDENCIES_OPMODE GetOperationModeFromGUID(CKParameter *param) {
 void CKDependenciesSaver(CKParameter *param, CKStateChunk **chunk, CKBOOL load) {
     CKDependencies *dependencies = nullptr;
     param->GetValue(&dependencies);
+    if (!dependencies)
+        return;
 
     if (!load) {
         // Save mode
@@ -521,7 +523,8 @@ void CKDependenciesCopier(CKParameter *dest, CKParameter *src) {
     src->GetValue(&srcDeps);
     CKDependencies *destDeps = nullptr;
     dest->GetValue(&destDeps);
-    *destDeps = *srcDeps;
+    if (srcDeps && destDeps)
+        *destDeps = *srcDeps;
 }
 
 CKERROR CKStateChunkCreator(CKParameter *param) {
@@ -558,7 +561,8 @@ void CKStateChunkCopier(CKParameter *dest, CKParameter *src) {
     src->GetValue(&srcChunk);
     CKStateChunk *destChunk = nullptr;
     dest->GetValue(&destChunk);
-    destChunk->Clone(srcChunk);
+    if (destChunk)
+        destChunk->Clone(srcChunk);
 }
 
 CKERROR CKCollectionCreator(CKParameter *param) {
