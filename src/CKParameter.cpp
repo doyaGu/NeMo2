@@ -115,7 +115,7 @@ void CKParameter::SetType(CKParameterType type) {
     if (oldType == newType) return; // Already this type
 
     // Fast compatible path: old type has no custom life-cycle
-    if (oldType && !newType->CreateDefaultFunction && !oldType->DeleteFunction) {
+    if (oldType && !oldType->CreateDefaultFunction && !oldType->DeleteFunction) {
         // Ensure derivation tables are current
         if (!pm->m_DerivationMasksUpToDate)
             pm->UpdateDerivationTables();
@@ -469,9 +469,11 @@ CKERROR CKParameter::PrepareDependencies(CKDependenciesContext &context) {
         m_ParamType = nullptr;
     } else if (context.IsInMode(CK_DEPENDENCIES_BUILD)) {
         if (GetParameterClassID()) {
-            CKObject *object = m_Context->GetObject(*reinterpret_cast<CK_ID *>(m_Buffer));
-            if (object) {
-                object->PrepareDependencies(context);
+            if (m_Buffer) {
+                CKObject *object = m_Context->GetObject(*reinterpret_cast<CK_ID *>(m_Buffer));
+                if (object) {
+                    object->PrepareDependencies(context);
+                }
             }
         }
 
@@ -500,14 +502,19 @@ CKERROR CKParameter::RemapDependencies(CKDependenciesContext &context) {
     if (m_ParamType) {
         // If the parameter type has a class ID, remap buffer
         if (m_ParamType->Cid) {
-            CK_ID *id = (CK_ID *)m_Buffer;
-            CK_ID newID = context.RemapID(*id);
-            if (newID != 0) {
-                *id = newID;
+            if (m_Buffer) {
+                CK_ID *id = (CK_ID *)m_Buffer;
+                CK_ID newID = context.RemapID(*id);
+                if (newID != 0) {
+                    *id = newID;
+                }
             }
         } else if (m_ParamType->Guid == CKPGUID_OBJECTARRAY) {
-            XSObjectArray *objs = *(XSObjectArray **)m_Buffer;
-            objs->Remap(context);
+            if (m_Buffer) {
+                XSObjectArray *objs = *(XSObjectArray **)m_Buffer;
+                if (objs)
+                    objs->Remap(context);
+            }
         }
     }
 
