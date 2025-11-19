@@ -9,7 +9,8 @@ int CK2dCurvePoint::CurvePointSortFunc(const void *a, const void *b) {
 }
 
 void CK2dCurvePoint::NotifyUpdate() {
-    m_Curve->Update();
+    if (m_Curve)
+        m_Curve->Update();
 }
 
 void CK2dCurvePoint::Read(CKStateChunk *chunk) {
