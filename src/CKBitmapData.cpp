@@ -129,7 +129,7 @@ CKBOOL CKBitmapData::SaveImageAlpha(CKSTRING Name, int Slot) {
 
     char *fileExt = pathSplitter.GetExtension();
     if (fileExt && *fileExt) {
-        snprintf(extension, sizeof(extension), ".%s", fileExt);
+        snprintf(extension, sizeof(extension), "%s", fileExt);
     }
 
     CKFileExtension desiredExt(extension + 1); // Skip leading dot
@@ -189,7 +189,14 @@ CKBYTE *CKBitmapData::LockSurfacePtr(int Slot) {
     if (m_Slots.IsEmpty())
         return nullptr;
 
-    return (CKBYTE *)m_Slots[Slot]->m_DataBuffer;
+    if (Slot < 0 || Slot >= m_Slots.Size())
+        return nullptr;
+
+    CKBitmapSlot *slot = m_Slots[Slot];
+    if (!slot)
+        return nullptr;
+
+    return (CKBYTE *)slot->m_DataBuffer;
 }
 
 CKBOOL CKBitmapData::ReleaseSurfacePtr(int Slot) {
@@ -271,6 +278,8 @@ CKBOOL CKBitmapData::SetCurrentSlot(int Slot) {
 
     CKMovieReader *reader = m_MovieInfo->m_MovieReader;
     if (!reader) return FALSE;
+
+    if (m_Slots.IsEmpty()) return FALSE;
 
     CKBitmapSlot *targetSlot = m_Slots[0];
     if (!targetSlot || !targetSlot->m_DataBuffer) return FALSE;
@@ -417,6 +426,9 @@ CKBOOL CKBitmapData::ResizeImages(int Width, int Height) {
 CKBOOL CKBitmapData::LoadSlotImage(XString Name, int Slot) {
     CKPathSplitter splitter((CKSTRING)Name.CStr());
     CKSTRING extStr = splitter.GetExtension();
+    if (!extStr || *extStr == '\0')
+        return FALSE;
+
     CKFileExtension extension(extStr + 1);
     CKPluginManager *pm = CKGetPluginManager();
     CKBitmapReader *reader = pm->GetBitmapReader(extension);
@@ -638,8 +650,8 @@ CKBOOL CKBitmapData::SetSlotImage(int Slot, void *buffer, VxImageDescEx &bdesc) 
     VxDoBlit(bdesc, desc);
 
     m_BitmapFlags |= CKBITMAPDATA_FORCERESTORE;
-    delete (XBYTE *)buffer;
-    delete bdesc.ColorMap;
+    delete[] (XBYTE *)buffer;
+    delete[] bdesc.ColorMap;
     return TRUE;
 }
 
@@ -893,7 +905,7 @@ CKBOOL CKBitmapData::ReadFromChunk(CKStateChunk *chnk, CKContext *ctx, CKFile *f
         for (int i = 0; i < slotCount; ++i) {
             XString fileName;
             chnk->ReadString(fileName);
-            if (fileName.Length() > 1) {
+            if (fileName.Length() > 0) {
                 bool needsLoadingFromFile = !slotsProcessed.IsSet(i);
                 if (!anyDataBlockProcessed) {
                     needsLoadingFromFile = true;
