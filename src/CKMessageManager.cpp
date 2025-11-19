@@ -320,6 +320,11 @@ CKERROR CKMessageManager::PostProcess() {
             if (waitingList) {
                 for (CKWaitingObjectArray::Iterator it = waitingList->Begin(); it != waitingList->End();) {
                     CKBeObject *waitingBeObject = it->m_BeObject;
+                    if (!waitingBeObject) {
+                        ++it;
+                        continue;
+                    }
+
                     CKBOOL shouldActivate = FALSE;
 
                     // Check if this waiting object should receive the message
@@ -421,7 +426,14 @@ CKERROR CKMessageManager::SequenceToBeDeleted(CK_ID *objids, int count) {
 
         for (auto it = waitingList->Begin(); it != waitingList->End();) {
             CKWaitingObject &wo = *it;
-            if (wo.m_BeObject->IsToBeDeleted() || wo.m_Output->IsToBeDeleted()) {
+
+            CKBOOL shouldRemove = FALSE;
+            if (wo.m_BeObject && wo.m_BeObject->IsToBeDeleted())
+                shouldRemove = TRUE;
+            if (wo.m_Output && wo.m_Output->IsToBeDeleted())
+                shouldRemove = TRUE;
+
+            if (shouldRemove) {
                 it = waitingList->Remove(it);
             } else {
                 ++it;
