@@ -279,7 +279,7 @@ int CKCriticalSectionObject::GetMemoryOccupation() {
 }
 
 CKBOOL CKCriticalSectionObject::IsObjectUsed(CKObject *obj, CK_CLASSID cid) {
-    if (m_ObjectInSection == obj->GetID())
+    if (obj && m_ObjectInSection == obj->GetID())
         return TRUE;
     return CKObject::IsObjectUsed(obj, cid);
 }
