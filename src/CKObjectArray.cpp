@@ -46,7 +46,7 @@ CKBOOL CKObjectArray::PtrSeek(CKObject *obj) {
 
 CKBOOL CKObjectArray::IDSeek(CK_ID id) {
     Reset();
-    for (CK_ID dataId = GetDataId(); dataId != 0; Next()) {
+    for (CK_ID dataId = GetDataId(); dataId != 0; Next(), dataId = GetDataId()) {
         if (dataId == id)
             return TRUE;
     }
@@ -77,6 +77,12 @@ CKBOOL CKObjectArray::PositionSeek(int Pos) {
 
     if (Pos > m_Position) {
         do {
+            if (!m_Current->m_Next) {
+                m_Position = -1;
+                m_Current = nullptr;
+                return FALSE;
+            }
+
             m_Current = m_Current->m_Next;
         } while (++m_Position != Pos);
         return TRUE;
@@ -84,6 +90,11 @@ CKBOOL CKObjectArray::PositionSeek(int Pos) {
 
     if (Pos < m_Position) {
         do {
+            if (!m_Current->m_Prev) {
+                m_Position = -1;
+                m_Current = nullptr;
+                return FALSE;
+            }
             m_Current = m_Current->m_Prev;
         } while (--m_Position != Pos);
         return TRUE;
@@ -442,11 +453,11 @@ CKBOOL CKObjectArray::ListEmpty() {
 void CKObjectArray::SwapCurrentWithNext() {
     Node *node = m_Current;
     if (node) {
-        m_Next = node->m_Next;
-        if (m_Next) {
+        Node *nextNode = node->m_Next;
+        if (nextNode) {
             CK_ID id = node->m_Data;
-            node->m_Data = m_Next->m_Data;
-            m_Current->m_Next->m_Data = id;
+            node->m_Data = nextNode->m_Data;
+            nextNode->m_Data = id;
         }
     }
 }
