@@ -23,7 +23,13 @@ void PositionSource(
     if (entity) {
         entity->Transform(&worldPos, &position);
     }
-    VxVector velocity = (worldPos - lastPosition) * (timeDeltaMs * 0.001f);
+
+    VxVector velocity;
+    if (timeDeltaMs > 0.0f) {
+        velocity = (worldPos - lastPosition) / (timeDeltaMs * 0.001f);
+    } else {
+        velocity = VxVector(0.0f, 0.0f, 0.0f);
+    }
 
     if (entity) {
         entity->TransformVector(&worldDir, &direction);
