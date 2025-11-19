@@ -15,14 +15,24 @@ CK_CLASSID CKLevel::m_ClassID = CKCID_LEVEL;
 CKERROR CKLevel::AddObject(CKObject *obj) {
     if (!obj || !CKIsChildClassOf(obj, CKCID_SCENEOBJECT) || CKIsChildClassOf(obj, CKCID_LEVEL))
         return CKERR_INVALIDPARAMETER;
-    GetLevelScene()->AddObjectToScene((CKSceneObject *)obj);
+
+    CKScene *levelScene = GetLevelScene();
+    if (!levelScene)
+        return CKERR_INVALIDPARAMETER;
+
+    levelScene->AddObjectToScene((CKSceneObject *)obj);
     return CK_OK;
 }
 
 CKERROR CKLevel::RemoveObject(CKObject *obj) {
     if (!obj || !CKIsChildClassOf(obj, CKCID_SCENEOBJECT))
         return CKERR_INVALIDPARAMETER;
-    GetLevelScene()->RemoveObjectFromScene((CKSceneObject *)obj);
+
+    CKScene *levelScene = GetLevelScene();
+    if (!levelScene)
+        return CKERR_INVALIDPARAMETER;
+
+    levelScene->RemoveObjectFromScene((CKSceneObject *)obj);
     return CK_OK;
 }
 
@@ -47,7 +57,12 @@ void CKLevel::BeginRemoveSequence(CKBOOL Begin) {
 const XObjectPointerArray &CKLevel::ComputeObjectList(CK_CLASSID cid, CKBOOL derived) {
     if (CKIsChildClassOf(cid, CKCID_SCENE))
         return m_SceneList;
-    return GetLevelScene()->ComputeObjectList(cid, derived);
+
+    CKScene *levelScene = GetLevelScene();
+    if (!levelScene)
+        return m_SceneList;
+
+    return levelScene->ComputeObjectList(cid, derived);
 }
 
 CKERROR CKLevel::AddPlace(CKPlace *pl) {
@@ -69,8 +84,12 @@ CKPlace *CKLevel::RemovePlace(int pos) {
 }
 
 CKPlace *CKLevel::GetPlace(int pos) {
+    CKScene *levelScene = GetLevelScene();
+    if (!levelScene)
+        return nullptr;
+
     CKObjectArray *array = CreateCKObjectArray();
-    GetLevelScene()->ComputeObjectList(array, CKCID_PLACE);
+    levelScene->ComputeObjectList(array, CKCID_PLACE);
     CK_ID id = array->PositionFind(pos);
     CKPlace *pl = (CKPlace *)m_Context->GetObject(id);
     DeleteCKObjectArray(array);
@@ -78,8 +97,12 @@ CKPlace *CKLevel::GetPlace(int pos) {
 }
 
 int CKLevel::GetPlaceCount() {
+    CKScene *levelScene = GetLevelScene();
+    if (!levelScene)
+        return 0;
+
     CKObjectArray *array = CreateCKObjectArray();
-    GetLevelScene()->ComputeObjectList(array, CKCID_PLACE);
+    levelScene->ComputeObjectList(array, CKCID_PLACE);
     int count = array->GetCount();
     DeleteCKObjectArray(array);
     return count;
@@ -88,12 +111,13 @@ int CKLevel::GetPlaceCount() {
 CKERROR CKLevel::AddScene(CKScene *scn) {
     if (!scn)
         return CKERR_INVALIDPARAMETER;
-    scn->SetLevel(this);
-    scn->AddObjectToScene(this);
+
     for (auto it = m_SceneList.Begin(); it != m_SceneList.End(); ++it) {
         if (*it == scn)
             return CK_OK;
     }
+    scn->SetLevel(this);
+    scn->AddObjectToScene(this);
     m_SceneList.PushBack(scn);
     if (m_Context->m_UICallBackFct) {
         CKUICallbackStruct cbs;
@@ -119,6 +143,7 @@ CKScene *CKLevel::RemoveScene(int pos) {
         CKScene *scene = (CKScene *)m_SceneList[pos];
         m_SceneList.RemoveAt(pos);
         scene->SetLevel(nullptr);
+        scene->RemoveObjectFromScene(this);
         return scene;
     }
     return nullptr;
@@ -219,6 +244,8 @@ void CKLevel::AddRenderContext(CKRenderContext *dev, CKBOOL Main) {
 }
 
 void CKLevel::RemoveRenderContext(CKRenderContext *dev) {
+    if (!dev) return;
+
     m_RenderContextList.Remove(dev);
     dev->ChangeCurrentRenderOptions(0, CK_RENDER_PLAYERCONTEXT);
     if (m_Context->m_BehaviorContext.CurrentRenderContext == dev) {
@@ -449,7 +476,7 @@ CKERROR CKLevel::Load(CKStateChunk *chunk, CKFile *file) {
     const int inactiveManagerSize = chunk->SeekIdentifierAndReturnSize(CK_STATESAVE_LEVELINACTIVEMAN);
     if (inactiveManagerSize != -1) {
         const int inactiveManagerCount = inactiveManagerSize / (int)sizeof(CKGUID);
-        for (int i = inactiveManagerCount; i >= 0; --i) {
+        for (int i = 0; i < inactiveManagerCount; ++i) {
             CKGUID managerGuid = chunk->ReadGuid();
             CKBaseManager *manager = m_Context->GetManagerByGuid(managerGuid);
             m_Context->ActivateManager(manager, FALSE);
