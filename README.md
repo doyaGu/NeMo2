@@ -1,172 +1,180 @@
-# CK2 - Virtools Behavioral Engine
+# NeMo2
 
-CK2 is a modernized implementation of the Virtools Behavioral Engine, a comprehensive C++ framework for interactive 3D applications, multimedia content creation, and behavioral scripting. This project represents a clean-room reimplementation of the core Virtools SDK functionality with modern build systems and improved architecture.
+An open-source reimplementation of the Virtools game engine.
+
+## Overview
+
+Virtools was a commercial 3D game development environment and engine, widely used from the late 1990s to early 2010s for creating interactive 3D applications, games, and multimedia content. It was known for its visual programming approach using "building blocks" (behaviors).
+
+NeMo2 provides a reimplementation of the core Virtools libraries (CK2 and VxMath), enabling developers to:
+
+- Load and save Virtools file formats (.cmo, .nmo)
+- Work with Virtools objects, behaviors, and scenes
+- Access the Virtools math library and utility functions
+- Build applications that work with Virtools content
 
 ## Features
 
-- **Object-Oriented 3D Framework**: Complete hierarchy of 3D entities, meshes, cameras, lights, and materials
-- **Behavioral System**: Visual scripting engine with behaviors, parameters, and message passing
-- **Manager Architecture**: Modular subsystem management for rendering, input, sound, timing, and more
-- **Parameter System**: Type-safe parameter operations with automatic serialization
-- **Scene Management**: Hierarchical scene organization with levels, groups, and dependencies
-- **File I/O**: Save/load system with state chunk serialization
-- **Cross-Platform Math**: VxMath integration for vectors, matrices, and geometric operations
+### VxMath Library
 
-## Architecture
+- **Math Types:** Vectors (2D/3D/4D), Matrices, Quaternions, Planes, Rays, Spheres, OBB, Bounding Boxes, Frustums
+- **Geometry:** Intersection tests, distance calculations, frustum culling
+- **Image Processing:** Blit operations, mipmaps, resizing, normal/bump map conversion, pixel format conversions
+- **Containers:** XArray, XString, XHashTable, XSHashTable, XNHashTable, XList, XBitArray
+- **Utilities:** Memory pools, memory-mapped files, shared libraries, path parsing, directory parsing
+- **System:** Threads, mutexes, time profiling, processor detection
+- **Configuration:** VxConfiguration for settings management
 
-### Core Components
+### CK2 Library
 
-- **CKContext**: Central hub managing the entire engine ecosystem
-- **CKObject**: Base class for all engine objects with ID management and serialization
-- **CKBeObject**: Behavioral objects that can execute scripts and respond to messages
-- **CK3dEntity**: 3D objects with transformation matrices and hierarchical relationships
-- **CKBehavior**: Visual scripting behaviors with input/output parameters
-- **Managers**: Specialized subsystems (Object, Parameter, Behavior, Message, Time, etc.)
+- **Core Engine:**
 
-### Key Directories
+  - CKContext: Main interface for creating objects, managing scenes, loading/saving files
+  - Object management with unique IDs
+  - Class hierarchy system
 
-```
-├── include/          # Public API headers
-├── src/              # Implementation files
-├── deps/             # Third-party dependencies
-├── tests/            # Test suite and Player application
-├── cmake/            # CMake configuration modules
-└── build/            # Build output (generated)
-```
+- **Managers:**
+
+  - CKParameterManager, CKTimeManager, CKMessageManager
+  - CKBehaviorManager, CKAttributeManager, CKPluginManager
+  - CKPathManager, CKRenderManager, CKSoundManager
+  - CKInputManager, CKCollisionManager
+
+- **Objects:**
+
+  - CK3dEntity, CKCamera, CKLight (3D objects)
+  - CK2dEntity, CKSprite (2D objects)
+  - CKMesh, CKMaterial, CKTexture (Rendering assets)
+  - CKSound, CKWaveSound, CKMidiSound (Audio)
+  - CKBehavior (Visual scripting behaviors)
+  - CKScene, CKLevel, CKPlace, CKGroup (Scene organization)
+  - CKCharacter, CKAnimation (Character animation)
+
+- **File I/O:**
+  - Load/Save .cmo, .nmo files
+  - CKStateChunk for serialization
+  - Data compression support
+
+## Requirements
+
+- **Platform:** Windows only
+- **CMake:** Version 3.12 or higher
+- **C++ Standard:** C++17
+- **Compiler:** MSVC
 
 ## Building
 
-### Prerequisites
-
-- **Windows**: This project currently targets Windows only
-- **CMake**: Version 3.12 or higher
-- **Visual Studio**: 2017 or later (MSVC compiler)
-- **Git**: For dependency management
-
-### Quick Start
+### Clone the Repository
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd CK2
+git clone --recursive https://github.com/doyaGu/NeMo2.git
+cd NeMo2
+```
 
-# Configure the build
-cmake -B build
+If you already cloned without `--recursive`, initialize submodules:
 
-# Build the project
-cmake --build build
+```bash
+git submodule update --init --recursive
+```
 
-# Build with specific configuration
+### Build
+
+```bash
+# Configure (32-bit build for Virtools compatibility)
+cmake -A Win32 -B build -DCMAKE_BUILD_TYPE=Release
+
+# Build
 cmake --build build --config Release
+
+# Install (optional)
+cmake --install build --prefix install
 ```
 
 ### Build Options
 
-- `CK2_BUILD_TESTS=ON/OFF`: Build test suite and Player application (default: OFF)
+- `NEMO_BUILD_TESTS` - Build the test suite (default: ON)
+- `CMAKE_BUILD_TYPE` - Debug/Release/MinSizeRel/RelWithDebInfo
 
-### With Tests
+### Output
 
-```bash
-# Configure with tests enabled
-cmake -B build -DCK2_BUILD_TESTS=ON
+- **VxMath.dll** - Math library
+- **CK2.dll** - Core engine library
 
-# Build everything including tests
-cmake --build build
+## Usage
 
-# Run the test suite
-ctest --test-dir build
+### CMake Integration
 
-# Run the Player application
-./build/tests/Player.exe
+```cmake
+find_package(NeMo2 REQUIRED)
+target_link_libraries(your_target NeMo2::CK2 NeMo2::VxMath)
 ```
 
-## Testing
-
-The project includes a comprehensive test suite built with Google Test:
-
-```bash
-# Run all tests
-ctest --test-dir build --verbose
-
-# Run specific test
-./build/tests/PlayerTest.exe
-
-# Run the Player application (interactive)
-./build/tests/Player.exe
-```
-
-## API Overview
-
-### Basic Usage
+### Basic API Example
 
 ```cpp
 #include "CKAll.h"
 
-// Create a context (engine instance)
-CKContext* context = CKCreateContext();
+int main() {
+    // Initialize the engine
+    CKStartUp();
 
-// Create a 3D object
-CK3dEntity* entity = (CK3dEntity*)context->CreateObject(CKCID_3DENTITY, "MyObject");
+    // Create a context
+    CKContext *context;
+    CKCreateContext(&context, windowHandle, 0, 0);
 
-// Set position
-VxVector position(10.0f, 0.0f, 5.0f);
-entity->SetPosition(&position);
+    // Load a Virtools file
+    CKObjectArray *objects = CreateCKObjectArray();
+    context->Load("game.cmo", objects, CK_LOAD_DEFAULT);
 
-// Create and attach a behavior
-CKBehavior* behavior = (CKBehavior*)context->CreateObject(CKCID_BEHAVIOR, "MyBehavior");
-entity->AddBehavior(behavior);
+    // Process the engine
+    context->Play();
+    while (running) {
+        context->Process();
+    }
 
-// Clean up
-CKCloseContext(context);
+    // Cleanup
+    context->ClearAll();
+    CKCloseContext(context);
+    CKShutdown();
+
+    return 0;
+}
 ```
 
-### Manager Access
+## Testing
 
-```cpp
-// Get manager instances
-CKObjectManager* objMgr = context->GetObjectManager();
-CKParameterManager* paramMgr = context->GetParameterManager(); 
-CKBehaviorManager* behaviorMgr = context->GetBehaviorManager();
+The project includes a comprehensive test suite using GoogleTest.
 
-// Object operations
-CKObject* obj = objMgr->GetObject(objectId);
-int objCount = objMgr->GetObjectsCountByClassID(CKCID_3DENTITY);
+```bash
+cd build
+ctest --config Release
 ```
 
 ## Dependencies
 
-- **VxMath.lib**: Core mathematics library (vectors, matrices, quaternions)
-- **miniz**: Compression/decompression for file formats
-- **yyjson**: High-performance JSON parsing
-- **spdlog**: Fast C++ logging library
-- **cpp-dump**: Debug output and object inspection
-- **Google Test**: Unit testing framework (test builds only)
+Third-party dependencies are included as git submodules:
+
+- **miniz** - Compression library (MIT license)
+- **stb** - Image loading/processing (public domain)
+- **yyjson** - JSON parsing (MIT license)
+
+Test dependencies (fetched automatically via CMake FetchContent):
+
+- **GoogleTest** - v1.17.0
 
 ## Project Structure
 
-The codebase follows the original Virtools architecture with modern improvements:
-
-- Headers in `include/` define the public API
-- Implementations in `src/` provide the core functionality
-- Manager classes handle specialized subsystems
-- Object hierarchy provides polymorphic 3D entity system
-- Parameter system enables visual scripting workflows
-
-## Contributing
-
-1. Follow the existing code style and conventions
-2. Ensure all tests pass before submitting changes
-3. Add tests for new functionality
-4. Update documentation for public API changes
+```
+NeMo2/
+├── CMakeLists.txt          # Main CMake build configuration
+├── LICENSE                 # Apache License 2.0
+├── cmake/                  # CMake configuration files
+├── include/                # Public headers
+├── src/                    # Source files
+├── deps/                   # Third-party dependencies
+└── tests/                  # Test suite
+```
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-## Related Projects
-
-This is part of the larger NeMo2 project, which aims to modernize and preserve the Virtools ecosystem for contemporary development environments.
-
----
-
-*CK2 brings the powerful Virtools behavioral engine into the modern era while maintaining compatibility with classic Virtools workflows and methodologies.*
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
