@@ -232,45 +232,41 @@ CKDWORD CKStateChunk::ReadIdentifier() {
 
 CKBOOL CKStateChunk::SeekIdentifier(CKDWORD identifier) {
     if (!m_Data || m_ChunkSize == 0)
-        return 0;
+        return FALSE;
 
     if (!m_ChunkParser) {
         m_ChunkParser = new ChunkParser;
         m_ChunkParser->DataSize = m_ChunkSize;
     }
 
-    if (m_ChunkParser->PrevIdentifierPos >= m_ChunkSize - 1)
-        return FALSE;
+    int startPos = m_Data[m_ChunkParser->PrevIdentifierPos + 1];
+    int currentPos = startPos;
 
-    int j = m_Data[m_ChunkParser->PrevIdentifierPos + 1];
-    int i;
-    if (j != 0) {
-        i = j;
-        while (i < m_ChunkSize && m_Data[i] != identifier) {
-            if (i + 1 >= m_ChunkSize)
-                return FALSE;
-
-            i = m_Data[i + 1];
-            if (i == 0)
-                return FALSE;
+    // Phase 1: Search from startPos to the end of the list
+    if (currentPos != 0) {
+        while (m_Data[currentPos] != identifier) {
+            currentPos = m_Data[currentPos + 1];
+            if (currentPos == 0)
+                break;
         }
-    } else {
-        i = 0;
-        while (i < m_ChunkSize && m_Data[i] != identifier) {
-            if (i + 1 >= m_ChunkSize)
-                return FALSE;
 
-            i = m_Data[i + 1];
-            if (i == 0)
-                return FALSE;
+        if (currentPos != 0) {
+            m_ChunkParser->PrevIdentifierPos = currentPos;
+            m_ChunkParser->CurrentPos = currentPos + 2;
+            return TRUE;
         }
     }
 
-    if (i >= m_ChunkSize)
-        return FALSE;
+    // Phase 2: Search from the beginning of the list to startPos
+    currentPos = 0;
+    while (m_Data[currentPos] != identifier) {
+        currentPos = m_Data[currentPos + 1];
+        if (currentPos == startPos)
+            return FALSE;
+    }
 
-    m_ChunkParser->PrevIdentifierPos = i;
-    m_ChunkParser->CurrentPos = i + 2;
+    m_ChunkParser->PrevIdentifierPos = currentPos;
+    m_ChunkParser->CurrentPos = currentPos + 2;
 
     return TRUE;
 }
