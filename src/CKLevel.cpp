@@ -421,8 +421,8 @@ CKStateChunk *CKLevel::Save(CKFile *file, CKDWORD flags) {
             CKBaseManager *manager = m_Context->GetManager(i);
             if (m_Context->HasManagerDuplicates(manager))
                 chunk->WriteString(manager->m_ManagerName);
-            chunk->WriteString(nullptr);
         }
+        chunk->WriteString(nullptr);
     }
 
     chunk->CloseChunk();
