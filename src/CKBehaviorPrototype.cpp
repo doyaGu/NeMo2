@@ -16,7 +16,7 @@ int CKBehaviorPrototype::DeclareInput(CKSTRING name) {
     m_InIOList[m_InIOCount] = new CKBEHAVIORIO_DESC();
 
     // Set name with proper string duplication
-    if (name && *name) {
+    if (name) {
         m_InIOList[m_InIOCount]->Name = MAKESTRING(name);
     } else {
         m_InIOList[m_InIOCount]->Name = nullptr;
@@ -42,7 +42,7 @@ int CKBehaviorPrototype::DeclareOutput(CKSTRING name) {
     m_OutIOList[m_OutIOCount] = new CKBEHAVIORIO_DESC();
 
     // Set name using SDK string handling
-    if (name && *name) {
+    if (name) {
         m_OutIOList[m_OutIOCount]->Name = MAKESTRING(name);
     }
 
@@ -66,7 +66,7 @@ int CKBehaviorPrototype::DeclareInParameter(CKSTRING name, CKGUID guid_type, CKS
     m_InParameterList[m_InParameterCount] = new CKPARAMETER_DESC();
 
     // Set parameter properties
-    if (name && *name) {
+    if (name) {
         m_InParameterList[m_InParameterCount]->Name = MAKESTRING(name);
     }
 
@@ -75,7 +75,7 @@ int CKBehaviorPrototype::DeclareInParameter(CKSTRING name, CKGUID guid_type, CKS
     m_InParameterList[m_InParameterCount]->Type = 1;
 
     // Handle default value
-    if (defaultval && *defaultval) {
+    if (defaultval) {
         m_InParameterList[m_InParameterCount]->DefaultValueString = MAKESTRING(defaultval);
     }
 
@@ -96,7 +96,7 @@ int CKBehaviorPrototype::DeclareInParameter(CKSTRING name, CKGUID guid_type, voi
     m_InParameterList[m_InParameterCount] = new CKPARAMETER_DESC();
 
     // Set parameter properties
-    if (name && *name) {
+    if (name) {
         m_InParameterList[m_InParameterCount]->Name = MAKESTRING(name);
     }
 
@@ -125,7 +125,7 @@ int CKBehaviorPrototype::DeclareOutParameter(CKSTRING name, CKGUID guid_type, CK
 
     m_OutParameterList[m_OutParameterCount] = new CKPARAMETER_DESC();
 
-    if (name && *name) {
+    if (name) {
         m_OutParameterList[m_OutParameterCount]->Name = MAKESTRING(name);
     }
 
@@ -133,7 +133,7 @@ int CKBehaviorPrototype::DeclareOutParameter(CKSTRING name, CKGUID guid_type, CK
     m_OutParameterList[m_OutParameterCount]->Owner = -1;
     m_OutParameterList[m_OutParameterCount]->Type = 2;
 
-    if (defaultval && *defaultval) {
+    if (defaultval) {
         m_OutParameterList[m_OutParameterCount]->DefaultValueString = MAKESTRING(defaultval);
     }
 
@@ -151,7 +151,7 @@ int CKBehaviorPrototype::DeclareOutParameter(CKSTRING name, CKGUID guid_type, vo
 
     m_OutParameterList[m_OutParameterCount] = new CKPARAMETER_DESC();
 
-    if (name && *name) {
+    if (name) {
         m_OutParameterList[m_OutParameterCount]->Name = MAKESTRING(name);
     }
 
@@ -179,14 +179,14 @@ int CKBehaviorPrototype::DeclareLocalParameter(CKSTRING name, CKGUID guid_type, 
 
     m_LocalParameterList[m_LocalParameterCount] = new CKPARAMETER_DESC();
 
-    if (name && *name) {
+    if (name) {
         m_LocalParameterList[m_LocalParameterCount]->Name = MAKESTRING(name);
     }
 
     m_LocalParameterList[m_LocalParameterCount]->Guid = guid_type;
     m_LocalParameterList[m_LocalParameterCount]->Type = 0;
 
-    if (defaultval && *defaultval) {
+    if (defaultval) {
         m_LocalParameterList[m_LocalParameterCount]->DefaultValueString = MAKESTRING(defaultval);
     }
 
@@ -204,7 +204,7 @@ int CKBehaviorPrototype::DeclareLocalParameter(CKSTRING name, CKGUID guid_type, 
 
     m_LocalParameterList[m_LocalParameterCount] = new CKPARAMETER_DESC();
 
-    if (name && *name) {
+    if (name) {
         m_LocalParameterList[m_LocalParameterCount]->Name = MAKESTRING(name);
     }
 
@@ -231,14 +231,14 @@ int CKBehaviorPrototype::DeclareSetting(CKSTRING name, CKGUID guid_type, CKSTRIN
 
     m_LocalParameterList[m_LocalParameterCount] = new CKPARAMETER_DESC();
 
-    if (name && *name) {
+    if (name) {
         m_LocalParameterList[m_LocalParameterCount]->Name = MAKESTRING(name);
     }
 
     m_LocalParameterList[m_LocalParameterCount]->Guid = guid_type;
     m_LocalParameterList[m_LocalParameterCount]->Type = 3;
 
-    if (defaultval && *defaultval) {
+    if (defaultval) {
         m_LocalParameterList[m_LocalParameterCount]->DefaultValueString = MAKESTRING(defaultval);
     }
 
@@ -256,7 +256,7 @@ int CKBehaviorPrototype::DeclareSetting(CKSTRING name, CKGUID guid_type, void *d
 
     m_LocalParameterList[m_LocalParameterCount] = new CKPARAMETER_DESC();
 
-    if (name && *name) {
+    if (name) {
         m_LocalParameterList[m_LocalParameterCount]->Name = MAKESTRING(name);
     }
 
@@ -327,10 +327,10 @@ CKObjectDeclaration *CKBehaviorPrototype::GetSoureObjectDeclaration() {
 }
 
 int CKBehaviorPrototype::GetInIOIndex(CKSTRING name) {
-    if (!name || !*name)
+    if (!name)
         return -1;
     for (int i = 0; i < m_InIOCount; ++i) {
-        if (m_InIOList[i]->Name && strcmp(m_InIOList[i]->Name, name) == 0) {
+        if (strcmp(m_InIOList[i]->Name, name) == 0) {
             return i;
         }
     }
@@ -338,10 +338,10 @@ int CKBehaviorPrototype::GetInIOIndex(CKSTRING name) {
 }
 
 int CKBehaviorPrototype::GetOutIOIndex(CKSTRING name) {
-    if (!name || !*name)
+    if (!name)
         return -1;
     for (int i = 0; i < m_OutIOCount; ++i) {
-        if (m_OutIOList[i]->Name && strcmp(m_OutIOList[i]->Name, name) == 0) {
+        if (strcmp(m_OutIOList[i]->Name, name) == 0) {
             return i;
         }
     }
@@ -349,10 +349,10 @@ int CKBehaviorPrototype::GetOutIOIndex(CKSTRING name) {
 }
 
 int CKBehaviorPrototype::GetInParamIndex(CKSTRING name) {
-    if (!name || !*name)
+    if (!name)
         return -1;
     for (int i = 0; i < m_InParameterCount; ++i) {
-        if (m_InParameterList[i]->Name && strcmp(m_InParameterList[i]->Name, name) == 0) {
+        if (strcmp(m_InParameterList[i]->Name, name) == 0) {
             return i;
         }
     }
@@ -360,10 +360,10 @@ int CKBehaviorPrototype::GetInParamIndex(CKSTRING name) {
 }
 
 int CKBehaviorPrototype::GetOutParamIndex(CKSTRING name) {
-    if (!name || !*name)
+    if (!name)
         return -1;
     for (int i = 0; i < m_OutParameterCount; ++i) {
-        if (m_OutParameterList[i]->Name && strcmp(m_OutParameterList[i]->Name, name) == 0) {
+        if (strcmp(m_OutParameterList[i]->Name, name) == 0) {
             return i;
         }
     }
@@ -371,11 +371,11 @@ int CKBehaviorPrototype::GetOutParamIndex(CKSTRING name) {
 }
 
 int CKBehaviorPrototype::GetLocalParamIndex(CKSTRING name) {
-    if (!name || !*name)
+    if (!name)
         return -1;
 
     for (int i = 0; i < m_LocalParameterCount; ++i) {
-        if (m_LocalParameterList[i]->Name && strcmp(m_LocalParameterList[i]->Name, name) == 0) {
+        if (strcmp(m_LocalParameterList[i]->Name, name) == 0) {
             return i;
         }
     }
@@ -383,35 +383,35 @@ int CKBehaviorPrototype::GetLocalParamIndex(CKSTRING name) {
 }
 
 CKSTRING CKBehaviorPrototype::GetInIOName(int idx) {
-    if (idx >= 0 && idx < m_InIOCount) {
+    if (idx < m_InIOCount) {
         return m_InIOList[idx]->Name;
     }
     return nullptr;
 }
 
 CKSTRING CKBehaviorPrototype::GetOutIOIndex(int idx) {
-    if (idx >= 0 && idx < m_OutIOCount) {
+    if (idx < m_OutIOCount) {
         return m_OutIOList[idx]->Name;
     }
     return nullptr;
 }
 
 CKSTRING CKBehaviorPrototype::GetInParamIndex(int idx) {
-    if (idx >= 0 && idx < m_InParameterCount) {
+    if (idx < m_InParameterCount) {
         return m_InParameterList[idx]->Name;
     }
     return nullptr;
 }
 
 CKSTRING CKBehaviorPrototype::GetOutParamIndex(int idx) {
-    if (idx >= 0 && idx < m_OutParameterCount) {
+    if (idx < m_OutParameterCount) {
         return m_OutParameterList[idx]->Name;
     }
     return nullptr;
 }
 
 CKSTRING CKBehaviorPrototype::GetLocalParamIndex(int idx) {
-    if (idx >= 0 && idx < m_LocalParameterCount) {
+    if (idx < m_LocalParameterCount) {
         return m_LocalParameterList[idx]->Name;
     }
     return nullptr;
