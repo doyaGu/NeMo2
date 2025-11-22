@@ -16,9 +16,7 @@ CKERROR CKParameterOperation::DoOperation() {
     if (!m_OperationFunction) {
         if (m_In1 && m_Out) {
             CKParameter *src = m_In1->GetRealSource();
-            if (src) {
-                m_Out->CopyValue(src, TRUE);
-            }
+            m_Out->CopyValue(src, TRUE);
         }
         return CKERR_NOTINITIALIZED;
     }
@@ -214,7 +212,7 @@ CKERROR CKParameterOperation::Load(CKStateChunk *chunk, CKFile *file) {
     CKObject::Load(chunk, file);
 
     if (file) {
-        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONNEWDATA)) {
+        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONNEWDATA)) { // 0x400
             m_OperationGuid = chunk->ReadGuid();
 
             // Read parameter sequence
@@ -228,33 +226,33 @@ CKERROR CKParameterOperation::Load(CKStateChunk *chunk, CKFile *file) {
             m_In2 = (CKParameterIn *)chunk->ReadObject(m_Context);
             m_Out = (CKParameterOut *)chunk->ReadObject(m_Context);
         } else {
-            if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONOP)) {
+            if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONOP)) { // 0x100
                 m_OperationGuid = chunk->ReadGuid();
             }
 
-            if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONDEFAULTDATA)) {
+            if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONDEFAULTDATA)) { // 0x200
                 m_Owner = (CKBehavior *)chunk->ReadObject(m_Context);
             }
 
-            if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONOUTPUT)) {
+            if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONOUTPUT)) { // 0x80
                 m_Out = (CKParameterOut *)chunk->ReadObject(m_Context);
             }
 
-            if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONINPUTS)) {
+            if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONINPUTS)) { // 0x40
                 m_In1 = (CKParameterIn *)chunk->ReadObject(m_Context);
                 m_In2 = (CKParameterIn *)chunk->ReadObject(m_Context);
             }
         }
     } else {
-        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONOP)) {
+        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONOP)) { // 0x100
             m_OperationGuid = chunk->ReadGuid();
         }
 
-        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONDEFAULTDATA)) {
+        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONDEFAULTDATA)) { // 0x200
             m_Owner = (CKBehavior *)chunk->ReadObject(m_Context);
         }
 
-        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONOUTPUT)) {
+        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONOUTPUT)) { // 0x80
             m_Out = (CKParameterOut *)chunk->ReadObject(m_Context);
             CKStateChunk *outChunk = chunk->ReadSubChunk();
             if (m_Out && outChunk) {
@@ -265,7 +263,7 @@ CKERROR CKParameterOperation::Load(CKStateChunk *chunk, CKFile *file) {
             }
         }
 
-        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONINPUTS)) {
+        if (chunk->SeekIdentifier(CK_STATESAVE_OPERATIONINPUTS)) { // 0x40
             // Load first input
             m_In1 = (CKParameterIn *)chunk->ReadObject(m_Context);
             CKStateChunk *in1Chunk = chunk->ReadSubChunk();
