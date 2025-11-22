@@ -412,10 +412,11 @@ CKBOOL CKObjectArray::Remove(CK_ID id) {
 void CKObjectArray::Clear() {
     if (m_Count == 0)
         return;
-    Reset();
 
-    int count = m_Count;
-    while (count > 0 && count <= m_Count) {
+    Reset();
+    int previousCount = m_Count + 1;
+    while (m_Count > 0 && m_Count < previousCount) {
+        previousCount = m_Count;
         Node *node = m_Next;
         if (!node) {
             m_Count = 0;
@@ -425,8 +426,9 @@ void CKObjectArray::Clear() {
         if (node->m_Next) {
             node->m_Next->m_Prev = nullptr;
             Node *next = node->m_Next;
+            bool currentWasHead = (m_Current == node);
             m_Next = next;
-            if (m_Current == m_Next)
+            if (currentWasHead)
                 m_Current = next;
             else
                 --m_Position;
@@ -438,6 +440,7 @@ void CKObjectArray::Clear() {
             m_Current = nullptr;
             m_Count = 0;
         }
+
         delete node;
     }
 }
