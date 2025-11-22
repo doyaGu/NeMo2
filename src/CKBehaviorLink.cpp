@@ -47,7 +47,7 @@ CKStateChunk *CKBehaviorLink::Save(CKFile *file, CKDWORD flags) {
         chunk->StartWrite();
         chunk->AddChunkAndDelete(baseChunk);
         chunk->WriteIdentifier(CK_STATESAVE_BEHAV_LINK_NEWDATA);
-        chunk->WriteDword(m_ActivationDelay | m_InitialActivationDelay << 16);
+        chunk->WriteDword((m_ActivationDelay & 0xFFFF) | (m_InitialActivationDelay << 16));
         chunk->WriteObject(m_InIO);
         chunk->WriteObject(m_OutIO);
 
@@ -75,8 +75,8 @@ CKERROR CKBehaviorLink::Load(CKStateChunk *chunk, CKFile *file) {
     if (chunk->SeekIdentifier(CK_STATESAVE_BEHAV_LINK_NEWDATA)) {
         // New format loading
         CKDWORD delays = chunk->ReadDword();
-        m_ActivationDelay = (short) delays & 0xFFFF;
-        m_InitialActivationDelay = (short) (delays >> 16) & 0xFFFF;
+        m_ActivationDelay = (short) (delays & 0xFFFF);
+        m_InitialActivationDelay = (short) ((delays >> 16) & 0xFFFF);
         m_InIO = (CKBehaviorIO *)chunk->ReadObject(m_Context);
         m_OutIO = (CKBehaviorIO *)chunk->ReadObject(m_Context);
     } else {
