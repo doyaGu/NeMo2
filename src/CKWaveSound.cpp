@@ -72,21 +72,18 @@ CKWaveSound::PlayMinion(CKBOOL Background, CK3dEntity *Ent, VxVector *Position, 
     CK_WAVESOUND_TYPE soundType = GetType();
     if (Background) {
         if (soundType != CK_WAVESOUND_BACKGROUND) {
-            m_SoundManager->SetType(minion, CK_WAVESOUND_BACKGROUND);
+            m_SoundManager->SetType(minion->m_Source, CK_WAVESOUND_BACKGROUND);
         }
         minion->m_Entity = 0;
     } else {
         if (soundType != CK_WAVESOUND_POINT) {
-            m_SoundManager->SetType(minion, CK_WAVESOUND_POINT);
+            m_SoundManager->SetType(minion->m_Source, CK_WAVESOUND_POINT);
         }
 
         // Configure 2D audio settings
         CKWaveSoundSettings settings;
-        settings.m_Gain = 1.0f;
-        settings.m_Pitch = 1.0f;
-        settings.m_Pan = 0.0f;
-        settings.m_Priority = 0.5f;
-        m_SoundManager->UpdateSettings(minion, CK_WAVESOUND_SETTINGS_ALL, settings);
+        m_SoundManager->UpdateSettings(m_Source, CK_WAVESOUND_SETTINGS_ALL, settings, FALSE);
+        m_SoundManager->UpdateSettings(minion->m_Source, CK_WAVESOUND_SETTINGS_ALL, settings, TRUE);
 
         minion->m_Entity = Ent ? Ent->GetID() : 0;
 
@@ -97,15 +94,15 @@ CKWaveSound::PlayMinion(CKBOOL Background, CK3dEntity *Ent, VxVector *Position, 
         minion->m_Direction = dir;
 
         CKWaveSound3DSettings settings3D;
-        m_SoundManager->Update3DSettings(m_Source, CK_WAVESOUND_3DSETTINGS_ALL, settings3D);
+        m_SoundManager->Update3DSettings(m_Source, CK_WAVESOUND_3DSETTINGS_ALL, settings3D, FALSE);
         settings3D.m_Position = pos;
         settings3D.m_OrientationDir = dir;
-        m_SoundManager->Update3DSettings(minion, CK_WAVESOUND_3DSETTINGS_ALL, settings3D);
+        m_SoundManager->Update3DSettings(minion->m_Source, CK_WAVESOUND_3DSETTINGS_ALL, settings3D, TRUE);
     }
 
-    m_SoundManager->SetPlayPosition(minion, 0);
+    m_SoundManager->SetPlayPosition(minion->m_Source, 0);
     m_SoundManager->Play(nullptr, minion, FALSE);
-    return minion;
+    return minion->m_Source;
 }
 
 CKERROR CKWaveSound::SetSoundFileName(const CKSTRING FileName) {
@@ -720,7 +717,7 @@ CKERROR CKWaveSound::Recreate(CKBOOL Safe) {
 
         // Create new audio source with fallback format
         m_Source = m_SoundManager->CreateSource(
-            CK_WAVESOUND_POINT,
+            (CK_WAVESOUND_TYPE)(m_State & CK_WAVESOUND_ALLTYPE),
             &m_WaveFormat,
             m_BufferSize,
             FALSE);
@@ -915,38 +912,48 @@ CKERROR CKWaveSound::WriteDataFromReader() {
 
     m_OldCursorPos = currentPos;
 
-    if (m_State & CK_WAVESOUND_STREAMOVERLAP) {
-        m_State &= ~CK_WAVESOUND_STREAMOVERLAP;
-        return CK_OK;
-    }
-
     CKBYTE *dataBuffer = nullptr;
     int dataSize = 0;
-    m_SoundReader->GetDataBuffer(&dataBuffer, &dataSize);
-    CKERROR err = WriteData(dataBuffer, dataSize);
-    if (err == CK_OK) {
-        m_DataRead += dataSize;
-        m_State &= ~CK_WAVESOUND_STREAMOVERLAP;
-        return CK_OK;
+
+    if (m_State & CK_WAVESOUND_STREAMOVERLAP) {
+        m_SoundReader->GetDataBuffer(&dataBuffer, &dataSize);
+        if (dataSize != 0 && WriteData(dataBuffer, dataSize) == CK_OK) {
+            m_DataRead += dataSize;
+            m_State &= ~CK_WAVESOUND_STREAMOVERLAP;
+        } else {
+            return CK_OK;
+        }
+    } else {
+        m_SoundReader->GetDataBuffer(&dataBuffer, &dataSize);
+        if (dataSize != 0) {
+            if (WriteData(dataBuffer, dataSize) == CK_OK) {
+                m_DataRead += dataSize;
+            } else {
+                m_State |= CK_WAVESOUND_STREAMOVERLAP;
+                return CK_OK;
+            }
+        }
     }
 
     while (true) {
         if (m_State & CK_WAVESOUND_STREAMOVERLAP) {
             return CK_OK;
         }
-        err = m_SoundReader->Decode();
+        CKERROR err = m_SoundReader->Decode();
         if (err == CK_OK) {
             m_SoundReader->GetDataBuffer(&dataBuffer, &dataSize);
-            if (dataSize != 0 && WriteData(dataBuffer, dataSize) == CK_OK) {
-                m_DataRead += dataSize;
-            } else {
-                m_State &= ~CK_WAVESOUND_STREAMOVERLAP;
+            if (dataSize != 0) {
+                if (WriteData(dataBuffer, dataSize) == CK_OK) {
+                    m_DataRead += dataSize;
+                } else {
+                    m_State |= CK_WAVESOUND_STREAMOVERLAP;
+                }
             }
         } else {
             if (err == CKERR_INVALIDSIZE) {
                 FillWithBlanks(FALSE);
                 if (m_BufferPos == -1) {
-                    m_BufferPos = m_BufferSize / (int) sizeof(CKDWORD);
+                    m_BufferPos = m_BufferSize / 4;
                 } else {
                     const int safeThreshold = bufferSize / 10;
                     const int fillSize = bufferSize / 4;
@@ -971,8 +978,6 @@ CKERROR CKWaveSound::WriteDataFromReader() {
         }
     }
 
-    m_DataRead += dataSize;
-    m_State &= ~CK_WAVESOUND_STREAMOVERLAP;
     return CK_OK;
 }
 
@@ -1198,8 +1203,11 @@ CKERROR CKWaveSound::Load(CKStateChunk *chunk, CKFile *file) {
         SetGain(chunk->ReadFloat());
         SetPan(chunk->ReadFloat());
         SetPitch(chunk->ReadFloat());
+        chunk->ReadFloat(); // Reserved
 
         if (GetType() != CK_WAVESOUND_BACKGROUND) {
+            chunk->ReadFloat(); // Reserved
+            chunk->ReadFloat(); // Reserved
             float inAngle = chunk->ReadFloat();
             float outAngle = chunk->ReadFloat();
             float outGain = chunk->ReadFloat();
