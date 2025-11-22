@@ -1567,7 +1567,8 @@ int CKContext::PrepareDestroyObjects(CK_ID *obj_ids, int Count, CKDWORD Flags, C
     if (Count <= 0)
         return CKERR_INVALIDPARAMETER;
 
-    if (m_DependenciesContext.m_MapID.Size() == 0) {
+    const bool hasPendingDependencies = m_DependenciesContext.m_MapID.Size() != 0;
+    if (!hasPendingDependencies) {
         m_DestroyObjectFlag = Flags;
     } else {
         m_DestroyObjectFlag &= Flags;
@@ -1587,7 +1588,7 @@ int CKContext::PrepareDestroyObjects(CK_ID *obj_ids, int Count, CKDWORD Flags, C
 
     if (Dependencies) m_DependenciesContext.StopDependencies();
 
-    return CK_OK;
+    return hasPendingDependencies ? CKERR_INVALIDPARAMETER : CK_OK;
 }
 
 int CKContext::FinishDestroyObjects(CKDWORD Flags) {
