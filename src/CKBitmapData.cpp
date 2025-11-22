@@ -599,35 +599,21 @@ void CKBitmapData::SetAlphaForTransparentColor(const VxImageDescEx &desc) {
 void CKBitmapData::SetBorderColorForClamp(const VxImageDescEx &desc) {
     m_BitmapFlags |= CKBITMAPDATA_CLAMPUPTODATE;
 
-    if (!desc.Image || desc.Width < 2 || desc.Height < 2)
-        return;
-
-    const int bytesPerLine = desc.BytesPerLine;
-    const int width = desc.Width;
-    const int height = desc.Height;
-
-    // Process vertical borders (left/right columns)
-    for (int y = 0; y < height; ++y) {
-        CKDWORD *row = reinterpret_cast<CKDWORD *>(desc.Image + y * bytesPerLine);
-
-        // Left border: copy second column to first
-        row[0] = row[1] & 0x00FFFFFF; // Preserve RGB, clear alpha
-
-        // Right border: copy second-last column to last
-        row[width - 1] = row[width - 2] & 0x00FFFFFF;
+    CKBYTE *leftBytes = desc.Image;
+    CKBYTE *rightBytes = desc.Image + desc.BytesPerLine - sizeof(CKDWORD);
+    for (int y = 0; y < desc.Height; ++y) {
+        *reinterpret_cast<CKDWORD *>(leftBytes) &= 0x00FFFFFF;
+        *reinterpret_cast<CKDWORD *>(rightBytes) &= 0x00FFFFFF;
+        leftBytes += desc.BytesPerLine;
+        rightBytes += desc.BytesPerLine;
     }
 
-    // Process horizontal borders (top/bottom rows)
-    for (int x = 0; x < width; ++x) {
-        // Top border: copy second row to first
-        CKDWORD *topRow = reinterpret_cast<CKDWORD *>(desc.Image);
-        CKDWORD *secondRow = reinterpret_cast<CKDWORD *>(desc.Image + bytesPerLine);
-        topRow[x] = secondRow[x] & 0x00FFFFFF;
-
-        // Bottom border: copy second-last row to last
-        CKDWORD *bottomRow = reinterpret_cast<CKDWORD *>(desc.Image + (height - 1) * bytesPerLine);
-        CKDWORD *penultimateRow = reinterpret_cast<CKDWORD *>(desc.Image + (height - 2) * bytesPerLine);
-        bottomRow[x] = penultimateRow[x] & 0x00FFFFFF;
+    CKDWORD *topRow = reinterpret_cast<CKDWORD *>(desc.Image);
+    CKDWORD *bottomPixel = reinterpret_cast<CKDWORD *>(desc.Image + desc.Height * desc.BytesPerLine - sizeof(CKDWORD));
+    for (int x = 0; x < desc.Width; ++x) {
+        topRow[x] &= 0x00FFFFFF;
+        *bottomPixel &= 0x00FFFFFF;
+        --bottomPixel;
     }
 }
 
@@ -836,15 +822,21 @@ CKBOOL CKBitmapData::ReadFromChunk(CKStateChunk *chnk, CKContext *ctx, CKFile *f
         slotsProcessed.CheckSize(slotCount);
 
         for (int i = 0; i < slotCount; ++i) {
+            bool slotLoaded = false;
             if (width > 0 && height > 0) {
                 if (CreateImage(width, height, bpp, i)) {
                     GetImageDesc(desc);
                     desc.Image = LockSurfacePtr(i);
                     if (chnk->ReadReaderBitmap(desc)) {
-                        slotsProcessed.Unset(i);
+                        slotLoaded = true;
                         ReleaseSurfacePtr(i);
                     }
                 }
+            }
+            if (slotLoaded) {
+                slotsProcessed.Set(i);
+            } else {
+                slotsProcessed.Unset(i);
             }
         }
     }
@@ -856,10 +848,10 @@ CKBOOL CKBitmapData::ReadFromChunk(CKStateChunk *chnk, CKContext *ctx, CKFile *f
         slotsProcessed.CheckSize(slotCount);
 
         for (int i = 0; i < slotCount; ++i) {
+            bool slotLoaded = false;
             VxImageDescEx srcDesc;
             CKBYTE *srcImageData = chnk->ReadRawBitmap(srcDesc);
             if (srcImageData) {
-                slotsProcessed.Unset(i);
                 if (CreateImage(srcDesc.Width, srcDesc.Height, srcDesc.BitsPerPixel, i)) {
                     VxImageDescEx destDesc;
                     GetImageDesc(destDesc);
@@ -869,11 +861,16 @@ CKBOOL CKBitmapData::ReadFromChunk(CKStateChunk *chnk, CKContext *ctx, CKFile *f
                         destDesc.Image = destImageData;
                         VxDoBlitUpsideDown(srcDesc, destDesc);
                         ReleaseSurfacePtr(i);
+                        slotLoaded = true;
                     }
                 }
                 delete[] srcImageData;
-            } else {
+            }
+
+            if (slotLoaded) {
                 slotsProcessed.Set(i);
+            } else {
+                slotsProcessed.Unset(i);
             }
         }
     }
@@ -887,11 +884,16 @@ CKBOOL CKBitmapData::ReadFromChunk(CKStateChunk *chnk, CKContext *ctx, CKFile *f
         slotsProcessed.CheckSize(slotCount);
 
         for (int i = 0; i < slotCount; ++i) {
+            bool slotLoaded = false;
             CKBYTE *imageData = chnk->ReadBitmap2(desc);
             if (imageData) {
-                SetSlotImage(i, imageData, desc);
-            } else {
+                slotLoaded = SetSlotImage(i, imageData, desc) == TRUE;
+            }
+
+            if (slotLoaded) {
                 slotsProcessed.Set(i);
+            } else {
+                slotsProcessed.Unset(i);
             }
         }
     }
