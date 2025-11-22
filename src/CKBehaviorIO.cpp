@@ -145,5 +145,6 @@ CKDWORD CKBehaviorIO::GetOldFlags() {
     CKDWORD flags = 0;
     if (m_ObjectFlags & CK_BEHAVIORIO_IN) flags |= 0x01;
     if (m_ObjectFlags & CK_BEHAVIORIO_OUT) flags |= 0x02;
+    if (m_ObjectFlags & CK_BEHAVIORIO_ACTIVE) flags |= 0x100;
     return flags;
 }
