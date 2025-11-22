@@ -38,9 +38,9 @@ void CKScene::RemoveObjectFromScene(CKSceneObject *o, CKBOOL dependencies) {
 CKBOOL CKScene::IsObjectHere(CKObject *o) {
     if (!o)
         return FALSE;
-    if (CKIsChildClassOf(o, CKCID_BEOBJECT)) {
-        CKBeObject *beo = (CKBeObject *) o;
-        return beo->IsInScene(this);
+    if (CKIsChildClassOf(o, CKCID_SCENEOBJECT)) {
+        CKSceneObject *so = (CKSceneObject *) o;
+        return so->IsInScene(this);
     }
     return FALSE;
 }
@@ -834,7 +834,23 @@ CKERROR CKScene::Load(CKStateChunk *chunk, CKFile *file) {
                     CKSceneObjectDesc *desc = &descList[i];
                     desc->m_Flags = chunk->ReadDword();
                 }
+            } else {
+                for (int i = 0; i < descCount; ++i) {
+                    CKSceneObjectDesc *desc = &descList[i];
+                    CKDWORD flags = chunk->ReadDword();
+                    desc->m_Flags = flags & CK_SCENEOBJECT_ACTIVE;
+                    if (flags & 2) {
+                        desc->m_Flags |= CK_SCENEOBJECT_START_RESET;
+                    }
+                    if (flags & 1) {
+                        desc->m_Flags |= CK_SCENEOBJECT_START_ACTIVATE;
+                    } else {
+                        desc->m_Flags |= CK_SCENEOBJECT_START_DEACTIVATE;
+                    }
+                }
+            }
 
+            if (descCount > 0) {
                 for (int i = 0; i < descCount; ++i) {
                     CKSceneObjectDesc *desc = &descList[i];
                     CKSceneObject *obj = (CKSceneObject *)m_Context->GetObject(desc->m_Object);
@@ -843,23 +859,10 @@ CKERROR CKScene::Load(CKStateChunk *chunk, CKFile *file) {
                         obj->AddSceneIn(this);
                     }
                 }
-            } else {
-                for (int i = 0; i < descCount; ++i) {
-                    CKSceneObjectDesc *desc = &descList[i];
-                    desc->m_Flags = chunk->ReadDword() & CK_SCENEOBJECT_ACTIVE;
-                    if (desc->m_Flags & 2) {
-                        desc->m_Flags |= CK_SCENEOBJECT_START_RESET;
-                    }
-                    if (desc->m_Flags & 1) {
-                        desc->m_Flags |= CK_SCENEOBJECT_START_ACTIVATE;
-                    } else {
-                        desc->m_Flags |= CK_SCENEOBJECT_START_DEACTIVATE;
-                    }
-                }
-                AddObjectToScene(GetLevel());
             }
 
             delete[] descList;
+            AddObjectToScene(GetLevel());
         }
 
         if (chunk->SeekIdentifier(CK_STATESAVE_SCENELAUNCHED)) {
@@ -1021,5 +1024,6 @@ CKSceneObjectDesc *CKScene::AddObjectDesc(CKSceneObject *o) {
     desc.Init(o);
     desc.m_Flags &= ~removeFlags;
     CKSODHashIt it = m_SceneObjects.InsertUnique(o->GetID(), desc);
+    o->AddSceneIn(this);
     return it;
 }
