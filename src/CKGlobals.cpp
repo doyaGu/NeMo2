@@ -390,7 +390,7 @@ CKERROR CKRemovePrototypeDeclaration(CKObjectDeclaration *decl) {
                     behavior->SetCallbackFunction(nullptr);
 
                     ctx->OutputToConsoleExBeep(
-                        "Warning: Behavior %s no longer has a valid prototype!",
+                        "Warning : Behavior %s has no more a valid prototype !",
                         behavior->GetName());
                 }
             }
