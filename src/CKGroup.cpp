@@ -221,17 +221,13 @@ CKERROR CKGroup::Load(CKStateChunk *chunk, CKFile *file) {
 void CKGroup::PostLoad() {
     for (XObjectPointerArray::Iterator it = m_ObjectArray.Begin(); it != m_ObjectArray.End();) {
         CKBeObject *o = (CKBeObject *)*it;
-        if (!o || !CKIsChildClassOf(o, CKCID_BEOBJECT)) {
-            it = m_ObjectArray.Remove(it);
-        } else {
+        if (o && CKIsChildClassOf(o, CKCID_BEOBJECT)) {
+            if (!o->IsInGroup(this)) {
+                o->AddToGroup(this);
+            }
             ++it;
-        }
-    }
-
-    for (XObjectPointerArray::Iterator it = m_ObjectArray.Begin(); it != m_ObjectArray.End(); ++it) {
-        CKBeObject *o = (CKBeObject *)*it;
-        if (!o->IsInGroup(this)) {
-            o->AddToGroup(this);
+        } else {
+            it = m_ObjectArray.Remove(it);
         }
     }
 
