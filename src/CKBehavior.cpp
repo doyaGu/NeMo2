@@ -1658,8 +1658,10 @@ CKERROR CKBehavior::Load(CKStateChunk *chunk, CKFile *file) {
                 CKObject *obj = m_Context->GetObject(objId);
                 CKStateChunk *subChunk = chunk->ReadSubChunk();
 
-                if (obj && subChunk) {
-                    obj->Load(subChunk, nullptr);
+                if (subChunk) {
+                    if (obj) {
+                        obj->Load(subChunk, nullptr);
+                    }
                     delete subChunk;
                 }
             }
@@ -1673,173 +1675,170 @@ CKERROR CKBehavior::Load(CKStateChunk *chunk, CKFile *file) {
                 CKObject *param = m_Context->GetObject(paramId);
                 CKStateChunk *paramChunk = chunk->ReadSubChunk();
 
-                if (param && paramChunk) {
-                    param->Load(paramChunk, nullptr);
+                if (paramChunk) {
+                    if (param) {
+                        param->Load(paramChunk, nullptr);
+                    }
                     delete paramChunk;
                 }
             }
         }
 
         CallCallbackFunction(CKM_BEHAVIORREADSTATE);
+    } else {
+        // Initialize behavior state
+        m_Flags = 0;
+        m_CompatibleClassID = CKCID_BEOBJECT;
+        m_Priority = 0;
+        m_InputTargetParam = 0;
 
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORSINGLEACTIVITY)) {
-            CK_ID id = chunk->ReadDword();
-            m_Context->m_ObjectManager->AddSingleObjectActivity(this, id);
-        }
-        return CK_OK;
-    }
+        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORNEWDATA)) {
+            if (chunk->GetDataVersion() >= 5) {
+                CKDWORD flags = chunk->ReadDword();
+                m_Flags = flags & ~(CKBEHAVIOR_ACTIVE |
+                    CKBEHAVIOR_PRIORITY |
+                    CKBEHAVIOR_COMPATIBLECLASSID |
+                    CKBEHAVIOR_EXECUTEDLASTFRAME |
+                    CKBEHAVIOR_DEACTIVATENEXTFRAME |
+                    CKBEHAVIOR_RESETNEXTFRAME |
+                    CKBEHAVIOR_ACTIVATENEXTFRAME);
 
-    // Initialize behavior state
-    m_Flags = 0;
-    m_CompatibleClassID = CKCID_BEOBJECT;
-    m_Priority = 0;
-    m_InputTargetParam = 0;
+                if (!(flags & CKBEHAVIOR_BUILDINGBLOCK)) {
+                    UseGraph();
+                } else {
+                    UseFunction();
+                    CKGUID blockGuid = chunk->ReadGuid();
+                    m_BlockData->m_Guid = blockGuid;
+                    m_BlockData->m_Version = chunk->ReadDword();
+                    InitFctPtrFromGuid(blockGuid);
+                }
 
-    if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORNEWDATA)) {
-        if (chunk->GetDataVersion() >= 5) {
-            CKDWORD flags = chunk->ReadInt();
-            m_Flags = flags & ~(CKBEHAVIOR_ACTIVE |
-                CKBEHAVIOR_PRIORITY |
-                CKBEHAVIOR_COMPATIBLECLASSID |
-                CKBEHAVIOR_EXECUTEDLASTFRAME |
-                CKBEHAVIOR_DEACTIVATENEXTFRAME |
-                CKBEHAVIOR_RESETNEXTFRAME |
-                CKBEHAVIOR_ACTIVATENEXTFRAME);
+                if (flags & CKBEHAVIOR_PRIORITY)
+                    m_Priority = chunk->ReadInt();
+                else
+                    m_Priority = 0;
 
-            if (flags & CKBEHAVIOR_BUILDINGBLOCK) {
-                UseFunction();
-                CKGUID blockGuid = chunk->ReadGuid();
-                m_BlockData->m_Guid = blockGuid;
-                m_BlockData->m_Version = chunk->ReadInt();
-                InitFctPtrFromGuid(blockGuid);
+                if (flags & CKBEHAVIOR_COMPATIBLECLASSID)
+                    m_CompatibleClassID = chunk->ReadDword();
+                else
+                    m_CompatibleClassID = CKCID_BEOBJECT;
+
+                if (flags & CKBEHAVIOR_TARGETABLE)
+                    m_InputTargetParam = chunk->ReadObjectID();
+                else
+                    m_InputTargetParam = 0;
+
+                CKDWORD saveFlags = chunk->ReadDword();
+                if (m_GraphData) {
+                    if (saveFlags & CK_STATESAVE_BEHAVIORSUBBEHAV)
+                        m_GraphData->m_SubBehaviors.Load(m_Context, chunk);
+                    if (saveFlags & CK_STATESAVE_BEHAVIORSUBLINKS)
+                        m_GraphData->m_SubBehaviorLinks.Load(m_Context, chunk);
+                    if (saveFlags & CK_STATESAVE_BEHAVIOROPERATIONS)
+                        m_GraphData->m_Operations.Load(m_Context, chunk);
+                }
+
+                if (saveFlags & CK_STATESAVE_BEHAVIORINPARAMS)
+                    m_InParameter.Load(m_Context, chunk);
+                if (saveFlags & CK_STATESAVE_BEHAVIOROUTPARAMS)
+                    m_OutParameter.Load(m_Context, chunk);
+                if (saveFlags & CK_STATESAVE_BEHAVIORLOCALPARAMS)
+                    m_LocalParameter.Load(m_Context, chunk);
+                if (saveFlags & CK_STATESAVE_BEHAVIORINPUTS)
+                    m_InputArray.Load(m_Context, chunk);
+                if (saveFlags & CK_STATESAVE_BEHAVIOROUTPUTS)
+                    m_OutputArray.Load(m_Context, chunk);
             } else {
-                UseGraph();
-            }
+                CKGUID guid = chunk->ReadGuid();
+                CKDWORD flags = chunk->ReadDword();
+                m_Flags = flags;
 
-            if (flags & CKBEHAVIOR_PRIORITY)
+                if (!(flags & CKBEHAVIOR_BUILDINGBLOCK)) {
+                    UseGraph();
+                } else {
+                    UseFunction();
+                    m_BlockData->m_Guid = guid;
+                    InitFctPtrFromGuid(guid);
+                }
+
+                m_Flags &= ~(CKBEHAVIOR_ACTIVATENEXTFRAME | CKBEHAVIOR_RESETNEXTFRAME | CKBEHAVIOR_DEACTIVATENEXTFRAME | CKBEHAVIOR_EXECUTEDLASTFRAME);
+                m_CompatibleClassID = chunk->ReadDword();
+                CK_BEHAVIOR_TYPE type = (CK_BEHAVIOR_TYPE)chunk->ReadDword();
+                SetType(type);
                 m_Priority = chunk->ReadInt();
+                m_Owner = chunk->ReadObjectID();
 
-            if (flags & CKBEHAVIOR_COMPATIBLECLASSID)
-                m_CompatibleClassID = chunk->ReadInt();
-
-            if (flags & CKBEHAVIOR_TARGETABLE)
+                if (!m_BlockData) {
+                    chunk->ReadDword();
+                } else {
+                    m_BlockData->m_Version = chunk->ReadDword();
+                    if (m_BlockData->m_Version == 0)
+                        m_BlockData->m_Version = 0x10000;
+                }
+            }
+        } else {
+            CKGUID guid;
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORPROTOGUID)) {
+                guid = chunk->ReadGuid();
+            }
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORFLAGS)) {
+                m_Flags |= chunk->ReadInt();
+                if (m_Flags & CKBEHAVIOR_USEFUNCTION) {
+                    UseFunction();
+                    m_BlockData->m_Guid = guid;
+                    InitFctPtrFromGuid(guid);
+                } else {
+                    UseGraph();
+                }
+            }
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORCOMPATIBLECID))
+                m_CompatibleClassID = chunk->ReadDword();
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORTYPE)) {
+                CK_BEHAVIOR_TYPE type = (CK_BEHAVIOR_TYPE)chunk->ReadDword();
+                SetType(type);
+            }
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIOROWNER))
+                m_Owner = chunk->ReadObjectID();
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORPRIORITY))
+                m_Priority = chunk->ReadInt();
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORTARGET))
                 m_InputTargetParam = chunk->ReadObjectID();
+        }
 
-            CKDWORD saveFlags = chunk->ReadDword();
+        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORINTERFACE) && m_Context->m_InterfaceMode) {
+            if (m_InterfaceChunk) {
+                delete m_InterfaceChunk;
+            }
+            m_InterfaceChunk = chunk->ReadSubChunk();
+        }
+
+        if (chunk->GetDataVersion() < 5) {
             if (m_GraphData) {
-                if (saveFlags & CK_STATESAVE_BEHAVIORSUBBEHAV)
+                if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORSUBBEHAV))
                     m_GraphData->m_SubBehaviors.Load(m_Context, chunk);
-                if (saveFlags & CK_STATESAVE_BEHAVIORSUBLINKS)
+                if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORSUBLINKS))
                     m_GraphData->m_SubBehaviorLinks.Load(m_Context, chunk);
-                if (saveFlags & CK_STATESAVE_BEHAVIOROPERATIONS)
+                if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIOROPERATIONS))
                     m_GraphData->m_Operations.Load(m_Context, chunk);
             }
-
-            if (saveFlags & CK_STATESAVE_BEHAVIORINPARAMS)
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORINPARAMS))
                 m_InParameter.Load(m_Context, chunk);
-            if (saveFlags & CK_STATESAVE_BEHAVIOROUTPARAMS)
-                m_OutParameter.Load(m_Context, chunk);
-            if (saveFlags & CK_STATESAVE_BEHAVIORLOCALPARAMS)
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORLOCALPARAMS))
                 m_LocalParameter.Load(m_Context, chunk);
-            if (saveFlags & CK_STATESAVE_BEHAVIORINPUTS)
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIOROUTPARAMS))
+                m_OutParameter.Load(m_Context, chunk);
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORINPUTS))
                 m_InputArray.Load(m_Context, chunk);
-            if (saveFlags & CK_STATESAVE_BEHAVIOROUTPUTS)
+            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIOROUTPUTS))
                 m_OutputArray.Load(m_Context, chunk);
-        } else {
-            CKGUID guid = chunk->ReadGuid();
-            m_Flags = chunk->ReadInt();
+        }
 
-            if (m_Flags & CKBEHAVIOR_BUILDINGBLOCK) {
-                UseFunction();
-                m_BlockData->m_Guid = guid;
-                InitFctPtrFromGuid(guid);
-            } else {
-                UseGraph();
-            }
+        CKBehaviorPrototype *proto = GetPrototype();
+        if (proto && proto->IsRunTime())
+            m_Context->m_RunTime = TRUE;
 
-            m_CompatibleClassID = chunk->ReadInt();
-            SetType((CK_BEHAVIOR_TYPE) chunk->ReadDword());
-            m_Priority = chunk->ReadInt();
-            m_Owner = chunk->ReadObjectID();
-
-            if (m_BlockData) {
-                m_BlockData->m_Version = chunk->ReadInt();
-                if (m_BlockData->m_Version == 0)
-                    m_BlockData->m_Version = 0x10000;
-            } else {
-                chunk->ReadInt();
-            }
-
-            m_InputTargetParam = chunk->ReadObjectID();
-        }
-    } else {
-        CKGUID guid;
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORPROTOGUID)) {
-            guid = chunk->ReadGuid();
-        }
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORFLAGS)) {
-            m_Flags |= chunk->ReadInt();
-            if (m_Flags & CKBEHAVIOR_USEFUNCTION) {
-                UseFunction();
-                m_BlockData->m_Guid = guid;
-                InitFctPtrFromGuid(guid);
-            } else {
-                UseGraph();
-            }
-        }
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORCOMPATIBLECID)) {
-            m_CompatibleClassID = chunk->ReadInt();
-        }
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORTYPE)) {
-            SetType((CK_BEHAVIOR_TYPE) chunk->ReadDword());
-        }
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIOROWNER)) {
-            m_Owner = chunk->ReadObjectID();
-        }
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORPRIORITY)) {
-            m_Priority = chunk->ReadInt();
-        }
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORTARGET)) {
-            m_InputTargetParam = chunk->ReadObjectID();
-        }
+        m_Flags &= ~CKBEHAVIOR_RESETNEXTFRAME;
     }
-
-    // Load interface chunk for editors
-    if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORINTERFACE) && m_Context->IsInInterfaceMode()) {
-        if (m_InterfaceChunk)
-            delete m_InterfaceChunk;
-        m_InterfaceChunk = chunk->ReadSubChunk();
-    }
-
-    // Handle legacy data loading
-    if (chunk->GetDataVersion() < 5) {
-        if (m_GraphData) {
-            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORSUBBEHAV))
-                m_GraphData->m_SubBehaviors.Load(m_Context, chunk);
-            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORSUBLINKS))
-                m_GraphData->m_SubBehaviorLinks.Load(m_Context, chunk);
-            if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIOROPERATIONS))
-                m_GraphData->m_Operations.Load(m_Context, chunk);
-        }
-
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORINPARAMS))
-            m_InParameter.Load(m_Context, chunk);
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORLOCALPARAMS))
-            m_LocalParameter.Load(m_Context, chunk);
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIOROUTPARAMS))
-            m_OutParameter.Load(m_Context, chunk);
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORINPUTS))
-            m_InputArray.Load(m_Context, chunk);
-        if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIOROUTPUTS))
-            m_OutputArray.Load(m_Context, chunk);
-    }
-
-    // Handle runtime prototypes
-    CKBehaviorPrototype *proto = GetPrototype();
-    if (proto && proto->IsRunTime()) {
-        m_Context->m_RunTime = TRUE;
-    }
-    m_Flags &= ~CKBEHAVIOR_RESETNEXTFRAME;
 
     if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORSINGLEACTIVITY)) {
         CK_ID id = chunk->ReadDword();
