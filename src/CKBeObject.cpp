@@ -514,6 +514,7 @@ CKERROR CKBeObject::Load(CKStateChunk *chunk, CKFile *file) {
                 chunk->ReadInt();
                 chunk->ReadInt();
                 m_Priority = chunk->ReadInt();
+                m_Waiting = FALSE;
             } else if (versionFlag & 0x10000000) {
                 m_Priority = chunk->ReadInt();
                 m_Waiting = FALSE;
@@ -561,7 +562,7 @@ CKERROR CKBeObject::Load(CKStateChunk *chunk, CKFile *file) {
         const int seqCount = chunk->StartManagerReadSequence(&managerGuid);
         if (managerGuid == ATTRIBUTE_MANAGER_GUID && seqCount == attrCount) {
             for (int i = 0; i < attrCount; ++i) {
-                CKAttributeType attrType = chunk->StartReadSequence(); // TODO: Check if this is correct
+                CKAttributeType attrType = chunk->ReadDword();
                 CKObject *paramObj = context->GetObject(attrObjects[i]);
 
                 SetAttribute(attrType, paramObj ? paramObj->GetID() : 0);
@@ -655,7 +656,9 @@ CKERROR CKBeObject::Load(CKStateChunk *chunk, CKFile *file) {
     }
 
     if (chunk->SeekIdentifier(CK_STATESAVE_SINGLEACTIVITY)) {
-        m_Context->m_ObjectManager->AddSingleObjectActivity(this, chunk->ReadDword());
+        CKDWORD flags = chunk->ReadDword();
+        if (flags)
+            m_Context->m_ObjectManager->AddSingleObjectActivity(this, flags);
     }
 
     return CK_OK;
@@ -708,21 +711,9 @@ CKERROR CKBeObject::PrepareDependencies(CKDependenciesContext &context) {
             }
         }
 
-        if (context.IsInMode(CK_DEPENDENCIES_DELETE)) {
-            CKAttributeManager *am = m_Context->GetAttributeManager();
-            for (XAttributeList::Iterator it = m_Attributes.Begin(); it != m_Attributes.End(); ++it) {
-                CKAttributeVal &val = *it;
-                if (!(am->GetAttributeFlags(val.AttribType) & CK_ATTRIBUT_DONOTCOPY)) {
-                    CKParameter *param = (CKParameter *) m_Context->GetObject(val.Parameter);
-                    if (param) {
-                        param->PrepareDependencies(context);
-                    }
-                }
-            }
-        }
     }
 
-    if (classDeps & 2) {
+    if ((classDeps & 2) || context.IsInMode(CK_DEPENDENCIES_DELETE)) {
         CKAttributeManager *am = m_Context->GetAttributeManager();
         for (XAttributeList::Iterator it = m_Attributes.Begin(); it != m_Attributes.End(); ++it) {
             CKAttributeVal &val = *it;
@@ -788,8 +779,8 @@ CKERROR CKBeObject::Copy(CKObject &o, CKDependenciesContext &context) {
     if (classDeps & 2) {
         CKAttributeManager *am = m_Context->GetAttributeManager();
 
-        for (XAttributeList::Iterator it = m_Attributes.Begin(); it != m_Attributes.End(); ++it) {
-            CKAttributeVal &val = *it;
+        for (XAttributeList::Iterator it = beo->m_Attributes.Begin(); it != beo->m_Attributes.End(); ++it) {
+            const CKAttributeVal &val = *it;
             if (!(am->GetAttributeFlags(val.AttribType) & CK_ATTRIBUT_DONOTCOPY)) {
                 SetAttribute(val.AttribType, val.Parameter);
             }
