@@ -22,7 +22,7 @@ CKERROR CKParameterOut::SetValue(const void *buf, int size) {
 }
 
 CKERROR CKParameterOut::CopyValue(CKParameter *param, CKBOOL UpdateParam) {
-    if (!UpdateParam)
+    if (!param)
         return CKERR_INVALIDPARAMETER;
 
     CKERROR err = CKParameter::CopyValue(param, UpdateParam);
@@ -77,7 +77,7 @@ CKERROR CKParameterOut::AddDestination(CKParameter *param, CKBOOL CheckType) {
 }
 
 void CKParameterOut::RemoveDestination(CKParameter *param) {
-    m_Destinations.Clear();
+    m_Destinations.Remove(param);
 }
 
 int CKParameterOut::GetDestinationCount() {
@@ -177,9 +177,9 @@ void CKParameterOut::PreDelete() {
     if (ownerScript && !ownerScript->IsToBeDeleted()) {
         CKObject *parent = owner;
         while (parent) {
-            if (CKIsChildClassOf(owner, CKCID_BEHAVIOR)) {
-                beh = (CKBehavior *) owner;
-                if (!parent->IsToBeDeleted()) {
+            if (CKIsChildClassOf(parent, CKCID_BEHAVIOR)) {
+                beh = (CKBehavior *) parent;
+                if (!beh->IsToBeDeleted()) {
                     XSObjectPointerArray &outParams = beh->m_OutParameter;
                     for (auto it = outParams.Begin(); it != outParams.End(); ++it) {
                         if (*it == this) {
@@ -212,7 +212,7 @@ void CKParameterOut::CheckPreDeletion() {
 int CKParameterOut::GetMemoryOccupation() {
     int size = CKParameter::GetMemoryOccupation() + 8;
     if (m_Destinations.Size() > 0) {
-        size -= 4 * 4;
+        size += m_Destinations.Size() * 4;
     }
     return size;
 }
@@ -254,7 +254,8 @@ CKERROR CKParameterOut::Copy(CKObject &o, CKDependenciesContext &context) {
         return err;
     }
 
-    for (auto it = m_Destinations.Begin(); it != m_Destinations.End(); ++it) {
+    CKParameterOut *pOut = (CKParameterOut *) &o;
+    for (auto it = pOut->m_Destinations.Begin(); it != pOut->m_Destinations.End(); ++it) {
         CKParameter *param = (CKParameter *) *it;
         AddDestination(param, TRUE);
     }
