@@ -45,7 +45,7 @@ CKStateChunk *CKSound::Save(CKFile *file, CKDWORD flags) {
 
     chunk->WriteIdentifier(CK_STATESAVE_SOUNDFILENAME);
     chunk->WriteInt(m_SaveOptions);
-    chunk->WriteString(CKJustFile(m_FileName)); // Write the file name without path
+    chunk->WriteString(m_FileName ? CKJustFile(m_FileName) : NULL); // Write the file name without path
 
     if (GetClassID() == CKCID_SOUND)
         chunk->CloseChunk();
