@@ -22,8 +22,8 @@ CKERROR CKBehaviorManager::Execute(float delta) {
         CKBeObject *beo = (CKBeObject *) *it;
         if (!beo) continue;
 
-        const int scriptCount = beo->GetScriptCount();
-        for (int i = 0; i < scriptCount; ++i) {
+        // Re-query the count each time because Activate() may add/remove scripts mid-loop.
+        for (int i = 0; i < beo->GetScriptCount(); ++i) {
             CKBehavior *beh = beo->GetScript(i);
             const CKDWORD flags = beh->GetFlags();
             if (flags & (CKBEHAVIOR_ACTIVATENEXTFRAME | CKBEHAVIOR_DEACTIVATENEXTFRAME)) {
