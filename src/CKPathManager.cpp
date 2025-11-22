@@ -291,7 +291,7 @@ CKBOOL CKPathManager::PathIsAbsolute(XString &file) {
         return FALSE;
     if (file[1] == ':' && file[2] == '\\')
         return TRUE;
-    if (file[0] == ':' && file[1] == '/')
+    if (file[1] == ':' && file[2] == '/')
         return TRUE;
     return FALSE;
 }
