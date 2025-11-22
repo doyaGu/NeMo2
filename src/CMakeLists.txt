@@ -244,6 +244,7 @@ set(CK2_SOURCES
 
         # Save/load
         CKStateChunk.cpp
+        CKJpegDecoder.cpp
         CKFile.cpp
 
         # Sound
@@ -329,6 +330,7 @@ target_include_directories(CK2
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${STB_INCLUDE_DIR}
 )
 
 # Link libraries

@@ -5,6 +5,7 @@
 #include "VxMath.h"
 #include "CKFile.h"
 #include "CKPluginManager.h"
+#include "CKJpegDecoder.h"
 
 #include <miniz.h>
 #include <climits>
@@ -1653,7 +1654,6 @@ static CKBOOL CalculateMaskShifts(CKDWORD RedMask, CKDWORD GreenMask, CKDWORD Bl
     return TRUE;
 }
 
-// TODO: Need fix
 void CKStateChunk::WriteReaderBitmap(const VxImageDescEx &desc, CKBitmapReader *reader, CKBitmapProperties *bp) {
     if (!m_ChunkParser)
         return;
@@ -1663,237 +1663,185 @@ void CKStateChunk::WriteReaderBitmap(const VxImageDescEx &desc, CKBitmapReader *
         return;
     }
 
-    CKBOOL alphaIsSavedByReader = reader->IsAlphaSaved(bp);
-    void *memoryToSave = nullptr; // Pointer to the data buffer that reader->SaveMemory will produce
-    int savedMemorySize = 0; // Size of memoryToSave
-    void *temp32BitBuffer = nullptr; // Buffer for on-the-fly conversion
+    CKBOOL alphaIsSaved = reader->IsAlphaSaved(bp);
+    void *savedBuffer = nullptr;
+    CKBYTE *converted32Bits = nullptr;
 
-    // 1. Prepare the image data in bp->m_Data and bp->m_Format
-    //    If desc is not 32-bit, convert it to a temporary 32-bit RGBA buffer.
-    if (desc.BitsPerPixel == 32 &&
-        desc.AlphaMask == A_MASK &&
-        desc.RedMask == R_MASK &&
-        desc.GreenMask == G_MASK &&
-        desc.BlueMask == B_MASK) {
-        // Already in desired format for most readers (or readers expect 32-bit input for conversion)
-        bp->m_Format = desc; // Copy descriptor
-        bp->m_Data = desc.Image; // Use original image data directly
+    if (desc.BitsPerPixel == 32) {
+        bp->m_Format = desc;
+        bp->m_Data = desc.Image;
     } else {
-        // Need to convert to a temporary 32-bit RGBA buffer
-        VxImageDescEx temp32BitDesc;
-        temp32BitDesc.Width = desc.Width;
-        temp32BitDesc.Height = desc.Height;
-        temp32BitDesc.BitsPerPixel = 32;
-        temp32BitDesc.BytesPerLine = desc.Width * 4;
-        // Standard ARGB32 masks
-        temp32BitDesc.RedMask = R_MASK;
-        temp32BitDesc.GreenMask = G_MASK;
-        temp32BitDesc.BlueMask = B_MASK;
-        temp32BitDesc.AlphaMask = A_MASK;
+        VxImageDescEx tempDesc = {};
+        tempDesc.Width = desc.Width;
+        tempDesc.Height = desc.Height;
+        tempDesc.BitsPerPixel = 32;
+        tempDesc.BytesPerLine = desc.Width * 4;
+        tempDesc.RedMask = R_MASK;
+        tempDesc.GreenMask = G_MASK;
+        tempDesc.BlueMask = B_MASK;
+        tempDesc.AlphaMask = A_MASK;
 
-        size_t bufferSize = temp32BitDesc.Height * temp32BitDesc.BytesPerLine;
-        if (bufferSize == 0) {
-            // Avoid 0-byte allocation
+        const size_t convertedSize = static_cast<size_t>(tempDesc.Height) * tempDesc.BytesPerLine;
+        converted32Bits = (convertedSize > 0) ? new CKBYTE[convertedSize] : nullptr;
+        if (!converted32Bits) {
             WriteDword(0);
             return;
         }
-        temp32BitBuffer = new CKBYTE[bufferSize];
-        if (!temp32BitBuffer) {
-            WriteDword(0);
-            return; // Out of memory
-        }
-        temp32BitDesc.Image = (CKBYTE *) temp32BitBuffer;
-
-        VxDoBlit(desc, temp32BitDesc); // Convert original 'desc' to 'temp32BitDesc'
-
-        bp->m_Format = temp32BitDesc; // Reader will save from this 32-bit format
-        bp->m_Data = temp32BitBuffer;
+        tempDesc.Image = converted32Bits;
+        VxDoBlit(desc, tempDesc);
+        bp->m_Format = tempDesc;
+        bp->m_Data = converted32Bits;
     }
 
-    // 2. Use the reader to save the (potentially temporary 32-bit) image to a memory buffer
-    savedMemorySize = reader->SaveMemory(&memoryToSave, bp);
+    const size_t savedSize = reader->SaveMemory(&savedBuffer, bp);
+    delete[] converted32Bits;
 
-    // 3. Clean up temporary 32-bit buffer if it was used
-    delete[] (CKBYTE *) temp32BitBuffer; // Safe if temp32BitBuffer is nullptr
-    bp->m_Data = nullptr; // Crucial: bp->m_Data should not point to freed memory or original desc.Image after this
+    if (!savedBuffer || savedSize == 0) {
+        WriteDword(0);
+        if (savedBuffer)
+            reader->ReleaseMemory(savedBuffer);
+        return;
+    }
 
-    // 4. Write the saved data to the chunk
-    if (savedMemorySize > 0 && memoryToSave != nullptr) {
-        // Path 1: Alpha is saved by reader OR there's no alpha mask in original
-        if (alphaIsSavedByReader || !desc.AlphaMask) {
-            WriteDword(1); // Type 1: Reader handles alpha or no alpha
-            WriteBuffer(sizeof(CKFileExtension), bp->m_Ext.m_Data);
-            WriteGuid(bp->m_ReaderGuid);
-            WriteBuffer(savedMemorySize, memoryToSave);
+    if (alphaIsSaved || !desc.AlphaMask) {
+        WriteDword(1);
+        WriteBufferNoSize_LEndian(sizeof(CKFileExtension), bp->m_Ext.m_Data);
+        WriteGuid(bp->m_ReaderGuid);
+        WriteBuffer_LEndian(static_cast<int>(savedSize), savedBuffer);
+        reader->ReleaseMemory(savedBuffer);
+        return;
+    }
+
+    WriteDword(2);
+    CKDWORD extensionValue = 0;
+    memcpy(&extensionValue, bp->m_Ext.m_Data, sizeof(extensionValue));
+    WriteDword(extensionValue);
+    WriteGuid(bp->m_ReaderGuid);
+    WriteBuffer_LEndian(static_cast<int>(savedSize), savedBuffer);
+
+    CKBYTE alphaHistogram[256];
+    memset(alphaHistogram, 0, sizeof(alphaHistogram));
+
+    CalculateMaskShifts(desc.RedMask, desc.GreenMask, desc.BlueMask, desc.AlphaMask);
+    const CKDWORD alphaMask = desc.AlphaMask;
+    const int bytesPerLine = desc.BytesPerLine;
+    int bytesPerPixel = desc.BitsPerPixel >> 3;
+    if (bytesPerPixel <= 0)
+        bytesPerPixel = 1;
+
+    int totalDwords = (desc.Height * bytesPerLine) >> 2;
+    CKBYTE *pixelCursor = desc.Image;
+    const int lutShift = static_cast<int>(g_AlphaShift_LSB) - static_cast<int>(g_AlphaQuantShift_MSB);
+    while (totalDwords-- > 0) {
+        CKDWORD packedPixel = *reinterpret_cast<const CKDWORD *>(pixelCursor);
+        CKBYTE histogramIndex = static_cast<CKBYTE>((packedPixel & alphaMask) >> lutShift);
+        alphaHistogram[histogramIndex] = 1;
+        pixelCursor += bytesPerPixel;
+    }
+
+    int distinctAlpha = 0;
+    for (int i = 0; i < 256; ++i)
+        distinctAlpha += alphaHistogram[i];
+    WriteInt(distinctAlpha);
+
+    if (distinctAlpha == 1) {
+        for (int i = 0; i < 256; ++i) {
+            if (alphaHistogram[i]) {
+                WriteInt(i);
+                break;
+            }
         }
-        // Path 2: Alpha NOT saved by reader AND original had an alpha mask
-        // AND original was 32bpp (this condition seems implied by palette gen logic)
-        else if (desc.BitsPerPixel == 32) {
-            // Only try to save separate alpha if original was 32bpp
-            WriteDword(2); // Type 2: Separate alpha palette/mask
-            WriteBuffer(sizeof(CKFileExtension), bp->m_Ext.m_Data);
-            WriteGuid(bp->m_ReaderGuid);
-            WriteBuffer(savedMemorySize, memoryToSave);
+        reader->ReleaseMemory(savedBuffer);
+        return;
+    }
 
-            // Calculate and write alpha palette/mask
-            CKDWORD alphaPalette[256];
-            memset(alphaPalette, 0, sizeof(alphaPalette));
-
-            // Calculate shifts for the original descriptor's alpha mask
-            if (!CalculateMaskShifts(0, 0, 0, desc.AlphaMask)) {
-                // Should not happen if desc.AlphaMask is valid
-                // Write empty palette info as a fallback
-                WriteDword(0); // 0 distinct alpha values
-            } else {
-                CKBYTE *pixelPtr = desc.Image;
-                int pixels = desc.Width * desc.Height;
-                int bytesPerPixel = desc.BitsPerPixel >> 3; // Bytes per pixel of original image
-
-                for (int p = 0; p < pixels; ++p) {
-                    CKDWORD pixelValue = 0;
-                    // Safely read pixel based on BPP
-                    if (bytesPerPixel == 1) {
-                        pixelValue = *pixelPtr;
-                    } else if (bytesPerPixel == 2) {
-                        pixelValue = *(CKWORD *) pixelPtr;
-                    } else if (bytesPerPixel == 3) {
-                        // 24bpp, needs careful read
-                        pixelValue = pixelPtr[0] | pixelPtr[1] << 8 | pixelPtr[2] << 16;
-                    } else if (bytesPerPixel == 4) {
-                        pixelValue = *(CKDWORD *) pixelPtr;
-                    }
-
-                    // Extract alpha using calculated shifts
-                    CKBYTE alphaByte = (CKBYTE) ((pixelValue & desc.AlphaMask) >> g_AlphaShift_LSB);
-                    alphaPalette[alphaByte] = 1; // Mark this alpha value as used
-
-                    pixelPtr += bytesPerPixel;
+    const size_t planeSize = static_cast<size_t>(desc.Width) * desc.Height;
+    CKBYTE *alphaPlane = (planeSize > 0) ? new CKBYTE[planeSize] : nullptr;
+    if (alphaPlane) {
+        if (desc.BitsPerPixel == 32) {
+            CKBYTE *srcRow = desc.Image;
+            for (int y = 0; y < desc.Height; ++y) {
+                CKBYTE *dst = alphaPlane + static_cast<size_t>(y) * desc.Width;
+                CKBYTE *src = srcRow + 3;
+                for (int x = 0; x < desc.Width; ++x) {
+                    dst[x] = *src;
+                    src += bytesPerPixel;
                 }
-
-                int distinctAlphaCount = 0;
-                for (int i = 0; i < 256; ++i) {
-                    if (alphaPalette[i]) {
-                        distinctAlphaCount++;
-                    }
-                }
-                WriteDword(distinctAlphaCount);
-
-                if (distinctAlphaCount == 1) {
-                    for (int i = 0; i < 256; ++i) {
-                        if (alphaPalette[i]) {
-                            WriteDword(i); // Write the single alpha value
-                            break;
-                        }
-                    }
-                } else if (distinctAlphaCount > 1 && distinctAlphaCount < 256) {
-                    // IDA's code also writes full mask if > 1
-                    // Create a compact alpha mask (1 bit per pixel)
-                    CKBYTE *alphaPlane = new CKBYTE[pixels];
-                    if (alphaPlane) {
-                        pixelPtr = desc.Image;
-                        for (int p = 0; p < pixels; ++p) {
-                            CKDWORD pixelValue = 0;
-                            if (bytesPerPixel == 1) {
-                                pixelValue = *pixelPtr;
-                            } else if (bytesPerPixel == 2) {
-                                pixelValue = *(CKWORD *) pixelPtr;
-                            } else if (bytesPerPixel == 3) {
-                                pixelValue = pixelPtr[0] | pixelPtr[1] << 8 | pixelPtr[2] << 16;
-                            } else if (bytesPerPixel == 4) {
-                                pixelValue = *(CKDWORD *) pixelPtr;
-                            }
-
-                            alphaPlane[p] = (CKBYTE) ((pixelValue & desc.AlphaMask) >> g_AlphaShift_LSB);
-                            pixelPtr += bytesPerPixel;
-                        }
-                        WriteBuffer(pixels, alphaPlane);
-                        delete[] alphaPlane;
-                    } else {
-                        // Allocation failed for alphaPlane
-                        // This case is not handled well by IDA (would likely corrupt data)
-                        // Fallback: Indicate 0 distinct alphas (or error)
-                        WriteDword(0); // Or handle error more gracefully
-                    }
-                }
-                // If distinctAlphaCount is 0 or 256, nothing more is written for alpha.
+                srcRow += desc.BytesPerLine;
             }
         } else {
-            // Fallback for non-32bpp images that need alpha but reader doesn't save it
-            // This case wasn't explicitly handled by IDA's alpha palette logic (which assumed 32bpp source)
-            // So, act like Type 1.
-            WriteDword(1);
-            WriteBuffer(sizeof(CKFileExtension), bp->m_Ext.m_Data);
-            WriteGuid(bp->m_ReaderGuid);
-            WriteBuffer(savedMemorySize, memoryToSave);
+            CKBYTE *srcRow = desc.Image;
+            for (int y = 0; y < desc.Height; ++y) {
+                CKBYTE *dst = alphaPlane + static_cast<size_t>(y) * desc.Width;
+                CKBYTE *src = srcRow;
+                for (int x = 0; x < desc.Width; ++x) {
+                    CKDWORD packedPixel = 0;
+                    memcpy(&packedPixel, src, bytesPerPixel);
+                    dst[x] = static_cast<CKBYTE>(((packedPixel & alphaMask) >> g_AlphaShift_LSB) << g_AlphaQuantShift_MSB);
+                    src += bytesPerPixel;
+                }
+                srcRow -= desc.BytesPerLine;
+            }
         }
-        reader->ReleaseMemory(memoryToSave);
+        WriteBuffer_LEndian(static_cast<int>(planeSize), alphaPlane);
+        delete[] alphaPlane;
     } else {
-        WriteDword(0);
+        WriteBuffer_LEndian(0, nullptr);
     }
+
+    reader->ReleaseMemory(savedBuffer);
 }
 
 CKBOOL CKStateChunk::ReadReaderBitmap(const VxImageDescEx &desc) {
     CKDWORD formatType = ReadDword();
-    if (formatType == 0)
-        return FALSE;
-    if (!desc.Image)
+    if (formatType == 0 || !desc.Image)
         return FALSE;
 
     CKFileExtension ext;
-    CKGUID readerGuid;
-    CKBitmapProperties *props = nullptr;
-
-    const int cursor = m_ChunkParser->CurrentPos;
-    if (cursor >= m_ChunkSize)
-        return FALSE;
-
-    int storedSize = m_Data[cursor];
-    if (storedSize >= 0 && storedSize <= (int) sizeof(CKFileExtension)) {
-        void *extBuffer = nullptr;
-        int bytes = ReadBuffer(&extBuffer);
-        if (bytes == (int) sizeof(CKFileExtension) && extBuffer) {
-            memcpy(ext.m_Data, extBuffer, sizeof(CKFileExtension));
-        } else {
-            memset(ext.m_Data, 0, sizeof(CKFileExtension));
-        }
-        delete[] (CKBYTE *) extBuffer;
-    } else {
-        if (cursor + ((int) sizeof(CKFileExtension) + 3) / 4 > m_ChunkSize)
-            return FALSE;
-        ReadAndFillBuffer(sizeof(CKFileExtension), ext.m_Data);
-    }
-    readerGuid = ReadGuid();
+    memset(ext.m_Data, 0, sizeof(ext.m_Data));
+    ReadAndFillBuffer_LEndian(sizeof(CKFileExtension), ext.m_Data);
+    CKGUID readerGuid = ReadGuid();
 
     CKBitmapReader *reader = CKGetPluginManager()->GetBitmapReader(ext, &readerGuid);
     if (!reader)
         return FALSE;
 
+    CKBitmapProperties *props = nullptr;
     int size = ReadInt();
-    int dwords = (size + 3) / sizeof(CKDWORD);
-    if (m_ChunkParser->CurrentPos + dwords <= m_ChunkSize) {
-        if (size > 0) {
-            if (reader->ReadMemory(&m_Data[m_ChunkParser->CurrentPos], size, &props) != 0)
-                return FALSE;
+    int dwordCount = (size + 3) / sizeof(int);
+    if (!m_ChunkParser || m_ChunkParser->CurrentPos + dwordCount > m_ChunkSize) {
+        reader->Release();
+        return FALSE;
+    }
 
+    if (size > 0) {
+        if (reader->ReadMemory(&m_Data[m_ChunkParser->CurrentPos], size, &props) != 0) {
+            reader->Release();
+            return FALSE;
+        }
+
+        if (props) {
             props->m_Format.Image = (CKBYTE *) props->m_Data;
             VxDoBlit(props->m_Format, desc);
 
             reader->ReleaseMemory(props->m_Data);
             props->m_Data = nullptr;
+            delete[] (CKBYTE *) props->m_Format.ColorMap;
             props->m_Format.ColorMap = nullptr;
         }
-        Skip(dwords);
-        if (formatType == 2) {
-            int distinctAlphaCount = ReadInt();
-            if (distinctAlphaCount == 1) {
-                VxDoAlphaBlit(desc, (CKBYTE) ReadDword());
-            } else {
-                void *buffer = nullptr;
-                int bufferSize = ReadBuffer(&buffer);
-                if (buffer && bufferSize > 0) {
-                    VxDoAlphaBlit(desc, (CKBYTE *) buffer);
-                    delete[] (CKBYTE *) buffer;
-                }
+    }
+    Skip(dwordCount);
+
+    if (formatType == 2) {
+        int distinctAlphaCount = ReadInt();
+        if (distinctAlphaCount == 1) {
+            CKBYTE alpha = static_cast<CKBYTE>(ReadDword());
+            VxDoAlphaBlit(desc, alpha);
+        } else {
+            void *buffer = nullptr;
+            if (ReadBuffer(&buffer) > 0 && buffer) {
+                VxDoAlphaBlit(desc, (CKBYTE *) buffer);
+                delete[] (CKBYTE *) buffer;
             }
         }
     }
@@ -1902,253 +1850,306 @@ CKBOOL CKStateChunk::ReadReaderBitmap(const VxImageDescEx &desc) {
     return TRUE;
 }
 
-// TODO: Need fix
 void CKStateChunk::WriteRawBitmap(const VxImageDescEx &desc) {
     if (!m_ChunkParser)
         return;
 
-    if (!desc.Image || desc.Width <= 0 || desc.Height <= 0 || desc.BitsPerPixel == 0) {
-        WriteInt(0); // Write 0 for BitsPerPixel to indicate no/invalid image data
-        return;
-    }
-
-    const int width = desc.Width;
-    const int height = desc.Height;
-    if (height > 0 && width > INT_MAX / height) {
+    if (!desc.Image) {
         WriteInt(0);
         return;
     }
 
-    // Write image metadata
-    WriteInt(desc.BitsPerPixel);
-    WriteInt(desc.Width);
-    WriteInt(desc.Height);
+    const int bitsPerPixel = desc.BitsPerPixel;
+    const int width = desc.Width;
+    const int height = desc.Height;
+
+    WriteInt(bitsPerPixel);
+    WriteInt(width);
+    WriteInt(height);
     WriteDword(desc.AlphaMask);
     WriteDword(desc.RedMask);
     WriteDword(desc.GreenMask);
     WriteDword(desc.BlueMask);
-    WriteDword(0); // Placeholder for compression type (0 = raw, 1 = JPEG)
+    const int compressionFlagPos = m_ChunkParser->CurrentPos;
+    WriteDword(0); // Will be patched to 1 if JPEG compression succeeds
 
-    int bytesPerPixel = desc.BitsPerPixel >> 3;
-    if (bytesPerPixel == 0 && desc.BitsPerPixel > 0) bytesPerPixel = 1; // For < 8 bpp, treat as 1 BPP for iteration
-    if (bytesPerPixel == 0) {
-        // Should not happen if BitsPerPixel > 0
-        // Write empty buffers if BPP is invalid
-        WriteBuffer(0, nullptr); // R
-        WriteBuffer(0, nullptr); // G
-        WriteBuffer(0, nullptr); // B
-        WriteBuffer(0, nullptr); // A
+    const size_t planeSize = static_cast<size_t>(width) * static_cast<size_t>(height);
+    CKBYTE *bluePlane = new CKBYTE[planeSize];
+    CKBYTE *greenPlane = new CKBYTE[planeSize];
+    CKBYTE *redPlane = new CKBYTE[planeSize];
+    CKBYTE *alphaPlane = (desc.AlphaMask != 0) ? new CKBYTE[planeSize] : nullptr;
+
+    if (!bluePlane || !greenPlane || !redPlane || (desc.AlphaMask && !alphaPlane)) {
+        delete[] bluePlane;
+        delete[] greenPlane;
+        delete[] redPlane;
+        delete[] alphaPlane;
+        WriteBuffer_LEndian(0, nullptr);
+        WriteBuffer_LEndian(0, nullptr);
+        WriteBuffer_LEndian(0, nullptr);
+        WriteBuffer_LEndian(0, nullptr);
         return;
     }
 
-    const size_t planeSize = static_cast<size_t>(width) * static_cast<size_t>(height); // Number of pixels
-    if (planeSize == 0 || planeSize > static_cast<size_t>(INT_MAX)) {
-        WriteBuffer(0, nullptr);
-        WriteBuffer(0, nullptr);
-        WriteBuffer(0, nullptr);
-        WriteBuffer(0, nullptr);
-        return;
-    }
+    const int bytesPerPixel = bitsPerPixel >> 3;
+    const CKBYTE *scanline = desc.Image + desc.BytesPerLine * (height - 1);
+    CKBYTE *blueOut = bluePlane;
+    CKBYTE *greenOut = greenPlane;
+    CKBYTE *redOut = redPlane;
+    CKBYTE *alphaOut = alphaPlane;
 
-    CKBYTE *rPlane = new CKBYTE[planeSize];
-    CKBYTE *gPlane = new CKBYTE[planeSize];
-    CKBYTE *bPlane = new CKBYTE[planeSize];
-    CKBYTE *aPlane = (desc.AlphaMask != 0) ? new CKBYTE[planeSize] : nullptr;
-
-    if (!rPlane || !gPlane || !bPlane || (desc.AlphaMask && !aPlane)) {
-        // Memory allocation failure
-        delete[] rPlane;
-        delete[] gPlane;
-        delete[] bPlane;
-        delete[] aPlane;
-        // We've already written metadata, so we must write empty buffers to maintain chunk structure
-        WriteBuffer(0, nullptr); // R
-        WriteBuffer(0, nullptr); // G
-        WriteBuffer(0, nullptr); // B
-        WriteBuffer(0, nullptr); // A (even if AlphaMask was 0, write empty alpha buffer)
-        return;
-    }
-
-    // Process image from bottom-up (last scanline first)
-    // planar_idx is the current index into the R,G,B,A planes
-    for (int y = 0; y < desc.Height; ++y) {
-        // Source scanline: Starts from last line and goes up.
-        // desc.Image points to the top-left.
-        // Scanline y from top is desc.Image + y * desc.BytesPerLine
-        // Upside-down processing for channel separation:
-        const CKBYTE *srcScanline = desc.Image + (desc.Height - 1 - y) * desc.BytesPerLine;
-        CKBYTE *rPlanePtr = rPlane + static_cast<size_t>(y) * width;
-        CKBYTE *gPlanePtr = gPlane + static_cast<size_t>(y) * width;
-        CKBYTE *bPlanePtr = bPlane + static_cast<size_t>(y) * width;
-        CKBYTE *aPlanePtr = aPlane ? (aPlane + static_cast<size_t>(y) * width) : nullptr;
-
-        for (int x = 0; x < desc.Width; ++x) {
-            const CKBYTE *srcPixel = srcScanline + x * bytesPerPixel;
-            CKDWORD pixelValue = 0;
-
-            // Read pixel value based on BPP
-            if (bytesPerPixel == 1) {
-                // 8-bit (usually palettized or grayscale)
-                pixelValue = *srcPixel;
-            } else if (bytesPerPixel == 2) {
-                // 16-bit
-                pixelValue = *(CKWORD *) srcPixel;
-            } else if (bytesPerPixel == 3) {
-                // 24-bit
-                pixelValue = srcPixel[0] | (srcPixel[1] << 8) | (srcPixel[2] << 16);
-            } else if (bytesPerPixel == 4) {
-                // 32-bit
-                pixelValue = *(CKDWORD *) srcPixel;
+    if (bitsPerPixel == 32) {
+        if (alphaPlane) {
+            for (int remaining = height; remaining > 0; --remaining) {
+                const CKBYTE *pixel = scanline;
+                for (int x = 0; x < width; ++x) {
+                    *blueOut++ = pixel[0];
+                    *greenOut++ = pixel[1];
+                    *redOut++ = pixel[2];
+                    *alphaOut++ = pixel[3];
+                    pixel += bytesPerPixel;
+                }
+                scanline -= desc.BytesPerLine;
             }
-
-            if (desc.BitsPerPixel == 32) {
-                // Direct channel extraction for 32-bit (ARGB, RGBA etc.)
-                bPlanePtr[x] = srcPixel[0];
-                gPlanePtr[x] = srcPixel[1];
-                rPlanePtr[x] = srcPixel[2];
-                if (aPlanePtr) {
-                    aPlanePtr[x] = (bytesPerPixel == 4) ? srcPixel[3] : 0xFF;
+        } else {
+            for (int remaining = height; remaining > 0; --remaining) {
+                const CKBYTE *pixel = scanline;
+                for (int x = 0; x < width; ++x) {
+                    *blueOut++ = pixel[0];
+                    *greenOut++ = pixel[1];
+                    *redOut++ = pixel[2];
+                    pixel += bytesPerPixel;
                 }
-            } else if (desc.BitsPerPixel < 24) {
-                // Quantize for < 24 bpp
-                static VxImageDescEx lastMaskDesc;
-                if (memcmp(&lastMaskDesc, &desc, sizeof(VxImageDescEx)) != 0) {
-                    CalculateMaskShifts(desc.RedMask, desc.GreenMask, desc.BlueMask, desc.AlphaMask);
-                    lastMaskDesc = desc;
-                }
-
-                rPlanePtr[x] = (CKBYTE) (((pixelValue & desc.RedMask) >> g_RedShift_LSB) << g_RedQuantShift_MSB);
-                gPlanePtr[x] = (CKBYTE) (((pixelValue & desc.GreenMask) >> g_GreenShift_LSB) << g_GreenQuantShift_MSB);
-                bPlanePtr[x] = (CKBYTE) (((pixelValue & desc.BlueMask) >> g_BlueShift_LSB) << g_BlueQuantShift_MSB);
-                if (aPlanePtr && desc.AlphaMask) {
-                    aPlanePtr[x] = (CKBYTE) (((pixelValue & desc.AlphaMask) >> g_AlphaShift_LSB) << g_AlphaQuantShift_MSB);
-                } else if (aPlanePtr) {
-                    aPlanePtr[x] = 0xFF; // Default to opaque if no alpha mask but alpha plane exists
-                }
-            } else {
-                // 24-bit (BGR usually)
-                bPlanePtr[x] = srcPixel[0];
-                gPlanePtr[x] = srcPixel[1];
-                rPlanePtr[x] = srcPixel[2];
-                if (aPlanePtr) {
-                    aPlanePtr[x] = 0xFF; // 24-bit has no alpha, so opaque
-                }
+                scanline -= desc.BytesPerLine;
             }
+        }
+    } else if (bitsPerPixel < 24) {
+        CalculateMaskShifts(desc.RedMask, desc.GreenMask, desc.BlueMask, desc.AlphaMask);
+        const CKDWORD redLsb = g_RedShift_LSB;
+        const CKDWORD redQuant = g_RedQuantShift_MSB;
+        const CKDWORD greenLsb = g_GreenShift_LSB;
+        const CKDWORD greenQuant = g_GreenQuantShift_MSB;
+        const CKDWORD blueLsb = g_BlueShift_LSB;
+        const CKDWORD blueQuant = g_BlueQuantShift_MSB;
+        const CKDWORD alphaLsb = g_AlphaShift_LSB;
+        const CKDWORD alphaQuant = g_AlphaQuantShift_MSB;
+
+        for (int remaining = height; remaining > 0; --remaining) {
+            const CKBYTE *pixel = scanline;
+            for (int x = 0; x < width; ++x) {
+                CKDWORD sample = 0;
+                memcpy(&sample, pixel, bytesPerPixel);
+                *blueOut++ = static_cast<CKBYTE>(((sample & desc.BlueMask) >> blueLsb) << blueQuant);
+                *greenOut++ = static_cast<CKBYTE>(((sample & desc.GreenMask) >> greenLsb) << greenQuant);
+                *redOut++ = static_cast<CKBYTE>(((sample & desc.RedMask) >> redLsb) << redQuant);
+                if (alphaPlane)
+                    *alphaOut++ = static_cast<CKBYTE>(((sample & desc.AlphaMask) >> alphaLsb) << alphaQuant);
+                pixel += bytesPerPixel;
+            }
+            scanline -= desc.BytesPerLine;
+        }
+    } else {
+        for (int remaining = height; remaining > 0; --remaining) {
+            const CKBYTE *pixel = scanline;
+            for (int x = 0; x < width; ++x) {
+                *blueOut++ = pixel[0];
+                *greenOut++ = pixel[1];
+                *redOut++ = pixel[2];
+                pixel += bytesPerPixel;
+            }
+            scanline -= desc.BytesPerLine;
         }
     }
 
-    // Write de-interleaved planes
-    WriteBuffer(static_cast<int>(planeSize), rPlane);
-    WriteBuffer(static_cast<int>(planeSize), gPlane);
-    WriteBuffer(static_cast<int>(planeSize), bPlane);
-    if (aPlane) {
-        WriteBuffer(static_cast<int>(planeSize), aPlane);
-    } else {
-        WriteBuffer(0, nullptr); // Write empty buffer if no alpha
+    CKBYTE *encodedBlue = nullptr;
+    CKBYTE *encodedGreen = nullptr;
+    CKBYTE *encodedRed = nullptr;
+    int encodedBlueSize = 0;
+    int encodedGreenSize = 0;
+    int encodedRedSize = 0;
+    bool compressionUsed = false;
+
+    const bool canAttemptCompression = (planeSize > 0) &&
+                                       (planeSize <= static_cast<size_t>(INT_MAX)) &&
+                                       (width > 0 && height > 0);
+    if (canAttemptCompression) {
+        const int jpegQuality = 85;
+        bool encodeOk = CKJpegDecoder::EncodeGrayscalePlane(bluePlane, width, height, jpegQuality, &encodedBlue, encodedBlueSize);
+        if (encodeOk)
+            encodeOk = CKJpegDecoder::EncodeGrayscalePlane(greenPlane, width, height, jpegQuality, &encodedGreen, encodedGreenSize);
+        if (encodeOk)
+            encodeOk = CKJpegDecoder::EncodeGrayscalePlane(redPlane, width, height, jpegQuality, &encodedRed, encodedRedSize);
+
+        if (encodeOk) {
+            compressionUsed = true;
+        } else {
+            delete[] encodedBlue;
+            delete[] encodedGreen;
+            delete[] encodedRed;
+            encodedBlue = encodedGreen = encodedRed = nullptr;
+            encodedBlueSize = encodedGreenSize = encodedRedSize = 0;
+        }
     }
 
-    // Cleanup
-    delete[] rPlane;
-    delete[] gPlane;
-    delete[] bPlane;
-    delete[] aPlane; // Safe if aPlane is nullptr
+    if (compressionUsed) {
+        m_Data[compressionFlagPos] = 1;
+        WriteBuffer_LEndian(encodedBlueSize, encodedBlue);
+        WriteBuffer_LEndian(encodedGreenSize, encodedGreen);
+        WriteBuffer_LEndian(encodedRedSize, encodedRed);
+    } else {
+        WriteBuffer_LEndian(static_cast<int>(planeSize), bluePlane);
+        WriteBuffer_LEndian(static_cast<int>(planeSize), greenPlane);
+        WriteBuffer_LEndian(static_cast<int>(planeSize), redPlane);
+    }
+
+    if (alphaPlane) {
+        WriteBuffer_LEndian(static_cast<int>(planeSize), alphaPlane);
+    } else {
+        WriteBuffer_LEndian(0, nullptr);
+    }
+
+    delete[] encodedBlue;
+    delete[] encodedGreen;
+    delete[] encodedRed;
+
+    delete[] bluePlane;
+    delete[] greenPlane;
+    delete[] redPlane;
+    delete[] alphaPlane;
 }
 
 CKBYTE *CKStateChunk::ReadRawBitmap(VxImageDescEx &desc) {
     if (!m_ChunkParser)
         return nullptr;
 
-    int originalBpp = ReadInt();
-    if (originalBpp == 0)
+    int bitsPerPixel = ReadInt();
+    if (bitsPerPixel == 0)
         return nullptr;
 
-    // Read metadata
     desc.Width = ReadInt();
     desc.Height = ReadInt();
     desc.AlphaMask = ReadDword();
     desc.RedMask = ReadDword();
     desc.GreenMask = ReadDword();
     desc.BlueMask = ReadDword();
-
-    if (desc.Width <= 0 || desc.Height <= 0)
-        return nullptr;
-
-    const int width = desc.Width;
-    const int height = desc.Height;
-    if (height > 0 && width > INT_MAX / height)
-        return nullptr;
-
-    const size_t planeSize = static_cast<size_t>(width) * static_cast<size_t>(height);
-    if (planeSize == 0 || planeSize > static_cast<size_t>(INT_MAX))
-        return nullptr;
-
-    const size_t bytesPerLine = static_cast<size_t>(width) * sizeof(CKDWORD);
-    if (bytesPerLine > static_cast<size_t>(INT_MAX))
-        return nullptr;
-
-    desc.BytesPerLine = static_cast<int>(bytesPerLine);
+    desc.BytesPerLine = desc.Width * 4;
     desc.BitsPerPixel = 32;
 
-    CKDWORD compressionType = ReadDword() & 0xF; // 0 for raw, 1 for JPEG
-    if (compressionType != 0) {
-        // Unsupported compression type
-        void *compressedData = nullptr;
-        ReadBuffer(&compressedData);
-        ReadBuffer(&compressedData);
-        ReadBuffer(&compressedData);
+    void *bluePlane = nullptr;
+    void *greenPlane = nullptr;
+    void *redPlane = nullptr;
+    void *alphaPlane = nullptr;
+    bool alphaAlreadyRead = false;
+
+    int compression = ReadDword() & 0xF;
+    if (compression == 0) {
+        ReadBuffer(&bluePlane);
+        ReadBuffer(&greenPlane);
+        ReadBuffer(&redPlane);
+    } else if (compression == 1) {
+        void *encodedBlue = nullptr;
+        void *encodedGreen = nullptr;
+        void *encodedRed = nullptr;
+
+        const int blueEncodedSize = ReadBuffer(&encodedBlue);
+        const int greenEncodedSize = ReadBuffer(&encodedGreen);
+        const int redEncodedSize = ReadBuffer(&encodedRed);
+
+        CKBYTE *decodedBlue = nullptr;
+        CKBYTE *decodedGreen = nullptr;
+        CKBYTE *decodedRed = nullptr;
+
+        bool decodeOk = blueEncodedSize > 0 && greenEncodedSize > 0 && redEncodedSize > 0;
+        if (decodeOk)
+            decodeOk = CKJpegDecoder::DecodeGrayscalePlane(static_cast<CKBYTE *>(encodedBlue), blueEncodedSize, desc.Width, desc.Height, &decodedBlue);
+        if (decodeOk)
+            decodeOk = CKJpegDecoder::DecodeGrayscalePlane(static_cast<CKBYTE *>(encodedGreen), greenEncodedSize, desc.Width, desc.Height, &decodedGreen);
+        if (decodeOk)
+            decodeOk = CKJpegDecoder::DecodeGrayscalePlane(static_cast<CKBYTE *>(encodedRed), redEncodedSize, desc.Width, desc.Height, &decodedRed);
+
+        delete[] static_cast<CKBYTE *>(encodedBlue);
+        delete[] static_cast<CKBYTE *>(encodedGreen);
+        delete[] static_cast<CKBYTE *>(encodedRed);
+
+        if (!decodeOk) {
+            delete[] decodedBlue;
+            delete[] decodedGreen;
+            delete[] decodedRed;
+            void *alphaDiscard = nullptr;
+            ReadBuffer(&alphaDiscard);
+            delete[] static_cast<CKBYTE *>(alphaDiscard);
+            return nullptr;
+        }
+
+        bluePlane = decodedBlue;
+        greenPlane = decodedGreen;
+        redPlane = decodedRed;
+
+        ReadBuffer(&alphaPlane);
+        alphaAlreadyRead = true;
+    } else {
+        for (int plane = 0; plane < 3; ++plane) {
+            void *discard = nullptr;
+            ReadBuffer(&discard);
+            delete[] static_cast<CKBYTE *>(discard);
+        }
+        void *alphaDiscard = nullptr;
+        ReadBuffer(&alphaDiscard);
+        delete[] static_cast<CKBYTE *>(alphaDiscard);
         return nullptr;
     }
 
-    CKBYTE *bPlane = nullptr;
-    CKBYTE *gPlane = nullptr;
-    CKBYTE *rPlane = nullptr;
-    CKBYTE *aPlane = nullptr;
+    if (!alphaAlreadyRead)
+        ReadBuffer(&alphaPlane);
 
-    int bSize = ReadBuffer((void **) &bPlane);
-    int gSize = ReadBuffer((void **) &gPlane);
-    int rSize = ReadBuffer((void **) &rPlane);
-    int aSize = ReadBuffer((void **) &aPlane);
-
-    if (bSize != static_cast<int>(planeSize) || gSize != static_cast<int>(planeSize) ||
-        rSize != static_cast<int>(planeSize)) {
-        delete[] bPlane;
-        delete[] gPlane;
-        delete[] rPlane;
-        delete[] aPlane;
+    CKBYTE *output = new CKBYTE[desc.BytesPerLine * desc.Height];
+    if (!output) {
+        delete[] static_cast<CKBYTE *>(bluePlane);
+        delete[] static_cast<CKBYTE *>(greenPlane);
+        delete[] static_cast<CKBYTE *>(redPlane);
+        delete[] static_cast<CKBYTE *>(alphaPlane);
         return nullptr;
     }
 
-    CKBYTE *outputBitmap = new CKBYTE[desc.BytesPerLine * desc.Height];
-    if (!outputBitmap) {
-        delete[] bPlane;
-        delete[] gPlane;
-        delete[] rPlane;
-        delete[] aPlane;
-        return nullptr;
-    }
+    CKBYTE *blue = static_cast<CKBYTE *>(bluePlane);
+    CKBYTE *green = static_cast<CKBYTE *>(greenPlane);
+    CKBYTE *red = static_cast<CKBYTE *>(redPlane);
+    CKBYTE *alpha = static_cast<CKBYTE *>(alphaPlane);
 
-    for (int y = 0; y < height; ++y) {
-        CKDWORD *rowPtr = reinterpret_cast<CKDWORD *>(outputBitmap + y * desc.BytesPerLine);
-        const size_t planeOffset = static_cast<size_t>(y) * width;
-        for (int x = 0; x < width; ++x) {
-            const size_t index = planeOffset + x;
-            CKBYTE r = rPlane[index];
-            CKBYTE g = gPlane[index];
-            CKBYTE b = bPlane[index];
-            CKBYTE a = (aPlane && aSize == static_cast<int>(planeSize)) ? aPlane[index] : 0xFF;
+    int rows = desc.Height;
+    int columns = desc.Width;
+    CKBYTE *dst = output;
 
-            rowPtr[x] = (CKDWORD) a << A_SHIFT | (CKDWORD) r << R_SHIFT | (CKDWORD) g << G_SHIFT | b;
+    if (rows > 0 && columns > 0 && blue && green && red) {
+        if (alpha) {
+            for (int y = 0; y < rows; ++y) {
+                for (int x = 0; x < columns; ++x) {
+                    *dst++ = *blue++;
+                    *dst++ = *green++;
+                    *dst++ = *red++;
+                    *dst++ = *alpha++;
+                }
+            }
+        } else {
+            for (int y = 0; y < rows; ++y) {
+                for (int x = 0; x < columns; ++x) {
+                    *dst++ = *blue++;
+                    *dst++ = *green++;
+                    *dst++ = *red++;
+                    *dst++ = 0xFF;
+                }
+            }
         }
     }
 
     desc.AlphaMask = A_MASK;
 
-    delete[] rPlane;
-    delete[] gPlane;
-    delete[] bPlane;
-    delete[] aPlane;
+    delete[] static_cast<CKBYTE *>(bluePlane);
+    delete[] static_cast<CKBYTE *>(greenPlane);
+    delete[] static_cast<CKBYTE *>(redPlane);
+    delete[] static_cast<CKBYTE *>(alphaPlane);
 
-    return outputBitmap;
+    return output;
 }
 
 void CKStateChunk::WriteBitmap(BITMAP_HANDLE bitmap, CKSTRING ext) {
@@ -2433,329 +2434,255 @@ CKBOOL CKStateChunk::UnPack(int DestSize) {
 }
 
 void CKStateChunk::AttributePatch(CKBOOL preserveData, int *ConversionTable, int NbEntries) {
-    // Skip processing if managers array already exists
     if (m_Managers)
         return;
 
-    // Read sequence length and store current position
-    int sequenceLength = StartReadSequence();
-    int initialPosition = GetCurrentPos();
+    const int sequenceCount = StartReadSequence();
+    const int attributeSectionStart = GetCurrentPos();
+    Skip(sequenceCount);
 
-    // Skip over the sequence data
-    Skip(sequenceLength);
-
-    if (!preserveData) {
-        // Clean up subchunks if not preserving data
+    if (!preserveData && sequenceCount > 0) {
         StartReadSequence();
-        while (sequenceLength-- > 0) {
+        int remaining = sequenceCount;
+        while (remaining-- > 0) {
             CKStateChunk *subChunk = ReadSubChunk();
-            if (subChunk) {
+            if (subChunk)
                 delete subChunk;
-            }
         }
     }
 
-    // Initialize managers list
     m_Managers = new IntListStruct();
-    m_Managers->AddEntries(initialPosition);
+    m_Managers->AddEntries(attributeSectionStart);
 
-    // Prepare for conversion
-    Skip(sizeof(CKDWORD) * 3); // Skip header data
+    Skip(3); // Skip attribute header (GUID + count)
 
-    if (ConversionTable && NbEntries > 0 && sequenceLength > 0) {
-        do {
-            int *currentPosPtr = &m_Data[m_ChunkParser->CurrentPos];
-            int originalValue = *currentPosPtr;
-
-            // Check if value needs conversion
-            if (!(originalValue & 0x80000000) && originalValue < NbEntries) {
-                *currentPosPtr = ConversionTable[originalValue];
-            }
-
+    if (ConversionTable && NbEntries > 0 && sequenceCount > 0) {
+        int remaining = sequenceCount;
+        while (remaining-- > 0) {
+            int *value = &m_Data[m_ChunkParser->CurrentPos];
+            if (*value >= 0 && *value < NbEntries)
+                *value = ConversionTable[*value];
             m_ChunkParser->CurrentPos++;
-        } while (--sequenceLength);
+        }
     }
 
-    // Reset chunk position to attribute section
     SeekIdentifier(CK_STATESAVE_NEWATTRIBUTES);
 }
 
 int CKStateChunk::IterateAndDo(ChunkIterateFct fct, ChunkIteratorData *it) {
-    if (!it) return 0;
+    if (!it)
+        return 0;
 
-    // 1. Apply the function to the current chunk level first.
     int totalResult = fct(it);
-
-    // 2. If there are no sub-chunks to process, we are done with this level.
-    if (!it->Chunks || it->ChunkCount <= 0) {
+    if (!it->Chunks || it->ChunkCount <= 0 || !it->Data)
         return totalResult;
-    }
 
-    // 3. Iterate through the list of sub-chunks.
-    // The m_Chunks->Data array contains offsets into the parent's m_Data buffer.
-    int chunkListIdx = 0;
-    while (chunkListIdx < it->ChunkCount) {
-        ChunkIteratorData localIt;
-        localIt.CopyFctData(it); // Inherit context (mappers, etc.) from parent.
+    const bool parentUsesLegacyLayout = (it->ChunkVersion <= CHUNK_VERSION1);
+    int chunkIndex = 0;
 
-        int currentChunkInfoOffset = it->Chunks[chunkListIdx];
+    while (chunkIndex < it->ChunkCount) {
+        ChunkIteratorData child;
+        child.CopyFctData(it);
 
-        // LOGIC: A negative offset (-1) marks the start of a "packed sequence" of sub-chunks.
-        // A positive offset points to a single, standalone sub-chunk.
+        const int entry = it->Chunks[chunkIndex];
+        if (entry >= 0) {
+            int *data = it->Data;
+            const int blockSize = data[entry];
+            if (blockSize > 0 && data[entry + 2] + 4 != blockSize) {
+                child.ChunkVersion = static_cast<short>(data[entry + 2] >> 16);
+                child.ChunkSize = data[entry + 3];
+                child.IdCount = data[entry + 5];
+                child.ChunkCount = data[entry + 6];
 
-        if (currentChunkInfoOffset >= 0) {
-            // ---===[ PATH A: Parsing a single, standalone sub-chunk ]===---
-
-            // Boundary check for the sub-chunk header itself.
-            // A header needs at least 8 dwords.
-            if (currentChunkInfoOffset + 8 > it->ChunkSize) {
-                chunkListIdx++;
-                continue;
-            }
-
-            int *subChunkHeaderPtr = it->Data + currentChunkInfoOffset;
-
-            // The total size of this sub-chunk block, in dwords.
-            const int subChunkBlockTotalDwords = subChunkHeaderPtr[0] + 1;
-
-            // This condition from the decompilation (Data[v6 + 2] + 4 != v18) is likely a flawed or
-            // misinterpreted validity check. A robust boundary check is a safer replacement.
-            if (currentChunkInfoOffset + subChunkBlockTotalDwords > it->ChunkSize) {
-                // The chunk claims to be larger than the remaining parent buffer.
-                chunkListIdx++;
-                continue;
-            }
-
-            // Extract sub-chunk metadata from its header.
-            // Field [0] is total size, [1] is ClassID, [2] is versions, etc.
-            localIt.ChunkVersion = static_cast<short>(subChunkHeaderPtr[2] >> 16);
-            localIt.ChunkSize = subChunkHeaderPtr[3];
-            localIt.IdCount = subChunkHeaderPtr[5];
-            localIt.ChunkCount = subChunkHeaderPtr[6];
-
-            int dataPtrOffsetFromHeaderStart;
-            if (it->ChunkVersion > CHUNK_VERSION2) {
-                // CHUNK_VERSION2 is 5
-                localIt.ManagerCount = subChunkHeaderPtr[7];
-                dataPtrOffsetFromHeaderStart = 8;
-            } else {
-                localIt.ManagerCount = 0;
-                dataPtrOffsetFromHeaderStart = 7;
-            }
-
-            // Set up pointers to the data slices within the parent buffer.
-            localIt.Data = subChunkHeaderPtr + dataPtrOffsetFromHeaderStart;
-            int *currentDataSectionPtr = localIt.Data + localIt.ChunkSize;
-
-            localIt.Ids = (localIt.IdCount > 0) ? currentDataSectionPtr : nullptr;
-            if (localIt.Ids) currentDataSectionPtr += localIt.IdCount;
-
-            localIt.Chunks = (localIt.ChunkCount > 0) ? currentDataSectionPtr : nullptr;
-            if (localIt.Chunks) currentDataSectionPtr += localIt.ChunkCount;
-
-            localIt.Managers = (localIt.ManagerCount > 0) ? currentDataSectionPtr : nullptr;
-
-            // Recursively call this function for the sub-chunk.
-            localIt.Flag = 0; // Mark that this is a sub-level call.
-            totalResult += IterateAndDo(fct, &localIt);
-
-            chunkListIdx++;
-        } else {
-            // ---===[ PATH B: Parsing a packed sequence of sub-chunks ]===---
-
-            // The -1 is a marker. The next entry in m_Chunks has the real offset.
-            chunkListIdx++;
-            if (chunkListIdx >= it->ChunkCount) break;
-
-            int sequenceDataActualOffset = it->Chunks[chunkListIdx];
-            if (sequenceDataActualOffset < 0 || sequenceDataActualOffset >= it->ChunkSize) {
-                chunkListIdx++;
-                continue;
-            }
-
-            // This cursor points to the start of the sequence data.
-            int *packedCursor = it->Data + sequenceDataActualOffset;
-
-            // The first dword of the sequence is the number of sub-chunks in it.
-            const int numSubChunksInPack = *packedCursor++;
-
-            for (int i = 0; i < numSubChunksInPack; ++i) {
-                // Boundary check before reading next chunk's size.
-                if ((packedCursor - it->Data) >= it->ChunkSize) break;
-
-                const int currentPackedSubBlockDwords = *packedCursor++;
-                if (currentPackedSubBlockDwords <= 0) continue;
-
-                // Boundary check for the entire sub-chunk block.
-                if ((packedCursor - it->Data) + currentPackedSubBlockDwords > it->ChunkSize) break;
-
-                // The logic for parsing the header is identical to the standalone path.
-                int *packedSubChunkHeaderPtr = packedCursor;
-
-                // Advance cursor past this sub-chunk's data to be ready for the next iteration.
-                packedCursor += currentPackedSubBlockDwords;
-
-                // Same validity check and parsing as in PATH A
-                int requiredPackedHeaderDwords = (it->ChunkVersion > CHUNK_VERSION2) ? 7 : 6;
-                if (currentPackedSubBlockDwords < requiredPackedHeaderDwords) continue;
-
-                localIt.ChunkVersion = static_cast<short>(packedSubChunkHeaderPtr[1] >> 16);
-                localIt.ChunkSize = packedSubChunkHeaderPtr[2];
-                localIt.IdCount = packedSubChunkHeaderPtr[4];
-                localIt.ChunkCount = packedSubChunkHeaderPtr[5];
-
-                int dataPtrOffsetFromPackedHeaderStart;
-                if (it->ChunkVersion > CHUNK_VERSION2) {
-                    localIt.ManagerCount = packedSubChunkHeaderPtr[6];
-                    dataPtrOffsetFromPackedHeaderStart = 7;
+                int payloadOffset = entry + 7;
+                int managerCount = data[payloadOffset];
+                if (parentUsesLegacyLayout) {
+                    managerCount = 0;
                 } else {
-                    localIt.ManagerCount = 0;
-                    dataPtrOffsetFromPackedHeaderStart = 6;
+                    payloadOffset++;
                 }
+                child.ManagerCount = managerCount;
 
-                // Setup pointers to data slices inside this packed sub-chunk
-                localIt.Data = packedSubChunkHeaderPtr + dataPtrOffsetFromPackedHeaderStart;
-                int *currentPackedDataSectionPtr = localIt.Data + localIt.ChunkSize;
+                child.Data = &data[payloadOffset];
+                int *cursor = child.Data + child.ChunkSize;
 
-                localIt.Ids = (localIt.IdCount > 0) ? currentPackedDataSectionPtr : nullptr;
-                if (localIt.Ids) currentPackedDataSectionPtr += localIt.IdCount;
+                child.Ids = (child.IdCount > 0) ? cursor : nullptr;
+                cursor += child.IdCount;
 
-                localIt.Chunks = (localIt.ChunkCount > 0) ? currentPackedDataSectionPtr : nullptr;
-                if (localIt.Chunks) currentPackedDataSectionPtr += localIt.ChunkCount;
+                child.Chunks = (child.ChunkCount > 0) ? cursor : nullptr;
+                cursor += child.ChunkCount;
 
-                localIt.Managers = (localIt.ManagerCount > 0) ? currentPackedDataSectionPtr : nullptr;
+                child.Managers = (child.ManagerCount > 0) ? cursor : nullptr;
+                child.Flag = 0;
 
-                // Recursively call for this sub-chunk within the sequence.
-                localIt.Flag = 0;
-                totalResult += IterateAndDo(fct, &localIt);
+                totalResult += IterateAndDo(fct, &child);
             }
-            chunkListIdx++;
+
+            ++chunkIndex;
+            continue;
         }
+
+        // Packed sequence marker (-1 followed by offset to packed payload)
+        ++chunkIndex;
+        if (chunkIndex >= it->ChunkCount)
+            break;
+
+        const int sequenceOffset = it->Chunks[chunkIndex];
+        if (sequenceOffset < 0 || sequenceOffset >= it->ChunkSize) {
+            ++chunkIndex;
+            continue;
+        }
+
+        int *data = it->Data;
+        int packedCount = data[sequenceOffset];
+        int cursor = sequenceOffset + 1;
+
+        while (packedCount-- > 0) {
+            if (cursor >= it->ChunkSize)
+                break;
+
+            const int blockSize = data[cursor++];
+            if (blockSize <= 0)
+                continue;
+
+            if (cursor + 2 >= it->ChunkSize)
+                break;
+
+            const int chunkSizeToken = data[cursor + 1];
+            if (chunkSizeToken + 4 == blockSize) {
+                cursor += chunkSizeToken + 4;
+                continue;
+            }
+
+            child.ChunkVersion = static_cast<short>(data[cursor + 1] >> 16);
+            child.ChunkSize = data[cursor + 2];
+            child.IdCount = data[cursor + 4];
+            child.ChunkCount = data[cursor + 5];
+
+            int payloadOffset = cursor + 6;
+            int managerCount = data[cursor + 6];
+            if (parentUsesLegacyLayout) {
+                managerCount = 0;
+            } else {
+                payloadOffset = cursor + 7;
+            }
+            child.ManagerCount = managerCount;
+
+            child.Data = &data[payloadOffset];
+            int *packedCursor = child.Data + child.ChunkSize;
+
+            child.Ids = (child.IdCount > 0) ? packedCursor : nullptr;
+            packedCursor += child.IdCount;
+
+            child.Chunks = (child.ChunkCount > 0) ? packedCursor : nullptr;
+            packedCursor += child.ChunkCount;
+
+            child.Managers = (child.ManagerCount > 0) ? packedCursor : nullptr;
+            child.Flag = 0;
+
+            totalResult += IterateAndDo(fct, &child);
+
+            cursor = payloadOffset + child.ChunkSize + child.IdCount + child.ChunkCount + child.ManagerCount;
+        }
+
+        ++chunkIndex;
     }
+
     return totalResult;
 }
 
 int CKStateChunk::ObjectRemapper(ChunkIteratorData *it) {
-    if (!it || !it->Data) return 0;
+    if (!it || !it->Data)
+        return 0;
+
+    auto remapId = [&](CK_ID &value) {
+        if (it->DepContext) {
+            XHashID::Iterator mapIt = it->DepContext->m_MapID.Find(value);
+            if (mapIt != it->DepContext->m_MapID.End()) {
+                CK_ID mapped = *mapIt;
+                if (mapped)
+                    value = mapped;
+            }
+        } else if (it->Context && it->Context->m_ObjectManager) {
+            value = it->Context->m_ObjectManager->RealId(value);
+        }
+    };
+
     int remappedCount = 0;
 
-    // ---===[ PATH A: Modern Chunk Format (Version >= 4) ]===---
-    // This version uses the m_Ids list which stores offsets to all object IDs.
     if (it->ChunkVersion >= CHUNK_VERSION1) {
         if (!it->Ids || it->IdCount <= 0)
             return 0;
 
-        for (int i = 0; i < it->IdCount;) {
-            int idOffsetInData = it->Ids[i];
-            if (idOffsetInData >= 0) {
-                // -- Single Object ID --
-                if (idOffsetInData < it->ChunkSize) {
-                    CK_ID &oldIdRef = reinterpret_cast<CK_ID &>(it->Data[idOffsetInData]);
-                    CK_ID oldIdVal = oldIdRef;
-                    if (oldIdVal != 0) {
-                        CK_ID newId = 0;
-                        if (it->DepContext) {
-                            XHashID::Iterator mapIt = it->DepContext->m_MapID.Find(oldIdVal);
-                            if (mapIt != it->DepContext->m_MapID.End())
-                                newId = *mapIt;
-                        } else if (it->Context && it->Context->m_ObjectManager) {
-                            newId = it->Context->m_ObjectManager->RealId(oldIdVal);
-                        }
-                        if (newId != 0 && newId != oldIdVal) {
-                            oldIdRef = newId;
-                            remappedCount++;
-                        }
-                    }
+        for (int idx = 0; idx < it->IdCount;) {
+            int dataOffset = it->Ids[idx];
+            if (dataOffset >= 0) {
+                if (dataOffset >= 0 && dataOffset < it->ChunkSize) {
+                    CK_ID &value = reinterpret_cast<CK_ID &>(it->Data[dataOffset]);
+                    remapId(value);
+                    ++remappedCount;
                 }
-                i++;
-            } else {
-                // -- Sequence of Object IDs --
-                i++; // Move to the offset of the sequence count
-                if (i >= it->IdCount)
-                    break;
-
-                int sequenceHeaderOffset = it->Ids[i];
-                if (sequenceHeaderOffset >= 0 && sequenceHeaderOffset < it->ChunkSize) {
-                    int count = it->Data[sequenceHeaderOffset];
-                    int sequenceStartOffset = sequenceHeaderOffset + 1;
-
-                    if (count > 0 && sequenceStartOffset + count <= it->ChunkSize) {
-                        for (int k = 0; k < count; ++k) {
-                            CK_ID &oldIdRef = reinterpret_cast<CK_ID &>(it->Data[sequenceHeaderOffset + 1 + k]);
-                            CK_ID oldIdVal = oldIdRef;
-                            if (oldIdVal != 0) {
-                                CK_ID newId = 0;
-                                if (it->DepContext) {
-                                    XHashID::Iterator mapIt = it->DepContext->m_MapID.Find(oldIdVal);
-                                    if (mapIt != it->DepContext->m_MapID.End()) newId = *mapIt;
-                                } else if (it->Context && it->Context->m_ObjectManager) {
-                                    newId = it->Context->m_ObjectManager->RealId(oldIdVal);
-                                }
-                                if (newId != 0 && newId != oldIdVal) {
-                                    oldIdRef = newId;
-                                    remappedCount++;
-                                }
-                            }
-                        }
-                    }
-                }
-                i++; // Move past the sequence offset
-            }
-        }
-    } else {
-        // ---===[ PATH B: Legacy Chunk Format (Version < 4) ]===---
-        // This version requires scanning the entire data buffer for magic number markers.
-        const CKDWORD OBJID_MARKER[] = {0xE32BC4C9, 0x134212E3, 0xFCBAE9DC};
-        const CKDWORD SEQ_MARKER[] = {0xE192BD47, 0x13246628, 0x13EAB3CE, 0x7891AEFC, 0x13984562};
-
-        for (int pos = 0; pos < it->ChunkSize; ++pos) {
-            // Check for single object ID marker
-            if (pos + 3 < it->ChunkSize && memcmp(&it->Data[pos], OBJID_MARKER, sizeof(OBJID_MARKER)) == 0) {
-                CK_ID &oldIdRef = reinterpret_cast<CK_ID &>(it->Data[pos + 3]);
-                CK_ID oldIdVal = oldIdRef;
-                if (oldIdVal != 0) {
-                    CK_ID newId = 0;
-                    if (it->DepContext) {
-                        XHashID::Iterator mapIt = it->DepContext->m_MapID.Find(oldIdVal);
-                        if (mapIt != it->DepContext->m_MapID.End()) newId = *mapIt;
-                    } else if (it->Context && it->Context->m_ObjectManager) {
-                        newId = it->Context->m_ObjectManager->RealId(oldIdVal);
-                    }
-                    if (newId != 0 && newId != oldIdVal) {
-                        oldIdRef = newId;
-                        remappedCount++;
-                    }
-                }
-                pos += 3; // Advance past marker and ID
+                ++idx;
                 continue;
             }
 
-            // Check for object ID sequence marker
-            if (pos + 5 < it->ChunkSize && memcmp(&it->Data[pos], SEQ_MARKER, sizeof(SEQ_MARKER)) == 0) {
-                int count = it->Data[pos + 5];
-                int sequenceStartOffset = pos + 6;
+            ++idx;
+            if (idx >= it->IdCount)
+                break;
 
-                if (count > 0 && sequenceStartOffset + count <= it->ChunkSize) {
-                    for (int k = 0; k < count; ++k) {
-                        CK_ID &oldIdRef = reinterpret_cast<CK_ID &>(it->Data[pos + 6 + k]);
-                        CK_ID oldIdVal = oldIdRef;
-                        if (oldIdVal != 0) {
-                            CK_ID newId = 0;
-                            if (it->DepContext) {
-                                XHashID::Iterator mapIt = it->DepContext->m_MapID.Find(oldIdVal);
-                                if (mapIt != it->DepContext->m_MapID.End()) newId = *mapIt;
-                            } else if (it->Context && it->Context->m_ObjectManager) {
-                                newId = it->Context->m_ObjectManager->RealId(oldIdVal);
-                            }
-                            if (newId != 0 && newId != oldIdVal) {
-                                oldIdRef = newId;
-                                remappedCount++;
-                            }
+            const int sequenceOffset = it->Ids[idx];
+            if (sequenceOffset < 0 || sequenceOffset >= it->ChunkSize) {
+                ++idx;
+                continue;
+            }
+
+            const int count = it->Data[sequenceOffset];
+            const int firstEntry = sequenceOffset + 1;
+            const int lastEntry = firstEntry + count;
+            if (count > 0 && lastEntry <= it->ChunkSize) {
+                for (int cursor = firstEntry; cursor < lastEntry; ++cursor) {
+                    CK_ID &value = reinterpret_cast<CK_ID &>(it->Data[cursor]);
+                    remapId(value);
+                }
+                remappedCount += count;
+            }
+
+            ++idx;
+        }
+        return remappedCount;
+    }
+
+    static constexpr CKDWORD OBJID_MARKER[3] = {0xE32BC4C9, 0x134212E3, 0xFCBAE9DC};
+    static constexpr CKDWORD SEQ_MARKER[5] = {0xE192BD47, 0x13246628, 0x13EAB3CE, 0x7891AEFC, 0x13984562};
+
+    for (int pos = 3; pos < it->ChunkSize; ++pos) {
+        if (it->Data[pos - 3] == OBJID_MARKER[0] &&
+            it->Data[pos - 2] == OBJID_MARKER[1] &&
+            it->Data[pos - 1] == OBJID_MARKER[2]) {
+            CK_ID &value = reinterpret_cast<CK_ID &>(it->Data[pos]);
+            remapId(value);
+            ++remappedCount;
+        }
+    }
+
+    if (it->ChunkSize > 5) {
+        for (int pos = 2; pos < it->ChunkSize - 2; ++pos) {
+            if (it->Data[pos - 2] == SEQ_MARKER[0] &&
+                it->Data[pos - 1] == SEQ_MARKER[1] &&
+                it->Data[pos] == SEQ_MARKER[2] &&
+                it->Data[pos + 1] == SEQ_MARKER[3] &&
+                it->Data[pos + 2] == SEQ_MARKER[4]) {
+                const int count = it->Data[pos + 3];
+                if (count > 0) {
+                    const int firstEntry = pos + 4;
+                    const int lastEntry = firstEntry + count;
+                    if (lastEntry <= it->ChunkSize) {
+                        for (int cursor = firstEntry; cursor < lastEntry; ++cursor) {
+                            CK_ID &value = reinterpret_cast<CK_ID &>(it->Data[cursor]);
+                            remapId(value);
                         }
                     }
-                    pos = sequenceStartOffset + count - 1; // Position 'pos' for next loop iteration
-                } else {
-                    pos += 5; // Skip marker
+                    remappedCount += count;
                 }
             }
         }
@@ -2768,58 +2695,58 @@ int CKStateChunk::ManagerRemapper(ChunkIteratorData *it) {
     if (!it || !it->Managers || it->ManagerCount <= 0 || !it->Data || !it->ConversionTable || it->NbEntries <= 0)
         return 0;
 
-    int remappedCount = 0;
-    for (int i = 0; i < it->ManagerCount;) {
-        int managerDataOffset = it->Managers[i];
-        if (managerDataOffset >= 0) {
-            // -- Single Manager Integer --
-            // Header is [GUID.d1, GUID.d2, Value]
-            if (managerDataOffset + 2 < it->ChunkSize) {
-                CKGUID storedGuid(it->Data[managerDataOffset], it->Data[managerDataOffset + 1]);
-                if (it->Guid == storedGuid) {
-                    int &valRef = it->Data[managerDataOffset + 2];
-                    if (valRef >= 0 && valRef < it->NbEntries) {
-                        int newVal = it->ConversionTable[valRef];
-                        if (newVal != valRef) {
-                            valRef = newVal;
-                            remappedCount++;
-                        }
+    int total = 0;
+    for (int idx = 0; idx < it->ManagerCount;) {
+        int offset = it->Managers[idx];
+        if (offset >= 0) {
+            if (offset + 2 < it->ChunkSize) {
+                CKGUID guid(it->Data[offset], it->Data[offset + 1]);
+                if (guid == it->Guid) {
+                    int &value = it->Data[offset + 2];
+                    if (value >= 0 && value < it->NbEntries) {
+                        value = it->ConversionTable[value];
+                        ++total;
                     }
                 }
             }
-            i++;
-        } else {
-            // -- Sequence of Manager Integers --
-            i++; // Move to the offset of the sequence header
-            if (i >= it->ManagerCount)
-                break;
-
-            int sequenceHeaderOffset = it->Managers[i];
-            // Header is [Count, GUID.d1, GUID.d2], followed by integers
-            if (sequenceHeaderOffset >= 0 && sequenceHeaderOffset + 2 < it->ChunkSize) {
-                int count = it->Data[sequenceHeaderOffset];
-                int sequenceStartOffset = sequenceHeaderOffset + 3;
-
-                if (count > 0 && sequenceStartOffset + count <= it->ChunkSize) {
-                    CKGUID storedGuid(it->Data[sequenceHeaderOffset + 1], it->Data[sequenceHeaderOffset + 2]);
-                    if (it->Guid == storedGuid) {
-                        for (int k = 0; k < count; ++k) {
-                            int &valRef = it->Data[sequenceStartOffset + k];
-                            if (valRef >= 0 && valRef < it->NbEntries) {
-                                int newVal = it->ConversionTable[valRef];
-                                if (newVal != valRef) {
-                                    valRef = newVal;
-                                    remappedCount++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            i++; // Move past the sequence offset
+            ++idx;
+            continue;
         }
+
+        ++idx;
+        if (idx >= it->ManagerCount)
+            break;
+
+        const int sequenceOffset = it->Managers[idx];
+        if (sequenceOffset < 0 || sequenceOffset + 2 >= it->ChunkSize) {
+            ++idx;
+            continue;
+        }
+
+        const int count = it->Data[sequenceOffset];
+        if (count <= 0) {
+            ++idx;
+            continue;
+        }
+
+        CKGUID guid(it->Data[sequenceOffset + 1], it->Data[sequenceOffset + 2]);
+        if (guid == it->Guid) {
+            const int firstValue = sequenceOffset + 3;
+            const int endValue = firstValue + count;
+            if (endValue <= it->ChunkSize) {
+                for (int cursor = firstValue; cursor < endValue; ++cursor) {
+                    int &value = it->Data[cursor];
+                    if (value >= 0 && value < it->NbEntries)
+                        value = it->ConversionTable[value];
+                }
+            }
+            total += count;
+        }
+
+        ++idx;
     }
-    return remappedCount;
+
+    return total;
 }
 
 int CKStateChunk::ParameterRemapper(ChunkIteratorData *it) {
@@ -2828,36 +2755,26 @@ int CKStateChunk::ParameterRemapper(ChunkIteratorData *it) {
 
     int currentPos = 0;
     while (currentPos + 1 < it->ChunkSize) {
-        // Search for the start of a parameter data block (Identifier 0x40)
         if (it->Data[currentPos] == 0x40) {
-            int headerStart = currentPos + 2;
-            // A parameter header has [GUID.d1, GUID.d2, State, ...]
+            const int headerStart = currentPos + 2;
             if (headerStart + 3 < it->ChunkSize) {
                 CKGUID storedGuid(it->Data[headerStart], it->Data[headerStart + 1]);
-                int paramState = it->Data[headerStart + 2];
-
-                // Check if it's the target parameter type and if it holds raw data (State 1)
-                if (it->Guid == storedGuid && paramState == 1) {
-                    int &valRef = it->Data[headerStart + 3];
-                    if (valRef >= 0 && valRef < it->NbEntries) {
-                        int newVal = it->ConversionTable[valRef];
-                        if (newVal != valRef) {
-                            valRef = newVal;
-                            return 1; // Remapped one value
-                        }
-                    }
+                if (storedGuid == it->Guid && it->Data[headerStart + 2] == 1) {
+                    int &value = it->Data[headerStart + 3];
+                    if (value >= 0 && value < it->NbEntries)
+                        value = it->ConversionTable[value];
+                    else
+                        value = 0;
+                    return 1;
                 }
             }
         }
 
-        // Move to the next data block within the chunk
-        int nextPos = it->Data[currentPos + 1];
-        if (nextPos == 0 || nextPos <= currentPos || nextPos >= it->ChunkSize) {
-            // Reached end of linked list of blocks or invalid offset
+        const int nextPos = it->Data[currentPos + 1];
+        if (nextPos == 0 || nextPos <= currentPos || nextPos >= it->ChunkSize)
             break;
-        }
         currentPos = nextPos;
     }
 
-    return 0; // Nothing remapped
+    return 0;
 }
