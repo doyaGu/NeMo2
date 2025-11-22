@@ -502,8 +502,8 @@ CKParameterOut *CKPluginManager::GetReaderOptionData(CKContext *context, void *m
         auto *param = (CKParameter *)context->GetObject(ids[i]);
         if (param) {
             int size = param->GetDataSize();
-            void *data = param->GetReadDataPtr();
-            memcpy(mem, data, size);
+            void *dst = param->GetWriteDataPtr();
+            memcpy(dst, mem, size);
             mem += size;
         }
     }
