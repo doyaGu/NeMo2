@@ -9,6 +9,7 @@
 CK_CLASSID CKParameter::m_ClassID = CKCID_PARAMETER;
 
 CKObject *CKParameter::GetValueObject(CKBOOL update) {
+    if (m_Size < sizeof(CK_ID)) return nullptr;
     CK_ID *idPtr = (CK_ID *)GetReadDataPtr(update);
     if (!idPtr) return nullptr;
     return m_Context->GetObject(*idPtr);
@@ -88,14 +89,14 @@ void *CKParameter::GetWriteDataPtr() {
 }
 
 CKERROR CKParameter::SetStringValue(CKSTRING Value) {
-    if (m_ParamType && m_ParamType->StringFunction) {
+    if (m_ParamType && m_ParamType->Valid && m_ParamType->StringFunction) {
         return m_ParamType->StringFunction(this, Value, TRUE);
     }
     return CKERR_INVALIDOPERATION;
 }
 
 int CKParameter::GetStringValue(CKSTRING Value, CKBOOL update) {
-    if (m_ParamType && m_ParamType->StringFunction) {
+    if (m_ParamType && m_ParamType->Valid && m_ParamType->StringFunction) {
         return m_ParamType->StringFunction(this, Value, FALSE);
     }
     if (Value) *Value = '\0';
@@ -115,7 +116,7 @@ void CKParameter::SetType(CKParameterType type) {
     if (oldType == newType) return; // Already this type
 
     // Fast compatible path: old type has no custom life-cycle
-    if (oldType && !oldType->CreateDefaultFunction && !oldType->DeleteFunction) {
+    if (oldType && !newType->CreateDefaultFunction && !oldType->DeleteFunction) {
         // Ensure derivation tables are current
         if (!pm->m_DerivationMasksUpToDate)
             pm->UpdateDerivationTables();
