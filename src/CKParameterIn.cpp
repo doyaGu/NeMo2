@@ -63,46 +63,47 @@ CKERROR CKParameterIn::ShareSourceWith(CKParameterIn *param) {
 }
 
 void CKParameterIn::SetType(CKParameterType type, CKBOOL UpdateSource, CKSTRING NewName) {
-    CKParameterManager *paramManager = m_Context->GetParameterManager();
-    m_ParamType = paramManager->GetParameterTypeDescription(type);
+    CKParameterIn *current = this;
+    while (true) {
+        CKParameterManager *paramManager = current->m_Context->GetParameterManager();
+        current->m_ParamType = paramManager->GetParameterTypeDescription(type);
 
-    // Update the parameter name if a new name is provided
-    if (NewName) {
-        SetName(NewName, FALSE);
-    }
-
-    // If UpdateSource is false, return immediately
-    if (!UpdateSource) {
-        return;
-    }
-
-    CKBehavior *ownerBehavior = reinterpret_cast<CKBehavior *>(m_Owner);
-    if (!CKIsChildClassOf(ownerBehavior, CKCID_BEHAVIOR)) {
-        return;
-    }
-
-    // Determine the correct source parameter
-    CKParameter *sourceParam = GetRealSource();
-
-    // If the source is a local parameter, update its type
-    if (CKIsChildClassOf(sourceParam, CKCID_PARAMETERLOCAL)) {
-        CKBehavior *parent = ownerBehavior->GetParent();
-        if (sourceParam->GetOwner() == parent) {
-            sourceParam->SetType(type);
-            if (NewName) {
-                sourceParam->SetName(NewName, 0);
-            }
+        // Update the parameter name if a new name is provided
+        if (NewName) {
+            current->SetName(NewName, FALSE);
         }
-        return;
-    }
 
-    if ((m_ObjectFlags & CK_PARAMETERIN_SHARED) != 0) {
-        CKParameterIn *sharedInput = m_InShared;
-        if (sharedInput) {
-            CKBehavior *sharedOwner = reinterpret_cast<CKBehavior *>(sharedInput->m_Owner);
-            if (sharedOwner == ownerBehavior->GetParent()) {
-                sharedInput->SetType(type, UpdateSource, NewName);
+        // If UpdateSource is false, return immediately
+        if (!UpdateSource) {
+            break;
+        }
+
+        CKBehavior *ownerBehavior = (CKBehavior *)current->GetOwner();
+        if (!CKIsChildClassOf(ownerBehavior, CKCID_BEHAVIOR)) {
+            break;
+        }
+
+        if (!(current->m_ObjectFlags & CK_PARAMETERIN_SHARED)) {
+            CKParameter *outSource = current->m_OutSource;
+            if (outSource && CKIsChildClassOf(outSource, CKCID_PARAMETERLOCAL)) {
+                CKBehavior *parent = ownerBehavior->GetParent();
+                if (outSource->GetOwner() == parent) {
+                    outSource->SetType(type);
+                    if (NewName) {
+                        outSource->SetName(NewName, 0);
+                    }
+                }
             }
+            return;
+        } else {
+            current = current->m_InShared;
+            if (current) {
+                CKBehavior *sharedOwner = (CKBehavior *)current->GetOwner();
+                if (sharedOwner == ownerBehavior->GetParent()) {
+                    continue;
+                }
+            }
+            return;
         }
     }
 }
