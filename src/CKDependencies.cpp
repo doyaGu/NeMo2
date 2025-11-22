@@ -7,9 +7,10 @@
 #include "CKScene.h"
 
 void CKDependenciesContext::AddObjects(CK_ID *ids, int count) {
-    if (!ids || count <= 0) return;
-
     m_Objects.Reserve(m_Objects.Size() + count);
+    if (count <= 0)
+        return;
+
     for (int i = 0; i < count; ++i) {
         if (m_CKContext->GetObject(ids[i]))
             m_Objects.PushBack(ids[i]);
@@ -60,15 +61,14 @@ XObjectArray CKDependenciesContext::FillRemappedDependencies() {
 }
 
 CKDWORD CKDependenciesContext::GetClassDependencies(int c) {
-    if (m_Dependencies) {
-        if (m_Dependencies->m_Flags & CK_DEPENDENCIES_NONE) return 0;
-        if (m_Dependencies->m_Flags & CK_DEPENDENCIES_FULL) return 0xFFFF;
-        if (c >= 0 && c < m_Dependencies->Size()) return (*m_Dependencies)[c];
-        return 0;
+    CKDependencies *deps = m_Dependencies;
+    if (deps) {
+        if (deps->m_Flags & CK_DEPENDENCIES_NONE) return 0;
+        if (deps->m_Flags & CK_DEPENDENCIES_FULL) return 0xFFFF;
+    } else {
+        deps = CKGetDefaultClassDependencies((CK_DEPENDENCIES_OPMODE) m_Mode);
     }
 
-    CKDependencies *deps = CKGetDefaultClassDependencies((CK_DEPENDENCIES_OPMODE) m_Mode);
-    if (!deps || c < 0 || c >= deps->Size()) return 0;
     return (*deps)[c];
 }
 
@@ -102,7 +102,7 @@ void CKDependenciesContext::Copy(CKSTRING appendstring) {
         CKObject *original = m_CKContext->GetObject(originalId);
         if (!original) continue;
 
-        CKObject *copy = m_CKContext->CreateObject(original->GetClassID(), nullptr);
+        CKObject *copy = m_CKContext->CreateObject(original->GetClassID(), nullptr, (CK_OBJECTCREATION_OPTIONS) m_CreationMode);
         if (copy) {
             *it = copy->GetID();
             copy->Copy(*original, *this);
@@ -147,7 +147,9 @@ void CKDependenciesContext::Copy(CKSTRING appendstring) {
                             scene->SetObjectFlags(sceneObjCopy, (CK_SCENEOBJECT_FLAGS) (origFlags & ~CK_SCENEOBJECT_ACTIVE));
 
                             // Activate the object if required by creation options or if it was originally active
-                            if ((m_CreationMode & CK_OBJECTCREATION_ACTIVATE) || sceneObjOrig->IsActiveInScene(scene)) {
+                            const bool shouldActivate = ((m_CreationMode & CK_OBJECTCREATION_ACTIVATE) &&
+                                CKIsChildClassOf(sceneObjCopy, CKCID_BEOBJECT)) || scene->IsObjectActive(sceneObjOrig);
+                            if (shouldActivate) {
                                 scene->Activate(sceneObjCopy, TRUE);
                             }
                         }
