@@ -1235,7 +1235,7 @@ CKBOOL CKFile::IsObjectToBeSaved(CK_ID iID) {
         return FALSE;
 
     for (XArray<CKFileObject>::Iterator it = m_FileObjects.Begin(); it != m_FileObjects.End(); ++it)
-        if ((*it).ObjectCid == iID)
+        if ((*it).Object == iID)
             return TRUE;
 
     return FALSE;
