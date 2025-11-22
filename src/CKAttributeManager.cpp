@@ -53,15 +53,17 @@ CKAttributeType CKAttributeManager::RegisterNewAttributeType(CKSTRING Name, CKGU
     desc->Flags = flags;
 
     if (!(desc->Flags & (CK_ATTRIBUT_USER | CK_ATTRIBUT_SYSTEM))) {
-        desc->Flags |= CK_ATTRIBUT_DONOTCOPY;
+        desc->Flags |= CK_ATTRIBUT_USER;
     }
 
     if (!g_TheCurrentPluginEntry) {
         CKBaseManager *man = m_Context->m_CurrentManager;
         if (man && man != this) {
-            desc->CreatorDll = g_ThePluginManager.FindComponent(man->GetGuid(), CKPLUGIN_MANAGER_DLL);
+            g_ThePluginManager.FindComponent(man->GetGuid(), CKPLUGIN_MANAGER_DLL);
         }
     }
+
+    desc->CreatorDll = nullptr;
 
     m_AttributeInfos[freeSlot] = desc;
     return freeSlot;
@@ -591,12 +593,14 @@ void CKAttributeManager::ObjectRemovedFromScene(CKBeObject *beo, CKScene *scene)
     const int attributeCount = beo->GetAttributeCount();
     for (int i = 0; i < attributeCount; ++i) {
         CKAttributeType attrType = beo->GetAttributeType(i);
-        if (attrType >= 0 && attrType < m_AttributeInfoCount && m_AttributeInfos) {
-            CKAttributeDesc *attrDesc = m_AttributeInfos[attrType];
-            if (attrDesc) {
-                attrDesc->AttributeList.Remove(beo);
-            }
-        }
+        if (attrType < 0 || attrType >= m_AttributeInfoCount)
+            continue;
+
+        CKAttributeDesc *attrDesc = m_AttributeInfos[attrType];
+        if (!attrDesc)
+            continue;
+
+        attrDesc->AttributeList.Remove(beo);
     }
 }
 
@@ -687,17 +691,23 @@ CKERROR CKAttributeManager::PreClearAll() {
     }
 
     for (int catIdx = 0; catIdx < m_AttributeCategoryCount;) {
-        bool used = false;
+        CKAttributeCategoryDesc *category = m_AttributeCategories ? m_AttributeCategories[catIdx] : nullptr;
+        if (!category) {
+            catIdx++;
+            continue;
+        }
 
+        bool used = false;
         for (int attrIdx = 0; attrIdx < m_AttributeInfoCount; ++attrIdx) {
-            if (m_AttributeInfos[attrIdx] && m_AttributeInfos[attrIdx]->AttributeCategory == catIdx) {
+            CKAttributeDesc *attrDesc = m_AttributeInfos[attrIdx];
+            if (attrDesc && attrDesc->AttributeCategory == catIdx) {
                 used = true;
                 break;
             }
         }
 
         if (!used) {
-            RemoveCategory(m_AttributeCategories[catIdx]->Name);
+            RemoveCategory(category->Name);
         } else {
             catIdx++;
         }
@@ -755,6 +765,7 @@ CKERROR CKAttributeManager::LoadData(CKStateChunk *chunk, CKFile *LoadedFile) {
     for (int i = 0; i < categoryCount; ++i) {
         if (chunk->ReadInt()) {
             CKAttributeCategoryDesc &desc = categories[i];
+            desc.Name = nullptr;
             chunk->ReadString(&desc.Name);
             CKDWORD flags = chunk->ReadDword();
             if (GetCategoryByName(desc.Name) < 0) {
@@ -764,6 +775,9 @@ CKERROR CKAttributeManager::LoadData(CKStateChunk *chunk, CKFile *LoadedFile) {
 
             int newCatIdx = AddCategory(desc.Name, flags);
             categoryConversions.PushBack(newCatIdx);
+
+            delete[] desc.Name;
+            desc.Name = nullptr;
         } else {
             categoryConversions.PushBack(-1);
         }
@@ -795,6 +809,8 @@ CKERROR CKAttributeManager::LoadData(CKStateChunk *chunk, CKFile *LoadedFile) {
                     desc->AttributeCategory = newCategoryIdx;
                 }
             }
+
+            delete[] name;
         } else {
             m_ConversionTable[i] = -1;
         }
@@ -812,8 +828,10 @@ CKStateChunk *CKAttributeManager::SaveData(CKFile *SavedFile) {
     chunk->WriteInt(m_AttributeCategoryCount);
     chunk->WriteInt(m_AttributeInfoCount);
 
-    XBitArray attributeMask(m_AttributeInfoCount);
-    XBitArray categoryMask(m_AttributeCategoryCount);
+    const int attributeBitBlocks = (m_AttributeInfoCount >> 5) + 1;
+    const int categoryBitBlocks = (m_AttributeCategoryCount >> 5) + 1;
+    XBitArray attributeMask(attributeBitBlocks);
+    XBitArray categoryMask(categoryBitBlocks);
 
     CKParameterManager *pm = m_Context->GetParameterManager();
     CKParameterType paramAttrType = pm->ParameterGuidToType(CKPGUID_ATTRIBUTE);
@@ -833,7 +851,7 @@ CKStateChunk *CKAttributeManager::SaveData(CKFile *SavedFile) {
     }
 
     for (int i = 0; i < paramLocalCount; ++i) {
-        CKParameterOut *param = (CKParameterOut *) SavedFile->m_IndexByClassId[CKCID_PARAMETERLOCAL][i];
+        CKParameterLocal *param = (CKParameterLocal *) SavedFile->m_IndexByClassId[CKCID_PARAMETERLOCAL][i];
         if (param && param->GetType() == paramAttrType) {
             CKAttributeType attrType;
             param->GetValue(&attrType);
