@@ -113,7 +113,6 @@ CKERROR CKMessageManager::RegisterWait(CKMessageType MsgType, CKBehavior *behav,
     if (!behav) return CKERR_INVALIDPARAMETER;
 
     CKBehaviorIO *output = behav->GetOutput(OutputToActivate);
-    if (!output) return CKERR_INVALIDPARAMETER;
 
     behav->ModifyFlags(CKBEHAVIOR_WAITSFORMESSAGE, 0);
 
