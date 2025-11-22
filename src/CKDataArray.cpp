@@ -416,9 +416,7 @@ void CKDataArray::SetColumnType(int c, CK_ARRAYTYPE newType, CKGUID paramGuid) {
 
         case CKARRAYTYPE_PARAMETER: {
             CKParameter *oldParam = reinterpret_cast<CKParameter *>(element);
-            if (oldParam && oldParam->GetOwner() == this) {
-                m_Context->DestroyObject(oldParam);
-            }
+            CKParameter *ownedParam = (oldParam && oldParam->GetOwner() == this) ? oldParam : nullptr;
 
             switch (newType) {
             case CKARRAYTYPE_INT: {
@@ -450,6 +448,10 @@ void CKDataArray::SetColumnType(int c, CK_ARRAYTYPE newType, CKGUID paramGuid) {
             default:
                 element = 0;
                 break;
+            }
+
+            if (ownedParam) {
+                m_Context->DestroyObject(ownedParam);
             }
             break;
         }
@@ -1204,9 +1206,13 @@ void CKDataArray::Clear(CKBOOL Params) {
 
             case CKARRAYTYPE_PARAMETER: {
                 CKParameterOut *param = (CKParameterOut *) element;
-                if (param && Params) {
-                    if (param->GetOwner() == this) {
-                        paramsToDestroy.PushBack(param->GetID());
+                if (param) {
+                    if (Params) {
+                        if (param->GetOwner() == this) {
+                            paramsToDestroy.PushBack(param->GetID());
+                        }
+                    } else if (param->GetOwner() == this) {
+                        param->SetOwner(NULL);
                     }
                 }
                 element = 0;
@@ -1775,7 +1781,7 @@ CKStateChunk *CKDataArray::Save(CKFile *file, CKDWORD flags) {
                 break;
 
             case CKARRAYTYPE_FLOAT:
-                chunk->WriteFloat((float) element);
+                chunk->WriteFloat(*(float *) &element);
                 break;
 
             case CKARRAYTYPE_STRING: {
@@ -1899,14 +1905,16 @@ CKERROR CKDataArray::Load(CKStateChunk *chunk, CKFile *file) {
                     element = chunk->ReadInt();
                     break;
 
-                case CKARRAYTYPE_FLOAT:
-                    element = (CKDWORD) chunk->ReadFloat();
+                case CKARRAYTYPE_FLOAT: {
+                    float f = chunk->ReadFloat();
+                    element = *(CKDWORD *) &f;
                     break;
+                }
 
                 case CKARRAYTYPE_STRING: {
                     char *str = nullptr;
                     chunk->ReadString(&str);
-                    element = (CKDWORD) CKStrdup(str);
+                    element = (CKDWORD) str;
                     break;
                 }
 
