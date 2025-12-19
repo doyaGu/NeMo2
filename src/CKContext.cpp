@@ -1580,9 +1580,7 @@ int CKContext::PrepareDestroyObjects(CK_ID *obj_ids, int Count, CKDWORD Flags, C
     for (int i = 0; i < Count; ++i) {
         CKObject *obj = GetObject(obj_ids[i]);
         if (obj) {
-            printf("Preparing to destroy object %s (ID: %d)\n", obj->GetName(), obj->GetID());
             obj->PrepareDependencies(m_DependenciesContext);
-            printf("Dependencies prepared for object %s (ID: %d)\n", obj->GetName(), obj->GetID());
         }
     }
 
@@ -1599,7 +1597,8 @@ int CKContext::FinishDestroyObjects(CKDWORD Flags) {
     objectsToDelete.Resize(depMap.Size());
     int i = 0;
     for (XHashID::Iterator it = depMap.Begin(); it != depMap.End(); ++it) {
-        objectsToDelete[i++] = it.GetKey();
+        CK_ID objId = it.GetKey();
+        objectsToDelete[i++] = objId;
     }
 
     m_DependenciesContext.Clear();
@@ -1613,9 +1612,9 @@ void CKContext::BuildSortedLists() {
         m_ManagerList[i].Clear();
     }
 
-    for (int i = 0; i < 32; ++i) {
-        for (auto it = m_ManagerTable.Begin(); it != m_ManagerTable.End(); ++it) {
-            CKBaseManager *manager = *it;
+    for (auto it = m_ManagerTable.Begin(); it != m_ManagerTable.End(); ++it) {
+        CKBaseManager *manager = *it;
+        for (int i = 0; i < 32; ++i) {
             if (manager->GetValidFunctionsMask() & (1 << i)) {
                 m_ManagerList[i].PushBack(manager);
             }
