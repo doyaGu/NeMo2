@@ -28,7 +28,7 @@ CKERROR CKParameterIn::SetDirectSource(CKParameter *param) {
         }
     }
 
-    m_ObjectFlags &= ~CK_OBJECT_UPTODATE;
+    m_ObjectFlags &= ~CK_PARAMETERIN_SHARED;
     m_OutSource = param;
 
     return CK_OK;
@@ -55,7 +55,7 @@ CKERROR CKParameterIn::ShareSourceWith(CKParameterIn *param) {
         }
     }
 
-    m_ObjectFlags |= CK_OBJECT_UPTODATE;
+    m_ObjectFlags |= CK_PARAMETERIN_SHARED;
 
     m_InShared = param;
 
@@ -115,10 +115,11 @@ void CKParameterIn::SetGUID(CKGUID guid, CKBOOL UpdateSource, CKSTRING NewName) 
 }
 
 CKParameterIn::CKParameterIn(CKContext *Context, CKSTRING name, int type) : CKObject(Context, name) {
+    CKParameterManager *pm = Context->GetParameterManager();
+    CKParameterTypeDesc *typeDesc = pm->GetParameterTypeDescription(type);
     m_Owner = nullptr;
     m_OutSource = nullptr;
-    CKParameterManager *pm = Context->GetParameterManager();
-    m_ParamType = pm->GetParameterTypeDescription(type);
+    m_ParamType = typeDesc;
 }
 
 CKParameterIn::~CKParameterIn() {
@@ -195,9 +196,7 @@ CKERROR CKParameterIn::Load(CKStateChunk *chunk, CKFile *file) {
                 chunk->ReadObjectID();
             }
 
-            CKObject *obj = chunk->ReadObject(m_Context);
-            assert(obj != nullptr);
-            m_InShared = (CKParameterIn *)obj;
+            m_InShared = (CKParameterIn *)chunk->ReadObject(m_Context);
             m_ObjectFlags |= CK_PARAMETERIN_SHARED;
         } else if (chunk->SeekIdentifier(CK_STATESAVE_PARAMETERIN_DATASOURCE)) {
             CKGUID guid = chunk->ReadGuid();
@@ -211,7 +210,7 @@ CKERROR CKParameterIn::Load(CKStateChunk *chunk, CKFile *file) {
                 chunk->ReadObjectID();
             }
 
-            m_OutSource = (CKParameter *)chunk->ReadObject(m_Context);
+            m_InShared = (CKParameterIn *)chunk->ReadObject(m_Context);
         } else if (chunk->SeekIdentifier(CK_STATESAVE_PARAMETERIN_DEFAULTDATA)) {
             CKGUID guid = chunk->ReadGuid();
             ConvertLegacyGuid(guid);
@@ -221,9 +220,9 @@ CKERROR CKParameterIn::Load(CKStateChunk *chunk, CKFile *file) {
 
             m_Owner = chunk->ReadObject(m_Context);
             m_OutSource = (CKParameter *)chunk->ReadObject(m_Context);
-            CKObject *param = chunk->ReadObject(m_Context);
+            CKParameterIn *param = (CKParameterIn *)chunk->ReadObject(m_Context);
             if (!m_OutSource) {
-                m_OutSource = (CKParameter *) param;
+                m_InShared = param;
             } else {
                 m_ObjectFlags |= CK_PARAMETERIN_SHARED;
             }
@@ -235,21 +234,30 @@ CKERROR CKParameterIn::Load(CKStateChunk *chunk, CKFile *file) {
     } else {
         // Handle legacy version (pre data version 1)
 
+        // First check for DEFAULTDATA (0x400) in legacy path
+        if (chunk->SeekIdentifier(CK_STATESAVE_PARAMETERIN_DEFAULTDATA)) {
+            CKGUID guid = chunk->ReadGuid();
+            ConvertLegacyGuid(guid);
+
+            CKParameterManager *pm = m_Context->GetParameterManager();
+            m_ParamType = pm->GetParameterTypeDescription(guid);
+        }
+
         if (chunk->SeekIdentifier(CK_STATESAVE_PARAMETERIN_OWNER)) {
             m_Owner = chunk->ReadObject(m_Context);
         }
 
         if (chunk->SeekIdentifier(CK_STATESAVE_PARAMETERIN_INSHARED)) {
-            CKObject *param = chunk->ReadObject(m_Context);
+            CKParameter *param = (CKParameter *)chunk->ReadObject(m_Context);
             if (param) {
-                m_InShared = (CKParameterIn *) param;
                 m_ObjectFlags |= CK_PARAMETERIN_SHARED;
+                m_OutSource = param;
             }
         }
 
         if (!(m_ObjectFlags & CK_PARAMETERIN_SHARED) &&
             chunk->SeekIdentifier(CK_STATESAVE_PARAMETERIN_OUTSOURCE)) {
-            CKParameter *param = (CKParameter *) chunk->ReadObject(m_Context);
+            CKParameter *param = (CKParameter *)chunk->ReadObject(m_Context);
             if (param) {
                 m_OutSource = param;
             }
