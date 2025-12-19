@@ -77,13 +77,15 @@ void CKAttributeManager::UnRegisterAttribute(CKAttributeType AttribType) {
     if (!attrDesc)
         return;
 
-    for (XObjectPointerArray::Iterator it = attrDesc->GlobalAttributeList.Begin(); it != attrDesc->GlobalAttributeList.
-         End(); ++
-         it) {
-        CKBeObject *beo = (CKBeObject *) *it;
+    // Remove from front of list - RemoveAttribute modifies the list so we can't use iterator
+    while (attrDesc->GlobalAttributeList.Size() > 0) {
+        CKBeObject *beo = (CKBeObject *)attrDesc->GlobalAttributeList[0];
         if (beo) {
             beo->RemoveAttribute(AttribType);
         }
+        attrDesc = m_AttributeInfos[AttribType];
+        if (!attrDesc)
+            return;
     }
 
     delete[] attrDesc->DefaultValue;
@@ -769,7 +771,7 @@ CKERROR CKAttributeManager::LoadData(CKStateChunk *chunk, CKFile *LoadedFile) {
             chunk->ReadString(&desc.Name);
             CKDWORD flags = chunk->ReadDword();
             if (GetCategoryByName(desc.Name) < 0) {
-                flags = flags & ~0x33 | 0x13;
+                flags = (flags & ~0x20) | 0x13;
             }
             desc.Flags = flags;
 
@@ -799,7 +801,7 @@ CKERROR CKAttributeManager::LoadData(CKStateChunk *chunk, CKFile *LoadedFile) {
             }
 
             if (GetAttributeTypeByName(name) < 0) {
-                flags = flags & ~0x33 | 0x13;
+                flags = (flags & ~0x20) | 0x13;
             }
 
             m_ConversionTable[i] = RegisterNewAttributeType(name, paramType, compatCid, (CK_ATTRIBUT_FLAGS) flags);
@@ -840,7 +842,8 @@ CKStateChunk *CKAttributeManager::SaveData(CKFile *SavedFile) {
     const int paramLocalCount = SavedFile->m_IndexByClassId[CKCID_PARAMETERLOCAL].Size();
 
     for (int i = 0; i < paramOutCount; ++i) {
-        CKParameterOut *param = (CKParameterOut *) SavedFile->m_IndexByClassId[CKCID_PARAMETEROUT][i];
+        int fileObjIdx = SavedFile->m_IndexByClassId[CKCID_PARAMETEROUT][i];
+        CKParameterOut *param = (CKParameterOut *) SavedFile->m_FileObjects[fileObjIdx].ObjPtr;
         if (param && param->GetType() == paramAttrType) {
             CKAttributeType attrType;
             param->GetValue(&attrType);
@@ -851,7 +854,8 @@ CKStateChunk *CKAttributeManager::SaveData(CKFile *SavedFile) {
     }
 
     for (int i = 0; i < paramLocalCount; ++i) {
-        CKParameterLocal *param = (CKParameterLocal *) SavedFile->m_IndexByClassId[CKCID_PARAMETERLOCAL][i];
+        int fileObjIdx = SavedFile->m_IndexByClassId[CKCID_PARAMETERLOCAL][i];
+        CKParameterLocal *param = (CKParameterLocal *) SavedFile->m_FileObjects[fileObjIdx].ObjPtr;
         if (param && param->GetType() == paramAttrType) {
             CKAttributeType attrType;
             param->GetValue(&attrType);
