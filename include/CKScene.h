@@ -37,24 +37,44 @@ public:
     // Summary:Returns the ID of the current object.
     // Return Value
     //	CK_ID of the current object.
-    CK_ID GetObjectID() { return m_Iterator.GetKey(); }
+    CK_ID GetObjectID() {
+        if (!m_Iterator.m_Node)
+            return 0;
+        return m_Iterator.GetKey();
+    }
 
-    CKSceneObjectDesc *GetObjectDesc() { return m_Iterator; }
+    CKSceneObjectDesc *GetObjectDesc() {
+        if (!m_Iterator.m_Node)
+            return nullptr;
+        return m_Iterator;
+    }
     // Summary:Reset iterator to start of the list.
     void Rewind()
     {
+        if (!m_Iterator.m_Table) {
+            m_Iterator = CKSODHashIt();
+            return;
+        }
         m_Iterator = m_Iterator.m_Table->Begin();
     }
 
     void RemoveAt()
     {
+        if (!m_Iterator.m_Table || !m_Iterator.m_Node) {
+            m_Iterator = CKSODHashIt();
+            return;
+        }
         m_Iterator = m_Iterator.m_Table->Remove(m_Iterator);
     }
 
     // Summary:Indicates if end of list is reached.
     // Return Value
     //	Returns TRUE if the iterator is at the end of the list of objects.
-    int End() { return m_Iterator == m_Iterator.m_Table->End(); }
+    int End() {
+        if (!m_Iterator.m_Table)
+            return TRUE;
+        return m_Iterator == m_Iterator.m_Table->End();
+    }
 
     CKSceneObjectIterator &operator++(int)
     {
