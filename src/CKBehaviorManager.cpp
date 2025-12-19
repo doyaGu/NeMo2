@@ -127,7 +127,7 @@ void CKBehaviorManager::SortObjects() {
     m_BeObjects.Sort(CKBeObject::BeObjectPrioritySort);
 }
 
-void CKBehaviorManager::RemoveAllObjects() {
+int CKBehaviorManager::RemoveAllObjects() {
     m_BeObjects.Clear();
     m_BeObjectNextFrame.Clear();
 
@@ -137,6 +137,7 @@ void CKBehaviorManager::RemoveAllObjects() {
             beh->m_Flags &= ~CKBEHAVIOR_EXECUTEDLASTFRAME;
     }
     m_Behaviors.Clear();
+    return 0;
 }
 
 int CKBehaviorManager::GetBehaviorMaxIteration() {

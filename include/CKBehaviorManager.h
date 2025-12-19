@@ -41,7 +41,7 @@ public:
     DLL_EXPORT CKBeObject *GetObject(int pos);
     DLL_EXPORT CKERROR AddObject(CKBeObject *beo);
     DLL_EXPORT void SortObjects();
-    DLL_EXPORT void RemoveAllObjects();
+    DLL_EXPORT int RemoveAllObjects();
 
     //-----------------------------------------------
     // Setup
