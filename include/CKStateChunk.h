@@ -168,8 +168,7 @@ public:
         PrevIdentifierPos = 0;
     }
 
-public:
-    virtual ~ChunkParser() {}
+    ~ChunkParser() {}
 };
 
 class CKFileChunk;

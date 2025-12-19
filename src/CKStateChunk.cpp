@@ -108,7 +108,7 @@ void CKStateChunk::Clone(CKStateChunk *chunk) {
             m_ChunkParser->DataSize = m_ChunkSize;
     }
     m_File = chunk->m_File;
-    m_Dynamic = chunk->m_Dynamic;
+    // IDA: m_Dynamic is NOT copied in Clone
 }
 
 CK_CLASSID CKStateChunk::GetChunkClassID() {
@@ -335,10 +335,11 @@ void CKStateChunk::AddChunk(CKStateChunk *chunk) {
     if (m_ChunkParser->PrevIdentifierPos != m_ChunkParser->CurrentPos)
         m_Data[m_ChunkParser->PrevIdentifierPos + 1] = m_ChunkParser->CurrentPos;
 
+    // IDA: chunka starts as CurrentPos, then follows the linked list
     int j = m_ChunkParser->CurrentPos;
-    if (m_Data[m_ChunkParser->CurrentPos + 1] != 0) {
+    if (m_Data[j + 1] != 0) {
         do {
-            int *p = &m_Data[m_ChunkParser->CurrentPos + 1];
+            int *p = &m_Data[j + 1];
             j = *p + m_ChunkParser->CurrentPos;
             *p = j;
         } while (m_Data[j + 1] != 0);
@@ -382,9 +383,10 @@ void CKStateChunk::AddChunkAndDelete(CKStateChunk *chunk) {
         || m_Managers) {
         AddChunk(chunk);
     } else {
-        if (m_ChunkParser) {
-            m_ChunkParser = chunk->m_ChunkParser;
-            chunk->m_ChunkParser->Clear();
+        // IDA: Copy ChunkParser contents (not pointer), then zero source
+        if (chunk->m_ChunkParser) {
+            memcpy(m_ChunkParser, chunk->m_ChunkParser, sizeof(ChunkParser));
+            memset(chunk->m_ChunkParser, 0, sizeof(ChunkParser));
         }
         m_ChunkSize = chunk->m_ChunkSize;
         m_Data = chunk->m_Data;
@@ -409,7 +411,8 @@ void CKStateChunk::StartManagerSequence(CKGUID man, int count) {
         m_Managers = new IntListStruct;
 
     m_Managers->AddEntries(m_ChunkParser->CurrentPos);
-    CheckSize((count + 3) + sizeof(int));
+    // IDA: CheckSize(4 * count + 12) - space for count + guid(2) + data
+    CheckSize(4 * count + 12);
     m_Data[m_ChunkParser->CurrentPos++] = count;
     m_Data[m_ChunkParser->CurrentPos++] = man.d1;
     m_Data[m_ChunkParser->CurrentPos++] = man.d2;
@@ -420,6 +423,8 @@ void CKStateChunk::WriteManagerSequence(int val) {
 }
 
 void CKStateChunk::WriteManagerInt(CKGUID Manager, int val) {
+    // IDA: CheckSize called BEFORE checking m_Managers
+    CheckSize(12);  // guid(2) + value = 3 ints = 12 bytes
     if (!m_Managers)
         m_Managers = new IntListStruct;
 
@@ -866,7 +871,8 @@ void CKStateChunk::WriteSubChunk(CKStateChunk *sub) {
 void CKStateChunk::StartSubChunkSequence(int count) {
     if (!m_Chunks)
         m_Chunks = new IntListStruct;
-    m_Chunks->AddEntries(m_ChunkParser->CurrentPos - 1);
+    // IDA: AddEntries uses CurrentPos (not CurrentPos-1)
+    m_Chunks->AddEntries(m_ChunkParser->CurrentPos);
     CheckSize(sizeof(int));
     m_Data[m_ChunkParser->CurrentPos++] = count;
 }
@@ -1089,7 +1095,8 @@ void CKStateChunk::WriteBuffer(int size, void *buf) {
 
 void CKStateChunk::WriteBuffer_LEndian(int size, void *buf) {
     if (!buf) {
-        CheckSize(sizeof(CKGUID));
+        // IDA: CheckSize(4) for null buffer
+        CheckSize(sizeof(int));
         m_Data[m_ChunkParser->CurrentPos++] = 0;
     } else {
         int sz = (size + 3) / sizeof(int);
@@ -1162,11 +1169,15 @@ void CKStateChunk::ReadAndFillBuffer_LEndian(void *buffer) {
     }
 
     int size = m_Data[m_ChunkParser->CurrentPos];
+    int sz = (size + 3) / sizeof(int);
     ++m_ChunkParser->CurrentPos;
     if (size > 0) {
-        memcpy(buffer, &m_Data[m_ChunkParser->CurrentPos], size);
-        m_ChunkParser->CurrentPos += (size + 3) / sizeof(int);
+        // IDA: only copy if buffer is not null
+        if (buffer)
+            memcpy(buffer, &m_Data[m_ChunkParser->CurrentPos], size);
     }
+    // IDA: Always advance CurrentPos even if size <= 0
+    m_ChunkParser->CurrentPos += sz;
 }
 
 void CKStateChunk::ReadAndFillBuffer_LEndian16(void *buffer) {
@@ -1304,18 +1315,21 @@ void CKStateChunk::ReadMatrix(VxMatrix &mat) {
 }
 
 int CKStateChunk::ConvertToBuffer(void *buffer) {
+    // Base size: header (2 DWORDs) + data
     int size = 2 * sizeof(int) + m_ChunkSize * sizeof(int);
     CKBYTE chunkOptions = 0;
+
+    // Each list adds: size count (1 DWORD) + list data
     if (m_Ids) {
-        size += m_Ids->Size * sizeof(int);
+        size += sizeof(int) + m_Ids->Size * sizeof(int);  // +4 for count
         chunkOptions |= CHNK_OPTION_IDS;
     }
     if (m_Chunks) {
-        size += m_Chunks->Size * sizeof(int);
+        size += sizeof(int) + m_Chunks->Size * sizeof(int);  // +4 for count
         chunkOptions |= CHNK_OPTION_CHN;
     }
     if (m_Managers) {
-        size += m_Managers->Size * sizeof(int);
+        size += sizeof(int) + m_Managers->Size * sizeof(int);  // +4 for count
         chunkOptions |= CHNK_OPTION_MAN;
     }
     if (m_File) {
@@ -1323,26 +1337,43 @@ int CKStateChunk::ConvertToBuffer(void *buffer) {
     }
 
     if (buffer) {
-        int pos = 0;
         int *buf = (int *) buffer;
-        CKWORD chunkVersion = m_ChunkVersion | chunkOptions;
-        CKWORD dataVersion = m_DataVersion | m_ChunkClassID << 8;
-        buf[pos++] = dataVersion | chunkVersion << 16;
-        buf[pos++] = m_ChunkSize;
-        memcpy(&buf[pos], m_Data, m_ChunkSize * sizeof(int));
-        pos += m_ChunkSize;
+
+        // Temporarily OR options/classID into version fields for serialization
+        short savedChunkVersion = m_ChunkVersion;
+        short savedDataVersion = m_DataVersion;
+        m_ChunkVersion |= (chunkOptions << 8);
+        m_DataVersion |= (m_ChunkClassID << 8);
+
+        // Write header: [DataVersion | ChunkVersion<<16]
+        *(short *)buf = m_DataVersion;
+        *((short *)buf + 1) = m_ChunkVersion;
+        buf[1] = m_ChunkSize;
+
+        // Copy main data
+        memcpy(&buf[2], m_Data, m_ChunkSize * sizeof(int));
+        int *pos = &buf[m_ChunkSize + 2];
+
+        // Write lists with size prefix
         if (m_Ids) {
-            memcpy(&buf[pos], m_Ids->Data, m_Ids->Size * sizeof(int));
+            *pos++ = m_Ids->Size;
+            memcpy(pos, m_Ids->Data, m_Ids->Size * sizeof(int));
             pos += m_Ids->Size;
         }
         if (m_Chunks) {
-            memcpy(&buf[pos], m_Chunks->Data, m_Chunks->Size * sizeof(int));
+            *pos++ = m_Chunks->Size;
+            memcpy(pos, m_Chunks->Data, m_Chunks->Size * sizeof(int));
             pos += m_Chunks->Size;
         }
         if (m_Managers) {
-            memcpy(&buf[pos], m_Managers->Data, m_Managers->Size * sizeof(int));
+            *pos++ = m_Managers->Size;
+            memcpy(pos, m_Managers->Data, m_Managers->Size * sizeof(int));
             pos += m_Managers->Size;
         }
+
+        // Restore original version fields
+        m_ChunkVersion = savedChunkVersion;
+        m_DataVersion = savedDataVersion;
     }
 
     return size;
@@ -1557,7 +1588,8 @@ int CKStateChunk::RemapParameterInt(CKGUID ParameterType, int *ConversionTable, 
 }
 
 int CKStateChunk::RemapManagerInt(CKGUID Manager, int *ConversionTable, int NbEntries) {
-    if (!ConversionTable)
+    // IDA: early return if no conversion table OR no managers/chunks to process
+    if (!ConversionTable || (!m_Managers && !m_Chunks))
         return 0;
     ChunkIteratorData data;
     data.ConversionTable = ConversionTable;
@@ -2392,18 +2424,15 @@ void CKStateChunk::Pack(int CompressionLevel) {
     if (!buf) return;
 
     if (compress2(buf, &destSize, (const Bytef *) m_Data, srcSize, CompressionLevel) == Z_OK) {
-        // Allocate just enough memory for the compressed data
-        Bytef *data = new Bytef[destSize];
-        if (!data) {
-            delete[] buf;
-            return;
-        }
-        // Copy from buf (compressed data), not m_Data
-        memcpy(data, buf, destSize);
         delete[] m_Data;
-        m_Data = (int *) data;
-        // Size should be in ints, not bytes
-        m_ChunkSize = (destSize + sizeof(int) - 1) / sizeof(int);
+        // Allocate exact size for compressed data
+        Bytef *data = new Bytef[destSize];
+        if (data) {
+            memcpy(data, buf, destSize);
+            m_Data = (int *) data;
+            // IDA stores raw byte size, not DWORD count
+            m_ChunkSize = destSize;
+        }
     }
     delete[] buf;
 }
@@ -2415,19 +2444,17 @@ CKBOOL CKStateChunk::UnPack(int DestSize) {
     Bytef *buf = new Bytef[DestSize];
     if (!buf) return FALSE;
 
-    int err = uncompress(buf, &size, (const Bytef *) m_Data, m_ChunkSize * sizeof(int));
+    // Pass raw m_ChunkSize as compressed byte count (from Pack)
+    int err = uncompress(buf, &size, (const Bytef *) m_Data, m_ChunkSize);
     if (err == Z_OK) {
-        int sz = (DestSize + sizeof(int) - 1) / sizeof(int); // Ceiling division
-        int *data = new int[sz];
-        if (!data) {
-            delete[] buf;
-            return FALSE;
-        }
-
-        memcpy(data, buf, DestSize);
         delete[] m_Data;
-        m_Data = data;
-        m_ChunkSize = sz;
+        // Store as DWORD count after decompression
+        m_ChunkSize = DestSize >> 2;
+        int *data = new int[m_ChunkSize];
+        if (data) {
+            memcpy(data, buf, DestSize);
+            m_Data = data;
+        }
     }
     delete[] buf;
     return err == Z_OK;
