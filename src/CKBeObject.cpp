@@ -61,11 +61,9 @@ CKBOOL CKBeObject::SetAttribute(CKAttributeType AttribType, CK_ID parameter) {
         return FALSE;
 
     CKAttributeManager *am = m_Context->GetAttributeManager();
-    if (!am->IsAttributeIndexValid(AttribType))
-        return FALSE;
 
     CK_CLASSID cid = am->GetAttributeCompatibleClassId(AttribType);
-    if (!CKIsChildClassOf(this, cid))
+    if (!CKIsChildClassOf(GetClassID(), cid))
         return FALSE;
 
     CKGUID guid = am->GetAttributeParameterGUID(AttribType);
@@ -225,13 +223,17 @@ CKBehavior *CKBeObject::RemoveScript(CK_ID id) {
 }
 
 CKBehavior *CKBeObject::RemoveScript(int pos) {
-    if (!m_ScriptArray || pos < 0 || pos >= m_ScriptArray->Size()) {
+    if (!m_ScriptArray)
         return nullptr;
-    }
 
-    CKBehavior *script = (CKBehavior *) (*m_ScriptArray)[pos];
+    CK_ID scriptId = m_ScriptArray->GetObjectID(pos);
+    if (!scriptId)
+        return nullptr;
+
+    // Remove from array using XRemove pattern
     m_ScriptArray->RemoveAt(pos);
 
+    CKBehavior *script = (CKBehavior *)m_Context->GetObject(scriptId);
     if (script) {
         script->SetOwner(nullptr, TRUE);
 
@@ -250,15 +252,14 @@ CKBehavior *CKBeObject::RemoveScript(int pos) {
 CKERROR CKBeObject::RemoveAllScripts() {
     if (!m_ScriptArray) return CK_OK;
 
+    // Remove scripts with CKBEHAVIOR_SCRIPT flag from all scenes this object is in
     for (XObjectPointerArray::Iterator it = m_ScriptArray->Begin(); it != m_ScriptArray->End(); ++it) {
         CKBehavior *script = (CKBehavior *) *it;
-        if (script) {
-            script->SetOwner(nullptr, TRUE);
-            if (script->GetFlags() & CKBEHAVIOR_SCRIPT)
-                RemoveFromSelfScenes(script);
-        }
+        if (script && (script->GetFlags() & CKBEHAVIOR_SCRIPT))
+            RemoveFromSelfScenes(script);
     }
 
+    // Delete the array
     delete m_ScriptArray;
     m_ScriptArray = nullptr;
     return CK_OK;
@@ -357,10 +358,12 @@ CKBeObject::CKBeObject(CKContext *Context, CKSTRING name) : CKSceneObject(Contex
 CKBeObject::~CKBeObject() {
     if (m_ScriptArray) {
         delete m_ScriptArray;
+        m_ScriptArray = nullptr;
     }
     RemoveAllLastFrameMessage();
     if (m_LastFrameMessages) {
         delete m_LastFrameMessages;
+        m_LastFrameMessages = nullptr;
     }
 }
 
@@ -593,7 +596,7 @@ CKERROR CKBeObject::Load(CKStateChunk *chunk, CKFile *file) {
         if (chunk->SeekIdentifier(CK_STATESAVE_ATTRIBUTES) && chunk->ReadInt() > 0) {
             int a = chunk->ReadInt();
             int b = chunk->ReadInt();
-            if (a > 0x36 || b <= 0 || b > 0x41) {
+            if (a < 0 || a >= 0x36 || b <= 0 || b > 0x41) {
                 oldVersion = TRUE;
                 WarningForOlderVersion = TRUE;
             }
@@ -933,7 +936,7 @@ void CKBeObject::ApplyOwner() {
     if (m_ScriptArray) {
         for (int i = 0; i < m_ScriptArray->Size(); ++i) {
             CKBehavior *beh = (CKBehavior *) m_ScriptArray->GetObject(i);
-            if (beh) beh->SetOwner(this, TRUE);
+            if (beh) beh->SetOwner(this, FALSE);
         }
     }
     for (XAttributeList::Iterator it = m_Attributes.Begin(); it != m_Attributes.End(); ++it) {
