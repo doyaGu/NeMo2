@@ -235,22 +235,19 @@ CKERROR CKContext::Play() {
     if (m_Playing)
         return CK_OK;
 
-    CKLevel *currentLevel = nullptr;
+    CKLevel *currentLevel = GetCurrentLevel();
+    if (!currentLevel) {
+        return CKERR_NOCURRENTLEVEL;
+    }
+
     if (m_Reseted) {
-        currentLevel = GetCurrentLevel();
-        if (currentLevel) {
-            if (!currentLevel->m_IsReseted)
-                Reset();
-            currentLevel->ActivateAllScript();
-        }
+        if (!currentLevel->m_IsReseted)
+            Reset();
+        currentLevel->ActivateAllScript();
     }
 
     m_Playing = TRUE;
-
     ExecuteManagersOnCKPlay();
-
-    if (!currentLevel)
-        return CKERR_NOCURRENTLEVEL;
 
     m_Reseted = FALSE;
     return CK_OK;
