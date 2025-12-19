@@ -582,7 +582,6 @@ public:
     CKDWORD m_BitmapFlags;
     CKDWORD m_TransColor;
 
-    // TODO : Useless when in player mode
     CKBitmapProperties *m_SaveProperties;
     CK_BITMAP_SAVEOPTIONS m_SaveOptions;
 
