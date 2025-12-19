@@ -7,8 +7,6 @@
 #include "XString.h"
 #include "VxWindowFunctions.h"
 
-#include "VxMemoryOverrides.h"
-
 INSTANCE_HANDLE g_CKModule;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved) {
