@@ -210,16 +210,17 @@ void CKBehavior::SetCallbackFunction(CKBEHAVIORCALLBACKFCT fct) {
 }
 
 int CKBehavior::CallCallbackFunction(CKDWORD Message) {
-    static const CKDWORD MessageFlags[19] = {
-        0x00000000,
+    // Index maps CKM_BEHAVIOR* message to the corresponding CKCB_BEHAVIOR* bitmask.
+    static const CKDWORD MessageFlags[CKM_MAX_BEHAVIOR_CALLBACKS] = {
+        0x00000000,                 // 0 - unused
         CKCB_BEHAVIORPRESAVE,
         CKCB_BEHAVIORDELETE,
         CKCB_BEHAVIORATTACH,
         CKCB_BEHAVIORDETACH,
         CKCB_BEHAVIORPAUSE,
         CKCB_BEHAVIORRESUME,
-        0x00000000,
-        CKCB_BEHAVIORCREATE,
+        CKM_BEHAVIORCREATE,
+        0x00000000,                 // 8 - unused
         CKCB_BEHAVIORRESET,
         CKCB_BEHAVIORPOSTSAVE,
         CKCB_BEHAVIORLOAD,
@@ -231,6 +232,10 @@ int CKBehavior::CallCallbackFunction(CKDWORD Message) {
         CKCB_BEHAVIORDEACTIVATESCRIPT,
         CKCB_BEHAVIORRESETINBREAKPOINT,
     };
+
+    if (Message >= CKM_MAX_BEHAVIOR_CALLBACKS) {
+        return CK_OK;
+    }
 
     // Get behavior block data and validate callback conditions
     BehaviorBlockData *blockData = m_BlockData;
