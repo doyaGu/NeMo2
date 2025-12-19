@@ -767,10 +767,11 @@ CKERROR CKFile::StartSave(CKSTRING filename, CKDWORD Flags) {
     m_Context->m_Saving = TRUE;
 
     m_Flags = Flags;
-    m_SceneSaved = TRUE;
+    m_SceneSaved = FALSE;
     m_FileObjects.Clear();
     m_IndexByClassId.Resize(g_MaxClassID);
     delete[] m_FileName;
+    m_FileName = nullptr;
     if (!filename) {
         m_Context->m_Saving = FALSE;
         return CKERR_INVALIDFILE;
