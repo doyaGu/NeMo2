@@ -46,7 +46,7 @@ public:
      * @brief Copy constructor.
      * @param e The entry to copy.
      */
-    XHashTableEntry(const XHashTableEntry<T, K> &e) : m_Key(e.m_Key), m_Data(e.m_Data), m_Next(NULL) {}
+    XHashTableEntry(const XHashTableEntry<T, K> &e) : m_Key(e.m_Key), m_Data(e.m_Data), m_Next(e.m_Next) {}
 
     /**
      * @brief Copy assignment operator.
@@ -57,7 +57,7 @@ public:
         if (this != &e) {
             m_Key = e.m_Key;
             m_Data = e.m_Data;
-            m_Next = NULL; // Note: m_Next is not copied as it's managed by the hash table
+            m_Next = e.m_Next;
         }
         return *this;
     }
@@ -146,6 +146,19 @@ public:
      * @param n The iterator to copy.
      */
     XHashTableIt(const tIterator &n) : m_Node(n.m_Node), m_Table(n.m_Table) {}
+
+    /**
+     * @brief Copy assignment operator.
+     * @param n The iterator to copy from.
+     * @return Reference to this iterator.
+     */
+    tIterator &operator=(const tIterator &n) {
+        if (this != &n) {
+            m_Node = n.m_Node;
+            m_Table = n.m_Table;
+        }
+        return *this;
+    }
 
 #if VX_HAS_CXX11
     /**
@@ -301,6 +314,19 @@ public:
      * @param n The iterator to copy.
      */
     XHashTableConstIt(const tConstIterator &n) : m_Node(n.m_Node), m_Table(n.m_Table) {}
+
+    /**
+     * @brief Copy assignment operator.
+     * @param n The iterator to copy from.
+     * @return Reference to this iterator.
+     */
+    tConstIterator &operator=(const tConstIterator &n) {
+        if (this != &n) {
+            m_Node = n.m_Node;
+            m_Table = n.m_Table;
+        }
+        return *this;
+    }
 
 #if VX_HAS_CXX11
     /**
@@ -482,7 +508,7 @@ public:
      * @brief Move constructor (C++11).
      * @param a The hash table to move from.
      */
-    XHashTable(XHashTable &&a) VX_NOEXCEPT { XMove(a); }
+    XHashTable(XHashTable &&a) VX_NOEXCEPT { XMove(std::move(a)); }
 #endif
 
     /**
@@ -570,7 +596,7 @@ public:
             // We clear the current table
             Clear();
             // we then move the content of a
-            XMove(a);
+            XMove(std::move(a));
         }
         return *this;
     }
@@ -713,11 +739,19 @@ public:
                     m_Table[index] = e->m_Next;
                 }
 
-                // then removed it from the pool
+                // then remove it from the pool
+                // NOTE: FastRemove compacts the pool by moving the last entry into the removed slot.
+                // If the moved entry's m_Next pointed to the removed slot, the move would create a
+                // self-referential link (cycle). Fix that up before the move.
+                tEntry oldLast = (m_Pool.Size() > 0) ? (m_Pool.End() - 1) : nullptr;
+                if (oldLast && oldLast != e && oldLast->m_Next == e) {
+                    oldLast->m_Next = e->m_Next;
+                }
+
                 m_Pool.FastRemove(e);
                 if (e != m_Pool.End()) // wasn't the last one... we need to remap
                 {
-                    RematEntry(m_Pool.End(), e);
+                    RematEntry(oldLast, e);
                 }
 
                 break;
@@ -749,11 +783,17 @@ public:
                     old = m_Table[index];
                 }
 
-                // then removed it from the pool
+                // then remove it from the pool
+                // See Remove(key) for why we fix up oldLast->m_Next.
+                tEntry oldLast = (m_Pool.Size() > 0) ? (m_Pool.End() - 1) : nullptr;
+                if (oldLast && oldLast != e && oldLast->m_Next == e) {
+                    oldLast->m_Next = e->m_Next;
+                }
+
                 m_Pool.FastRemove(e);
                 if (e != m_Pool.End()) // wasn't the last one... we need to remap
                 {
-                    RematEntry(m_Pool.End(), e);
+                    RematEntry(oldLast, e);
                     if (old == m_Pool.End())
                         old = e;
                 }
@@ -928,7 +968,7 @@ public:
      */
     int GetMemoryOccupation(XBOOL addstatic = FALSE) const {
         return m_Table.GetMemoryOccupation(addstatic) +
-            m_Pool.Allocated() * sizeof(tEntry) +
+            m_Pool.Allocated() * sizeof(Entry) +
             (addstatic ? sizeof(*this) : 0);
     }
 
@@ -939,12 +979,23 @@ public:
      * It adjusts the size of the internal bucket array and reserves space in the element pool.
      */
     void Reserve(const int iCount) {
-        // Reserve the elements
-        m_Pool.Reserve(iCount);
+        int requiredCount = iCount;
+        if (requiredCount < 0)
+            requiredCount = 0;
+        if (requiredCount < Size())
+            requiredCount = Size();
 
-        int tableSize = Near2Power((int) (iCount / LOAD_FACTOR));
-        m_Table.Resize(tableSize);
-        m_Table.Fill(0);
+        // Compute a bucket count that can hold requiredCount at the target load factor.
+        // Never shrink the table; Reserve is intended to reduce rehashing.
+        int tableSize = Near2Power((int) ((float) requiredCount / LOAD_FACTOR) + 1);
+        if (tableSize < 4)
+            tableSize = 4;
+        if (tableSize < m_Table.Size())
+            tableSize = m_Table.Size();
+
+        if (tableSize != m_Table.Size() || requiredCount > m_Pool.Allocated()) {
+            Rehash(tableSize);
+        }
     }
 
 private:
