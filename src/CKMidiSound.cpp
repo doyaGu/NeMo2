@@ -7,16 +7,17 @@
 CK_CLASSID CKMidiSound::m_ClassID = CKCID_MIDISOUND;
 
 CKERROR CKMidiSound::SetSoundFileName(CKSTRING filename) {
-    XString path = filename;
+    XString path = filename ? filename : "";
     m_Context->m_PathManager->ResolveFileName(path, SOUND_PATH_IDX);
+
     delete[] m_FileName;
-    m_FileName = CKStrdup(path.Str());
+    m_FileName = CKStrdup(path.Str() ? path.Str() : "");
 
     if (!m_MidiManager) {
         return CKERR_NOTINITIALIZED;
     }
 
-    return m_MidiManager->SetSoundFileName(m_Source, m_FileName);
+    return m_MidiManager->SetSoundFileName(m_Source, path.Str() ? path.Str() : "");
 }
 
 CKSTRING CKMidiSound::GetSoundFileName() {
@@ -60,14 +61,14 @@ CKERROR CKMidiSound::Pause(CKBOOL pause) {
 
 CKBOOL CKMidiSound::IsPlaying() {
     if (!m_MidiManager) {
-        return CKERR_NOTINITIALIZED;
+        return FALSE;
     }
     return m_MidiManager->IsPlaying(m_Source);
 }
 
 CKBOOL CKMidiSound::IsPaused() {
     if (!m_MidiManager) {
-        return CKERR_NOTINITIALIZED;
+        return FALSE;
     }
     return m_MidiManager->IsPaused(m_Source);
 }
