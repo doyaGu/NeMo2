@@ -1199,10 +1199,19 @@ void CKContext::ExecuteManagersOnCKEnd() {
 }
 
 void CKContext::ExecuteManagersPreProcess() {
+    // Reset processing time for all managers before the frame starts
+    for (XManagerHashTableIt it = m_ManagerTable.Begin(); it != m_ManagerTable.End(); ++it) {
+        CKBaseManager *manager = *it;
+        manager->m_ProcessingTime = 0.0f;
+    }
+
     XManagerArray &managers = m_ManagerList[CKMANAGER_INDEX_PreProcess];
     for (XManagerArray::Iterator it = managers.Begin(); it != managers.End(); ++it) {
         m_CurrentManager = *it;
+        VxTimeProfiler profiler;
         m_CurrentManager->PreProcess();
+        CKBaseManager *manager = *it;
+        manager->m_ProcessingTime += profiler.Current();
     }
     m_CurrentManager = nullptr;
 }
@@ -1211,7 +1220,10 @@ void CKContext::ExecuteManagersPostProcess() {
     XManagerArray &managers = m_ManagerList[CKMANAGER_INDEX_PostProcess];
     for (XManagerArray::Iterator it = managers.Begin(); it != managers.End(); ++it) {
         m_CurrentManager = *it;
+        VxTimeProfiler profiler;
         m_CurrentManager->PostProcess();
+        CKBaseManager *manager = *it;
+        manager->m_ProcessingTime += profiler.Current();
     }
     m_CurrentManager = nullptr;
 }
@@ -1383,7 +1395,10 @@ void CKContext::ExecuteManagersOnPreRender(CKRenderContext *dev) {
     XManagerArray &managers = m_ManagerList[CKMANAGER_INDEX_OnPreRender];
     for (XManagerArray::Iterator it = managers.Begin(); it != managers.End(); ++it) {
         m_CurrentManager = *it;
+        VxTimeProfiler profiler;
         m_CurrentManager->OnPreRender(dev);
+        CKBaseManager *manager = *it;
+        manager->m_ProcessingTime += profiler.Current();
     }
     m_CurrentManager = nullptr;
 }
@@ -1392,7 +1407,10 @@ void CKContext::ExecuteManagersOnPostRender(CKRenderContext *dev) {
     XManagerArray &managers = m_ManagerList[CKMANAGER_INDEX_OnPostRender];
     for (XManagerArray::Iterator it = managers.Begin(); it != managers.End(); ++it) {
         m_CurrentManager = *it;
+        VxTimeProfiler profiler;
         m_CurrentManager->OnPostRender(dev);
+        CKBaseManager *manager = *it;
+        manager->m_ProcessingTime += profiler.Current();
     }
     m_CurrentManager = nullptr;
 }
@@ -1401,7 +1419,10 @@ void CKContext::ExecuteManagersOnPostSpriteRender(CKRenderContext *dev) {
     XManagerArray &managers = m_ManagerList[CKMANAGER_INDEX_OnPostSpriteRender];
     for (XManagerArray::Iterator it = managers.Begin(); it != managers.End(); ++it) {
         m_CurrentManager = *it;
+        VxTimeProfiler profiler;
         m_CurrentManager->OnPostSpriteRender(dev);
+        CKBaseManager *manager = *it;
+        manager->m_ProcessingTime += profiler.Current();
     }
     m_CurrentManager = nullptr;
 }
