@@ -9,9 +9,7 @@
 CK_CLASSID CKParameter::m_ClassID = CKCID_PARAMETER;
 
 CKObject *CKParameter::GetValueObject(CKBOOL update) {
-    if (m_Size < sizeof(CK_ID)) return nullptr;
     CK_ID *idPtr = (CK_ID *)GetReadDataPtr(update);
-    if (!idPtr) return nullptr;
     return m_Context->GetObject(*idPtr);
 }
 
@@ -25,31 +23,20 @@ CKERROR CKParameter::GetValue(void *buf, CKBOOL update) {
 
 CKERROR CKParameter::SetValue(const void *buf, int size) {
     if (size > 0 && size != m_Size) {
-        CKBYTE *newBuffer = new CKBYTE[size];
-        if (!newBuffer)
-            return CKERR_OUTOFMEMORY;
-        delete[] m_Buffer;
-        m_Buffer = newBuffer;
+        CKBYTE *oldBuffer = m_Buffer;
         m_Size = size;
+        delete[] oldBuffer;
+        m_Buffer = new CKBYTE[m_Size];
     }
 
-    if (!m_Buffer) {
+    if (!m_Buffer)
         return CKERR_NOTINITIALIZED;
-    }
 
-    if (m_Size == 0) {
+    if (m_Size == 0)
         return CKERR_NOTINITIALIZED;
-    }
 
-    // Size check for memcpy
-    int copySize = m_Size;
-    if (size > 0 && size < m_Size) {
-        copySize = size;
-    }
-
-    if (buf) {
-        memcpy(m_Buffer, buf, copySize);
-    }
+    if (buf)
+        memcpy(m_Buffer, buf, m_Size);
 
     return CK_OK;
 }
@@ -64,9 +51,7 @@ CKERROR CKParameter::CopyValue(CKParameter *param, CKBOOL UpdateParam) {
         }
     }
 
-    if(m_ParamType && m_ParamType->CopyFunction) {
-        m_ParamType->CopyFunction(this, param);
-    }
+    m_ParamType->CopyFunction(this, param);
     return CK_OK;
 }
 
@@ -212,6 +197,8 @@ CKParameter::CKParameter(CKContext *Context, CKSTRING name, int type): CKObject(
         if (m_ParamType->CreateDefaultFunction) {
             m_ParamType->CreateDefaultFunction(this);
         }
+    } else {
+        m_Size = 0;
     }
 }
 
@@ -568,8 +555,8 @@ CKParameter *CKParameter::CreateInstance(CKContext *Context) {
 
 void CKParameter::MessageDeleteAfterUse(CKBOOL act) {
     if (act) {
-        m_ObjectFlags |= CK_OBJECT_TEMPMARKER;
+        m_ObjectFlags |= CK_PARAMETEROUT_DELETEAFTERUSE;
     } else {
-        m_ObjectFlags &= ~CK_OBJECT_TEMPMARKER;
+        m_ObjectFlags &= ~CK_PARAMETEROUT_DELETEAFTERUSE;
     }
 }
