@@ -85,13 +85,15 @@ CK_CLASSID CKParameterLocal::GetClassID() {
 }
 
 void CKParameterLocal::PreDelete() {
+    CKObject::PreDelete();
     CKObject *owner = GetOwner();
     if (owner && CKIsChildClassOf(owner, CKCID_BEHAVIOR) && !owner->IsToBeDeleted()) {
-        auto localParams = ((CKBehavior *)owner)->m_LocalParameter;
+        CKBehavior *beh = (CKBehavior *)owner;
+        XSObjectPointerArray &localParams = beh->m_LocalParameter;
         for (auto it = localParams.Begin(); it != localParams.End(); ++it) {
             if (*it == this) {
                 localParams.Remove(it);
-                break;
+                return;
             }
         }
     }
