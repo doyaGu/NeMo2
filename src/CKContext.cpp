@@ -1639,8 +1639,8 @@ void CKContext::DeferredDestroyObjects(CK_ID *obj_ids, int Count, CKDependencies
 
     if (Dependencies) {
         CKDependencies *dep = new CKDependencies();
+        *dep = *Dependencies;
         deferred->m_DependenciesPtr = dep;
-        deferred->m_Dependencies = *Dependencies;
     }
 }
 
