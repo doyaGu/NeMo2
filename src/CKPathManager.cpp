@@ -171,8 +171,6 @@ CKERROR CKPathManager::RenamePath(int catIdx, int pathIdx, XString &path) {
     return CK_OK;
 }
 
-const char *g_StartPath = "";
-
 CKERROR CKPathManager::ResolveFileName(XString &file, int catIdx, int startIdx) {
     if (file.Length() <= 0) {
         return CKERR_INVALIDFILE;
@@ -201,7 +199,7 @@ CKERROR CKPathManager::ResolveFileName(XString &file, int catIdx, int startIdx) 
         }
 
         // Check application start path
-        XString startPath = XString(g_StartPath) + file;
+        XString startPath = XString(CKGetStartPath()) + file;
         if (TryOpenAbsolutePath(startPath)) {
             file = startPath;
             return CK_OK;
