@@ -500,10 +500,10 @@ CKBOOL CKDataArray::GetElementValue(int i, int c, void *value) {
     if (!element) return FALSE;
     if (GetColumnType(c) == CKARRAYTYPE_PARAMETER) {
         CKParameter *param = (CKParameter *) *element;
-        if (!param) return FALSE;
-        return param->GetValue(value);
+        param->GetValue(value);
+    } else {
+        *(CKDWORD *)value = *element;
     }
-    if (value) memcpy(value, element, sizeof(CKDWORD));
     return TRUE;
 }
 
@@ -522,16 +522,15 @@ CKBOOL CKDataArray::SetElementValue(int i, int c, void *value, int size) {
 
     CKDataRow *dataRow = m_DataMatrix[i];
     ColumnFormat *format = m_FormatArray[c];
-    CKDWORD *element = &(*dataRow)[c];
 
     switch (format->m_Type) {
     case CKARRAYTYPE_STRING: {
+        CKDWORD *element = &(*dataRow)[c];
         char *oldStr = reinterpret_cast<char *>(*element);
         delete[] oldStr;
 
-        if (value && size > 0) {
-            char *newStr = CKStrdup(static_cast<char *>(value));
-            *element = reinterpret_cast<CKDWORD>(newStr);
+        if (value) {
+            *element = reinterpret_cast<CKDWORD>(CKStrdup(static_cast<char *>(value)));
         } else {
             *element = 0;
         }
@@ -539,24 +538,19 @@ CKBOOL CKDataArray::SetElementValue(int i, int c, void *value, int size) {
     }
 
     case CKARRAYTYPE_PARAMETER: {
-        CKParameterOut *param = reinterpret_cast<CKParameterOut *>(*element);
+        CKParameterOut *param = reinterpret_cast<CKParameterOut *>((*dataRow)[c]);
         if (param) {
             param->SetValue(value, size);
         }
         break;
     }
 
-    case CKARRAYTYPE_OBJECT:
-    case CKARRAYTYPE_INT:
-    case CKARRAYTYPE_FLOAT: {
-        if (value && size == sizeof(CKDWORD)) {
-            *element = *static_cast<CKDWORD *>(value);
-        }
+    default: {
+        // CKARRAYTYPE_INT, CKARRAYTYPE_FLOAT, CKARRAYTYPE_OBJECT
+        CKDWORD *element = &(*dataRow)[c];
+        *element = *static_cast<CKDWORD *>(value);
         break;
     }
-
-    default:
-        return FALSE;
     }
 
     return TRUE;
@@ -1154,24 +1148,20 @@ void CKDataArray::MoveRow(int rsrc, int rdst) {
     if (rsrc == rdst)
         return;
 
+    CKDataRow **dstPtr;
     if (rdst == -1) {
-        rdst = rowCount - 1;
-    }
-
-    rdst = (rdst >= rowCount) ? rowCount - 1 : rdst;
-
-    if (rdst > rsrc) {
-        rdst--;
-    }
-
-    CKDataRow *row = m_DataMatrix[rsrc];
-    m_DataMatrix.RemoveAt(rsrc);
-
-    if (rdst >= m_DataMatrix.Size()) {
-        m_DataMatrix.PushBack(row);
+        dstPtr = m_DataMatrix.End();
     } else {
-        m_DataMatrix.Insert(rdst, row);
+        dstPtr = m_DataMatrix.Begin() + rdst;
+        if (dstPtr < m_DataMatrix.Begin() || dstPtr >= m_DataMatrix.End())
+            dstPtr = m_DataMatrix.End();
     }
+
+    CKDataRow **srcPtr = m_DataMatrix.Begin() + rsrc;
+    if (srcPtr < m_DataMatrix.Begin() || srcPtr >= m_DataMatrix.End())
+        srcPtr = m_DataMatrix.End();
+
+    m_DataMatrix.Move(dstPtr, srcPtr);
 }
 
 void CKDataArray::SwapRows(int i1, int i2) {
@@ -1205,14 +1195,12 @@ void CKDataArray::Clear(CKBOOL Params) {
                 break;
 
             case CKARRAYTYPE_PARAMETER: {
-                CKParameterOut *param = (CKParameterOut *) element;
+                CKParameter *param = (CKParameter *) element;
                 if (param) {
                     if (Params) {
                         if (param->GetOwner() == this) {
                             paramsToDestroy.PushBack(param->GetID());
                         }
-                    } else if (param->GetOwner() == this) {
-                        param->SetOwner(NULL);
                     }
                 }
                 element = 0;
@@ -2056,18 +2044,20 @@ int CKDataArray::GetMemoryOccupation() {
     int baseSize = CKBeObject::GetMemoryOccupation();
 
     int columnCount = m_FormatArray.Size();
-    int formatFlag = (columnCount > 0) ? 4 : 0; // 4 bytes if columns exist
+    int rowCount = m_DataMatrix.Size();
+    int allocatedCount = m_DataMatrix.Allocated();
 
-    int matrixMemory = m_DataMatrix.GetMemoryOccupation() + m_FormatArray.GetMemoryOccupation();
+    // DLL formula:
+    // base + 32 + (colCount != 0 ? 4 : 0) + 4 * ((rowCount * (colCount + 2)) + (colCount * 6) + allocatedCount)
+    int formatFlag = (columnCount != 0) ? 4 : 0;
+    int matrixMemory = 4 * ((rowCount * (columnCount + 2)) + (columnCount * 6) + allocatedCount);
 
     return baseSize + 32 + formatFlag + matrixMemory;
 }
 
 int CKDataArray::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
-    if (!o) return CKBeObject::IsObjectUsed(o, cid);
-
-    CK_ID targetId = o->GetID();
     CKParameterManager *pm = m_Context->GetParameterManager();
+    CK_ID targetId = o ? o->GetID() : 0;
 
     // Check parameter columns that might reference objects
     XArray<int> paramObjectColumns;
@@ -2128,6 +2118,8 @@ CKERROR CKDataArray::PrepareDependencies(CKDependenciesContext &context) {
 
     CKDWORD classDeps = context.GetClassDependencies(m_ClassID);
 
+    // DLL check: context.m_Mode != 1 || (classDeps & 2) != 0
+    // Equivalent to: !IsInMode(CK_DEPENDENCIES_COPY) || (classDeps & 2)
     if (!context.IsInMode(CK_DEPENDENCIES_COPY) || (classDeps & 2)) {
         for (int rowIdx = 0; rowIdx < m_DataMatrix.Size(); ++rowIdx) {
             CKDataRow *row = m_DataMatrix[rowIdx];
@@ -2149,11 +2141,14 @@ CKERROR CKDataArray::PrepareDependencies(CKDependenciesContext &context) {
                 }
 
                 case CKARRAYTYPE_PARAMETER: {
-                    CKParameterOut *param = reinterpret_cast<CKParameterOut *>(element);
+                    CKParameter *param = reinterpret_cast<CKParameter *>(element);
+                    // DLL: Check if param is owned by this (IsStateActive returns owner)
                     if (param && param->GetOwner() == this) {
                         param->PrepareDependencies(context);
+                    }
 
-                        if (classDeps & 1) {
+                    if (classDeps & 1) {
+                        if (param) {
                             CKParameterManager *pm = m_Context->GetParameterManager();
                             CK_CLASSID paramClass = pm->TypeToClassID(param->GetType());
                             if (paramClass != 0) {
@@ -2194,19 +2189,21 @@ CKERROR CKDataArray::RemapDependencies(CKDependenciesContext &context) {
 
                 switch (format->m_Type) {
                 case CKARRAYTYPE_OBJECT: {
-                    CK_ID id = element;
-                    CKObject *oldObj = m_Context->GetObject(id);
-                    CKObject *newObj = context.Remap(oldObj);
-                    if (newObj) {
-                        element = newObj->GetID();
+                    // DLL: Uses direct hash table lookup on m_MapID for OBJECT columns
+                    CK_ID oldId = element;
+                    CK_ID newId = context.RemapID(oldId);
+                    if (newId != 0) {
+                        element = newId;
                     }
                     break;
                 }
 
                 case CKARRAYTYPE_PARAMETER: {
-                    CKParameterOut *param = (CKParameterOut *) element;
-                    if (param && param->GetOwner() == this) {
-                        param->RemapDependencies(context);
+                    // DLL: Uses context.Remap for PARAMETER columns (remaps the pointer)
+                    CKObject *param = (CKObject *) element;
+                    CKObject *newParam = context.Remap(param);
+                    if (newParam) {
+                        element = (CKDWORD) newParam;
                     }
                     break;
                 }
@@ -2226,45 +2223,43 @@ CKERROR CKDataArray::Copy(CKObject &o, CKDependenciesContext &context) {
         return err;
 
     CKDataArray *src = (CKDataArray *) &o;
+    CKDWORD classDeps = context.GetClassDependencies(m_ClassID);
 
-    m_FormatArray.Clear();
+    // DLL: Resize format array to match source, then copy-construct each format
+    m_FormatArray.Resize(src->m_FormatArray.Size());
     for (int i = 0; i < src->m_FormatArray.Size(); ++i) {
         ColumnFormat *newFormat = new ColumnFormat(*src->m_FormatArray[i]);
-        m_FormatArray.PushBack(newFormat);
+        m_FormatArray[i] = newFormat;
     }
 
     m_KeyColumn = src->m_KeyColumn;
     m_Order = src->m_Order;
     m_ColumnIndex = src->m_ColumnIndex;
 
-    if (!(context.GetClassDependencies(m_ClassID) & 2))
+    if (!(classDeps & 2))
         return CK_OK;
 
-    m_DataMatrix.Clear();
+    // Copy data matrix
+    int srcRowCount = src->m_DataMatrix.Size();
+    int columnCount = m_FormatArray.Size();
 
-    for (int rowIdx = 0; rowIdx < src->m_DataMatrix.Size(); ++rowIdx) {
-        CKDataRow *srcRow = src->m_DataMatrix[rowIdx];
+    for (int rowIdx = 0; rowIdx < srcRowCount; ++rowIdx) {
+        CKDataRow *srcRow = src->GetRow(rowIdx);
+        CKDWORD *srcData = srcRow->Begin();
+
         CKDataRow *newRow = new CKDataRow();
+        newRow->Resize(columnCount);
 
-        for (int colIdx = 0; colIdx < m_FormatArray.Size(); ++colIdx) {
+        for (int colIdx = 0; colIdx < columnCount; ++colIdx) {
             ColumnFormat *fmt = m_FormatArray[colIdx];
-            CKDWORD element = (*srcRow)[colIdx];
+            CKDWORD element = srcData[colIdx];
 
-            switch (fmt->m_Type) {
-            case CKARRAYTYPE_STRING: {
+            // DLL: Only STRING type is deep-copied, all others are raw DWORD copy
+            if (fmt->m_Type == CKARRAYTYPE_STRING) {
                 char *str = (char *) element;
-                newRow->PushBack((CKDWORD) CKStrdup(str));
-                break;
-            }
-            case CKARRAYTYPE_PARAMETER: {
-                CKParameterOut *param = (CKParameterOut *) element;
-                CKParameterOut *copyParam = (CKParameterOut *) m_Context->CopyObject(param);
-                newRow->PushBack((CKDWORD) copyParam);
-                break;
-            }
-            default:
-                newRow->PushBack(element);
-                break;
+                (*newRow)[colIdx] = (CKDWORD) CKStrdup(str);
+            } else {
+                (*newRow)[colIdx] = element;
             }
         }
         m_DataMatrix.PushBack(newRow);
