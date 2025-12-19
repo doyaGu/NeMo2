@@ -6,6 +6,36 @@
 #include "CKLevel.h"
 #include "CKScene.h"
 
+CKDependenciesContext::CKDependenciesContext(const CKDependenciesContext &other)
+    : m_DynamicObjects(other.m_DynamicObjects),
+      m_CKContext(other.m_CKContext),
+      m_Dependencies(other.m_Dependencies),
+      m_MapID(other.m_MapID),
+      m_Objects(other.m_Objects),
+      m_DependenciesStack(other.m_DependenciesStack),
+      m_Scripts(other.m_Scripts),
+      m_Mode(other.m_Mode),
+      m_CreationMode(other.m_CreationMode),
+      m_CopyAppendString(other.m_CopyAppendString),
+      m_ObjectsClassMask(other.m_ObjectsClassMask) {}
+
+CKDependenciesContext &CKDependenciesContext::operator=(const CKDependenciesContext &other) {
+    if (this != &other) {
+        m_DynamicObjects = other.m_DynamicObjects;
+        m_CKContext = other.m_CKContext;
+        m_Dependencies = other.m_Dependencies;
+        m_MapID = other.m_MapID;
+        m_Objects = other.m_Objects;
+        m_DependenciesStack = other.m_DependenciesStack;
+        m_Scripts = other.m_Scripts;
+        m_Mode = other.m_Mode;
+        m_CreationMode = other.m_CreationMode;
+        m_CopyAppendString = other.m_CopyAppendString;
+        m_ObjectsClassMask = other.m_ObjectsClassMask;
+    }
+    return *this;
+}
+
 void CKDependenciesContext::AddObjects(CK_ID *ids, int count) {
     m_Objects.Reserve(m_Objects.Size() + count);
     if (count <= 0)
@@ -22,14 +52,16 @@ int CKDependenciesContext::GetObjectsCount() {
 }
 
 CKObject *CKDependenciesContext::GetObjects(int i) {
-    if (i < 0 || i >= m_Objects.Size())
-        return nullptr;
     return m_CKContext->GetObject(m_Objects[i]);
 }
 
 CK_ID CKDependenciesContext::RemapID(CK_ID &id) {
     XHashItID it = m_MapID.Find(id);
-    id = (it != m_MapID.End()) ? (*it) : 0;
+    if (it != m_MapID.End()) {
+        CK_ID remapped = *it;
+        if (remapped)
+            id = remapped;
+    }
     return id;
 }
 
@@ -38,7 +70,11 @@ CKObject *CKDependenciesContext::Remap(const CKObject *o) {
 
     CK_ID id = o->m_ID;
     XHashItID it = m_MapID.Find(id);
-    id = (it != m_MapID.End()) ? (*it) : 0;
+    if (it != m_MapID.End()) {
+        CK_ID remapped = *it;
+        if (remapped)
+            id = remapped;
+    }
     return m_CKContext->GetObject(id);
 }
 
@@ -183,12 +219,8 @@ void CKDependenciesContext::Clear() {
 }
 
 CKERROR CKDependenciesContext::FinishPrepareDependencies(CKObject *iMySelf, CK_CLASSID Cid) {
-    if (iMySelf->GetClassID() == Cid && m_Dependencies) {
-        if (!m_DynamicObjects.IsEmpty()) {
-            CKObject *obj = m_DynamicObjects.Back();
-            if (obj)
-                m_Dependencies->Remove(obj->GetID());
-        }
+    if (iMySelf->GetClassID() == Cid) {
+        m_DynamicObjects.PopBack();
     }
     return CK_OK;
 }

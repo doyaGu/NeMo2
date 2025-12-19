@@ -98,6 +98,9 @@ public:
           m_Mode(CK_DEPENDENCIES_BUILD),
           m_CreationMode(CK_OBJECTCREATION_NONAMECHECK) {}
 
+    DLL_EXPORT CKDependenciesContext(const CKDependenciesContext &other);
+    DLL_EXPORT CKDependenciesContext &operator=(const CKDependenciesContext &other);
+
     // Objects Access
     DLL_EXPORT void AddObjects(CK_ID *ids, int count);
     DLL_EXPORT int GetObjectsCount();
