@@ -54,8 +54,7 @@ void PositionSource(
 
 CK_CLASSID CKWaveSound::m_ClassID = CKCID_WAVESOUND;
 
-CKSOUNDHANDLE
-CKWaveSound::PlayMinion(CKBOOL Background, CK3dEntity *Ent, VxVector *Position, VxVector *Direction, float MinDelay) {
+CKSOUNDHANDLE CKWaveSound::PlayMinion(CKBOOL Background, CK3dEntity *Ent, VxVector *Position, VxVector *Direction, float MinDelay) {
     if (!m_SoundManager || !m_Source)
         return nullptr;
 
@@ -82,6 +81,11 @@ CKWaveSound::PlayMinion(CKBOOL Background, CK3dEntity *Ent, VxVector *Position, 
 
         // Configure 2D audio settings
         CKWaveSoundSettings settings;
+        settings.m_Gain = 1.0f;
+        settings.m_Eq = 1.0f;
+        settings.m_Pitch = 1.0f;
+        settings.m_Priority = 0.5f;
+        settings.m_Pan = 0.0f;
         m_SoundManager->UpdateSettings(m_Source, CK_WAVESOUND_SETTINGS_ALL, settings, FALSE);
         m_SoundManager->UpdateSettings(minion->m_Source, CK_WAVESOUND_SETTINGS_ALL, settings, TRUE);
 
@@ -101,7 +105,16 @@ CKWaveSound::PlayMinion(CKBOOL Background, CK3dEntity *Ent, VxVector *Position, 
     }
 
     m_SoundManager->SetPlayPosition(minion->m_Source, 0);
+    // CK2.dll passes CKWaveSound*=NULL and the SoundMinion* wrapper as the source argument.
     m_SoundManager->Play(nullptr, minion, FALSE);
+
+    static int s_MinionPlayChecksLeft = 8;
+    if (s_MinionPlayChecksLeft > 0) {
+        --s_MinionPlayChecksLeft;
+        if (!m_SoundManager->IsPlaying(minion->m_Source)) {
+            m_Context->OutputToConsoleEx("CKError : Minion Play() did not start playback (file '%s')", m_FileName ? m_FileName : "");
+        }
+    }
     return minion->m_Source;
 }
 
@@ -111,7 +124,7 @@ CKERROR CKWaveSound::SetSoundFileName(const CKSTRING FileName) {
     XString filename = FileName;
     m_Context->GetPathManager()->ResolveFileName(filename, SOUND_PATH_IDX);
     delete[] m_FileName;
-    m_FileName = CKStrdup(filename.Str());
+    m_FileName = CKStrdup(filename.Str() ? filename.Str() : "");
     return CK_OK;
 }
 
@@ -278,12 +291,23 @@ void CKWaveSound::Play(float FadeIn, float FinalGain) {
     if (GetFileStreaming() && !(m_State & CK_WAVESOUND_STREAMFULLYLOADED)) {
         if (m_SoundReader && m_SoundReader->Play() == CK_OK) {
             WriteDataFromReader();
-            m_SoundManager->Play(this, m_Source, FALSE);
+            m_SoundManager->Play(this, m_Source, TRUE);
         }
     } else {
-        CKBOOL loop = (m_State & CK_WAVESOUND_LOOPED) ? TRUE : FALSE;
-        m_SoundManager->Play(this, m_Source, loop);
+        if (m_State & CK_WAVESOUND_COULDBERESTARTED) {
+            Rewind();
+        }
+        m_SoundManager->Play(this, m_Source, m_State & CK_WAVESOUND_LOOPED);
     }
+
+    static int s_PlayChecksLeft = 8;
+    if (s_PlayChecksLeft > 0) {
+        --s_PlayChecksLeft;
+        if (m_Source && !m_SoundManager->IsPlaying(m_Source)) {
+            m_Context->OutputToConsoleEx("CKError : Play() returned but source is not playing (file '%s')", m_FileName ? m_FileName : "");
+        }
+    }
+
 }
 
 void CKWaveSound::Resume() {
@@ -298,6 +322,8 @@ void CKWaveSound::Resume() {
     } else {
         m_SoundManager->Play(this, m_Source, GetLoopMode());
     }
+
+    m_State &= ~CK_WAVESOUND_PAUSED;
 }
 
 void CKWaveSound::Rewind() {
@@ -326,29 +352,23 @@ void CKWaveSound::Stop(float FadeOut) {
     if (!m_Source)
         return;
 
-    if (FadeOut == 0.0f) {
+    if (FadeOut == 0.0f)
         InternalStop();
-        return;
-    }
 
-    CKDWORD currentState = m_State;
-
-    if (currentState & CK_WAVESOUND_FADEIN) {
+    if (m_State & CK_WAVESOUND_FADEIN) {
+        const float newFadeTime = FadeOut + m_CurrentTime;
         const float remainingFade = m_FadeTime - m_CurrentTime;
-        const float combinedTime = FadeOut + remainingFade;
-
-        m_CurrentTime = (remainingFade / m_FadeTime) * combinedTime;
-        m_FadeTime = combinedTime;
 
         m_State &= ~CK_WAVESOUND_FADEIN;
+        m_CurrentTime = (remainingFade / m_FadeTime) * newFadeTime;
+        m_FadeTime = newFadeTime;
     } else {
         m_FadeTime = FadeOut;
         m_CurrentTime = 0.0f;
     }
 
-    if (m_FadeTime > 0.0f) {
+    if (m_FadeTime > 0.0f)
         m_State |= CK_WAVESOUND_FADEOUT;
-    }
 
     m_State &= ~CK_WAVESOUND_PAUSED;
 }
@@ -563,15 +583,23 @@ CKERROR CKWaveSound::WriteData(CKBYTE *Buffer, int BufferSize) {
     if (!Buffer || BufferSize <= 0)
         return CKERR_INVALIDPARAMETER;
 
+    // -1 is used as an internal sentinel (e.g. before the first stream fill),
+    // but locking/writing at cursor -1 is invalid. Start from 0 on first write.
+    if (m_BufferPos == -1)
+        m_BufferPos = 0;
+
     const int bufferSize = m_SoundManager->GetWaveSize(m_Source);
-    const int playPos = GetPlayPosition();
+    const CKBOOL playing = m_SoundManager->IsPlaying(m_Source);
+    const int playPos = playing ? (int) GetPlayPosition() : -1;
 
     const int writeEnd = m_BufferPos + BufferSize;
     const bool wrapsAround = (writeEnd >= bufferSize);
 
-    if ((!wrapsAround && (playPos >= m_BufferPos) && (playPos <= writeEnd)) ||
-        (wrapsAround && (playPos >= m_BufferPos || playPos < (writeEnd % bufferSize)))) {
-        return CKERR_INVALIDSIZE;
+    if (playing) {
+        if ((!wrapsAround && (playPos >= m_BufferPos) && (playPos <= writeEnd)) ||
+            (wrapsAround && (playPos >= m_BufferPos || playPos < (writeEnd % bufferSize)))) {
+            return CKERR_INVALIDSIZE;
+        }
     }
 
     void *ptr1 = nullptr;
@@ -684,9 +712,6 @@ void CKWaveSound::SetDataToRead(int Size) {
 }
 
 CKERROR CKWaveSound::Recreate(CKBOOL Safe) {
-    if (!m_SoundManager)
-        return CKERR_INVALIDPARAMETER;
-
     SaveSettings();
 
     CKERROR err = TryRecreate();
@@ -709,10 +734,9 @@ CKERROR CKWaveSound::Recreate(CKBOOL Safe) {
 
         m_State = (m_State & ~(CK_WAVESOUND_STREAMFULLYLOADED | CK_WAVESOUND_STREAMOVERLAP)) |
             CK_WAVESOUND_STREAMFULLYLOADED;
-        m_State |= CK_WAVESOUND_STREAMFULLYLOADED;
 
         CKDWORD bufferDuration = m_SoundManager->GetStreamedBufferSize();
-        m_DataToRead = (int) ((bufferDuration * m_WaveFormat.nAvgBytesPerSec) / 1000);
+        m_DataToRead = (int) ((double) bufferDuration * (double) m_WaveFormat.nAvgBytesPerSec * 0.001);
         m_BufferSize = m_DataToRead;
 
         // Create new audio source with fallback format
@@ -750,6 +774,7 @@ void CKWaveSound::Release() {
 
 CKERROR CKWaveSound::TryRecreate() {
     m_DataToRead = 0;
+    m_DataRead = 0;
     m_DataPlayed = 0;
     m_OldCursorPos = 0;
     m_Duration = 0;
@@ -760,7 +785,14 @@ CKERROR CKWaveSound::TryRecreate() {
     if (!m_FileName)
         return CKERR_INVALIDPARAMETER;
 
-    CKPathSplitter pathSplitter(m_FileName);
+    m_BufferPos = -1;
+
+    XString fileToOpen = m_FileName;
+    CKERROR resolveErr = CKERR_NOTFOUND;
+    if (m_Context && m_Context->GetPathManager())
+        resolveErr = m_Context->GetPathManager()->ResolveFileName(fileToOpen, SOUND_PATH_IDX);
+
+    CKPathSplitter pathSplitter(fileToOpen.Str());
     CKFileExtension ext(pathSplitter.GetExtension());
 
     CKPluginManager *pluginManager = CKGetPluginManager();
@@ -768,39 +800,47 @@ CKERROR CKWaveSound::TryRecreate() {
     if (!m_SoundReader)
         return CKERR_INVALIDPARAMETER;
 
-    if (m_SoundReader->OpenFile(m_FileName) != CK_OK) {
+    if (m_SoundReader->OpenFile(fileToOpen.Str()) != CK_OK) {
+        if (m_Context) {
+            if (resolveErr == CK_OK) {
+                m_Context->OutputToConsoleEx("CKError : Failed to open sound file '%s' (resolved '%s').", m_FileName, fileToOpen.Str());
+            } else {
+                m_Context->OutputToConsoleEx("CKError : Failed to open sound file '%s'.", m_FileName);
+            }
+        }
         m_SoundReader->Release();
         m_SoundReader = nullptr;
         return CKERR_INVALIDPARAMETER;
     }
 
-    m_SoundReader->GetWaveFormat(&m_WaveFormat);
+    if (m_SoundReader->GetWaveFormat(&m_WaveFormat) != CK_OK) {
+        m_SoundReader->Release();
+        m_SoundReader = nullptr;
+        return CKERR_INVALIDPARAMETER;
+    }
 
     m_State &= ~(CK_WAVESOUND_STREAMOVERLAP | CK_WAVESOUND_STREAMFULLYLOADED);
 
+    const int loadedDuration = m_SoundReader->GetDuration();
     m_DataToRead = m_SoundReader->GetDataSize();
-    m_Duration = m_SoundReader->GetDuration();
-
-    // Calculate data size from duration if needed
     if (m_DataToRead <= 0) {
-        if (m_Duration <= 0) {
+        if (loadedDuration <= 0) {
             m_SoundReader->Release();
             m_SoundReader = nullptr;
             return CKERR_INVALIDPARAMETER;
         }
-        m_DataToRead = (int) ((m_WaveFormat.nAvgBytesPerSec * m_Duration) * 0.001);
+        m_DataToRead = (int) ((double) m_WaveFormat.nAvgBytesPerSec * (double) loadedDuration * 0.001);
     }
 
-    CKDWORD streamBufferMs = m_SoundManager->GetStreamedBufferSize();
-    m_BufferSize = (int) ((m_WaveFormat.nAvgBytesPerSec * streamBufferMs) * 0.001);
+    const int streamBufferSize = (int) ((double) m_WaveFormat.nAvgBytesPerSec *
+        (double) (int) m_SoundManager->GetStreamedBufferSize() * 0.001);
+    m_BufferSize = m_DataToRead;
+    if (GetFileStreaming() && streamBufferSize < m_BufferSize)
+        m_BufferSize = streamBufferSize;
 
-    CKBOOL streamingEnabled = FALSE;
-    if (GetFileStreaming() && m_BufferSize < m_DataToRead) {
-        streamingEnabled = TRUE;
-    } else {
+    const CKBOOL streamingEnabled = (GetFileStreaming() && m_BufferSize < m_DataToRead) ? TRUE : FALSE;
+    if (!streamingEnabled)
         m_State |= CK_WAVESOUND_STREAMFULLYLOADED;
-        m_BufferSize = m_DataToRead;
-    }
 
     m_Source = m_SoundManager->CreateSource(
         (CK_WAVESOUND_TYPE) (m_State & CK_WAVESOUND_ALLTYPE),
@@ -819,44 +859,46 @@ CKERROR CKWaveSound::TryRecreate() {
         WriteDataFromReader();
     } else {
         m_SoundReader->Play();
-        int totalWritten = 0;
 
-        while (true) {
+        int totalWritten = 0;
+        while (m_SoundReader && m_SoundReader->Decode() != CKSOUND_READER_EOF) {
             CKBYTE *dataBuffer = nullptr;
             int bufferSize = 0;
-
-            if (m_SoundReader->GetDataBuffer(&dataBuffer, &bufferSize) != CK_OK)
-                break;
-
-            CKERROR err = WriteData(dataBuffer, bufferSize);
-            if (err != CK_OK) {
-                if (err == CKERR_INVALIDSIZE) {
-                    void *newSource = ReallocSource(m_Source, totalWritten, totalWritten + bufferSize);
-                    if (!newSource || WriteData(dataBuffer, bufferSize) != CK_OK) {
+            if (m_SoundReader->GetDataBuffer(&dataBuffer, &bufferSize) == CK_OK) {
+                CKERROR err = WriteData(dataBuffer, bufferSize);
+                if (err != CK_OK) {
+                    if (err == CKERR_INVALIDSIZE) {
+                        void *newSource = ReallocSource(m_Source, totalWritten, totalWritten + bufferSize);
+                        m_Source = newSource;
+                        if (newSource && WriteData(dataBuffer, bufferSize) == CK_OK) {
+                            totalWritten += bufferSize;
+                            m_BufferPos = totalWritten;
+                        }
+                    } else {
                         m_SoundReader->Release();
+                        m_SoundReader = nullptr;
                         Release();
-                        return CKERR_INVALIDPARAMETER;
                     }
-                    m_Source = newSource;
                 } else {
-                    m_SoundReader->Release();
-                    Release();
-                    return err;
+                    totalWritten += bufferSize;
                 }
             }
-            totalWritten += bufferSize;
-            m_BufferPos = totalWritten;
         }
 
-        if (totalWritten < m_BufferSize) {
+        if (m_Source && totalWritten < m_BufferSize)
             m_Source = ReallocSource(m_Source, totalWritten, totalWritten);
-        }
 
-        m_SoundReader->Release();
-        m_SoundReader = nullptr;
+        if (m_SoundReader) {
+            m_SoundReader->Release();
+            m_SoundReader = nullptr;
+        }
     }
 
     RestoreSettings();
+
+    if (loadedDuration > 0)
+        m_Duration = loadedDuration;
+
     return CK_OK;
 }
 
@@ -898,13 +940,13 @@ CKERROR CKWaveSound::WriteDataFromReader() {
     const int bufferSize = m_SoundManager->GetWaveSize(m_Source);
 
     int deltaBytes = 0;
-    if (currentPos >= m_OldCursorPos) {
-        deltaBytes = currentPos - m_OldCursorPos;
+    if ((unsigned int)currentPos < (unsigned int)m_OldCursorPos) {
+        deltaBytes = bufferSize - m_OldCursorPos + currentPos;
     } else {
-        deltaBytes = (bufferSize - m_OldCursorPos) + currentPos;
+        deltaBytes = currentPos - m_OldCursorPos;
     }
     m_DataPlayed += deltaBytes;
-    if (m_DataPlayed >= m_DataToRead) {
+    if (m_DataToRead < m_DataPlayed) {
         if (IsPlaying())
             InternalStop();
         return CK_OK;
@@ -915,66 +957,55 @@ CKERROR CKWaveSound::WriteDataFromReader() {
     CKBYTE *dataBuffer = nullptr;
     int dataSize = 0;
 
+    // If we previously failed to write (overlap), CK2.dll attempts a single flush of the existing buffer and returns.
     if (m_State & CK_WAVESOUND_STREAMOVERLAP) {
         m_SoundReader->GetDataBuffer(&dataBuffer, &dataSize);
         if (dataSize != 0 && WriteData(dataBuffer, dataSize) == CK_OK) {
             m_DataRead += dataSize;
             m_State &= ~CK_WAVESOUND_STREAMOVERLAP;
-        } else {
-            return CK_OK;
         }
-    } else {
-        m_SoundReader->GetDataBuffer(&dataBuffer, &dataSize);
-        if (dataSize != 0) {
-            if (WriteData(dataBuffer, dataSize) == CK_OK) {
-                m_DataRead += dataSize;
-            } else {
-                m_State |= CK_WAVESOUND_STREAMOVERLAP;
-                return CK_OK;
-            }
-        }
+        return CK_OK;
     }
 
-    while (true) {
-        if (m_State & CK_WAVESOUND_STREAMOVERLAP) {
-            return CK_OK;
-        }
+    CKBOOL done = FALSE;
+    while (!(m_State & CK_WAVESOUND_STREAMOVERLAP) && !done) {
         CKERROR err = m_SoundReader->Decode();
         if (err == CK_OK) {
             m_SoundReader->GetDataBuffer(&dataBuffer, &dataSize);
-            if (dataSize != 0) {
-                if (WriteData(dataBuffer, dataSize) == CK_OK) {
-                    m_DataRead += dataSize;
-                } else {
-                    m_State |= CK_WAVESOUND_STREAMOVERLAP;
-                }
+            if (dataSize != 0 && WriteData(dataBuffer, dataSize) == CK_OK) {
+                m_DataRead += dataSize;
+            } else {
+                m_State |= CK_WAVESOUND_STREAMOVERLAP;
             }
         } else {
-            if (err == CKERR_INVALIDSIZE) {
+            if (err == CKSOUND_READER_NO_DATA_READY) {
                 FillWithBlanks(FALSE);
                 if (m_BufferPos == -1) {
                     m_BufferPos = m_BufferSize / 4;
                 } else {
-                    const int safeThreshold = bufferSize / 10;
-                    const int fillSize = bufferSize / 4;
-                    if (GetDistanceFromCursor() < safeThreshold) {
-                        const int advance = XMax(fillSize, deltaBytes);
-                        m_BufferPos = (m_BufferPos + advance) % bufferSize;
-                        m_DataPlayed -= XMax(fillSize, deltaBytes);
+                    int distFromCursor = GetDistanceFromCursor();
+                    int threshold = m_BufferSize / 10;
+                    if (distFromCursor < threshold) {
+                        int fillSize = m_BufferSize / 4;
+                        int advance = (fillSize > deltaBytes) ? fillSize : deltaBytes;
+                        m_BufferPos = (m_BufferPos + advance) % m_BufferSize;
+                        int subtract = (fillSize > deltaBytes) ? fillSize : deltaBytes;
+                        m_DataPlayed -= subtract;
                     }
                 }
-            } else if (err == CKERR_INVALIDPARAMETERTYPE) {
+            } else if (err == CKSOUND_READER_EOF) {
                 if (GetLoopMode()) {
-                    m_DataPlayed -= m_DataRead;
+                    int dataRead = m_DataRead;
                     m_DataRead = 0;
+                    m_DataPlayed -= dataRead;
                     m_SoundReader->Seek(0);
                     m_SoundReader->Play();
                 } else {
+                    done = TRUE;
                     FillWithBlanks(TRUE);
                 }
             }
-
-            break;
+            done = TRUE;
         }
     }
 
@@ -998,9 +1029,9 @@ void CKWaveSound::FillWithBlanks(CKBOOL IncBf) {
         fillStart = 0;
         fillSize = m_BufferSize;
     } else {
-        fillSize = (fillStart <= playPos)
-                       ? playPos - fillStart
-                       : m_BufferSize - fillStart + playPos;
+        fillSize = (fillStart >= playPos)
+                       ? playPos + m_BufferSize - fillStart
+                       : playPos - fillStart;
     }
 
     CKERROR err = m_SoundManager->Lock(
@@ -1014,13 +1045,10 @@ void CKWaveSound::FillWithBlanks(CKBOOL IncBf) {
     if (err != CK_OK)
         return;
 
-    const int silence = (m_WaveFormat.wBitsPerSample == 16) ? 0x00 : 0x80;
-    if (ptr1 && bytes1 > 0) {
-        memset(ptr1, silence, bytes1);
-    }
-    if (ptr2 && bytes2 > 0) {
+    const int silence = (m_WaveFormat.wBitsPerSample != 16) ? 0x80 : 0x00;
+    memset(ptr1, silence, bytes1);
+    if (ptr2)
         memset(ptr2, silence, bytes2);
-    }
 
     m_SoundManager->Unlock(m_Source, ptr1, bytes1, ptr2, bytes2);
 
@@ -1041,13 +1069,22 @@ void CKWaveSound::InternalStop() {
 
 CKWaveSound::CKWaveSound(CKContext *Context, CKSTRING Name): CKSound(Context, Name) {
     m_Source = nullptr;
-    m_FinalGain = 1.0;
-    m_FadeTime = 0.0;
-    m_CurrentTime = 0.0;
+    m_FinalGain = 1.0f;
+    m_FadeTime = 0.0f;
+    m_CurrentTime = 0.0f;
+    
+    m_2DSetting.m_Priority = 0.5f;
+    m_2DSetting.m_Gain = 1.0f;
+    m_2DSetting.m_Eq = 1.0f;
+    m_2DSetting.m_Pitch = 1.0f;
+    m_2DSetting.m_Pan = 0.0f;
+    
+    // m_3DSetting constructor is called separately
+    
     m_State = 1;
-    m_Position = VxVector();
-    m_OldPosition = VxVector();
-    m_OldPosition = VxVector(0.0f, 0.0f, 1.0f);
+    m_Position = VxVector(0.0f, 0.0f, 0.0f);
+    m_OldPosition = VxVector(0.0f, 0.0f, 0.0f);
+    m_Direction = VxVector(0.0f, 0.0f, 1.0f);
     m_BufferPos = -1;
     m_SoundReader = nullptr;
     m_DataRead = 0;
@@ -1264,6 +1301,7 @@ CKERROR CKWaveSound::Copy(CKObject &o, CKDependenciesContext &context) {
         return err;
 
     CKWaveSound *ws = (CKWaveSound *) &o;
+    delete[] m_FileName;
     m_FileName = CKStrdup(ws->m_FileName);
     m_SaveOptions = ws->m_SaveOptions;
     m_SoundManager = ws->m_SoundManager;
