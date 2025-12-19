@@ -1329,10 +1329,15 @@ void CKParameterManager::RecurseDelete(TreeCell *cell) {
 CKBOOL CKParameterManager::IsDerivedFromIntern(int childIdx, int parentIdx) {
     if (childIdx == parentIdx) return TRUE;
 
+    CKGUID parentGuid = ParameterTypeToGuid(parentIdx);
     CKParameterTypeDesc *childDesc = GetParameterTypeDescription(childIdx);
-    if (!childDesc || !childDesc->DerivedFrom.IsValid()) return FALSE;
+    if (!childDesc || !GetParameterTypeDescription(parentIdx)) return FALSE;
 
-    if (childDesc->DerivedFrom == ParameterTypeToGuid(parentIdx)) return TRUE;
+    if (childDesc->DerivedFrom == parentGuid) return TRUE;
+
+    // Termination conditions: null GUID or CKPGUID_NONE
+    if (!childDesc->DerivedFrom.IsValid() || childDesc->DerivedFrom == CKPGUID_NONE)
+        return FALSE;
 
     return IsDerivedFromIntern(ParameterGuidToType(childDesc->DerivedFrom), parentIdx);
 }
