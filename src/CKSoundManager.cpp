@@ -68,8 +68,8 @@ SoundMinion *CKSoundManager::CreateMinion(CKSOUNDHANDLE source, float minimumDel
 void CKSoundManager::ReleaseMinions() {
     for (auto it = m_Minions.Begin(); it != m_Minions.End(); ++it) {
         SoundMinion *minion = *it;
-        Stop(nullptr, minion);
-        ReleaseSource(minion);
+        Stop(nullptr, minion->m_Source);
+        ReleaseSource(minion->m_Source);
         delete minion;
     }
     m_Minions.Clear();
@@ -78,24 +78,24 @@ void CKSoundManager::ReleaseMinions() {
 void CKSoundManager::PauseMinions() {
     for (auto it = m_Minions.Begin(); it != m_Minions.End(); ++it) {
         SoundMinion *minion = *it;
-        InternalPause(minion);
+        InternalPause(minion->m_Source);
     }
 }
 
 void CKSoundManager::ResumeMinions() {
     for (auto it = m_Minions.Begin(); it != m_Minions.End(); ++it) {
         SoundMinion *minion = *it;
-        InternalPlay(minion);
+        InternalPlay(minion->m_Source, FALSE);
     }
 }
 
 void CKSoundManager::ProcessMinions() {
     for (auto it = m_Minions.Begin(); it != m_Minions.End();) {
         SoundMinion *minion = *it;
-        if (IsPlaying(minion)) {
+        if (IsPlaying(minion->m_Source)) {
             ++it;
         } else {
-            ReleaseSource(minion);
+            ReleaseSource(minion->m_Source);
             delete minion;
             it = m_Minions.Remove(it);
         }
@@ -110,7 +110,9 @@ CKSoundManager::CKSoundManager(CKContext *Context, CKSTRING smname) : CKBaseMana
     RegisterAttribute();
 }
 
-CKSoundManager::~CKSoundManager() {}
+CKSoundManager::~CKSoundManager() {
+    m_Minions.Clear();
+}
 
 void CKSoundManager::RegisterAttribute() {}
 
