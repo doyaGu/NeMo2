@@ -529,7 +529,7 @@ CK_CLASSID CKGetCommonParent(CK_CLASSID cid1, CK_CLASSID cid2) {
 }
 
 CKObjectArray *CreateCKObjectArray() {
-    return new CKObjectArray();
+    return new CKObjectArray(nullptr);
 }
 
 void DeleteCKObjectArray(CKObjectArray *obj) {

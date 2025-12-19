@@ -55,6 +55,8 @@ See also: CreateCKObjectArray, DeleteCKObjectArray
 class DLL_EXPORT CKObjectArray
 {
 public:
+    CKObjectArray(CKObjectArray *src = nullptr);
+
     //----------------------------------------------------
     // Return Elements count
     int GetCount();

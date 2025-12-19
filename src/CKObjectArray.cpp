@@ -1,6 +1,24 @@
 #include "CKObjectArray.h"
 #include "CKObjectManager.h"
 
+CKObjectArray::CKObjectArray(CKObjectArray *src) {
+    m_Position = -1;
+    m_Current = nullptr;
+    m_Next = nullptr;
+    m_Previous = nullptr;
+    m_Count = 0;
+
+    if (src && !src->ListEmpty()) {
+        src->Reset();
+        while (!src->EndOfList()) {
+            if (src->GetDataId()) {
+                InsertRear(src->GetDataId());
+            }
+            src->Next();
+        }
+    }
+}
+
 int CKObjectArray::GetCount() {
     return m_Count;
 }
@@ -64,25 +82,19 @@ CKBOOL CKObjectArray::PositionSeek(int Pos) {
         return TRUE;
 
     if (Pos == m_Count - 1) {
-        m_Position = m_Count - 1;
         m_Current = m_Previous;
+        m_Position = m_Count - 1;
         return TRUE;
     }
 
     if (Pos == 0) {
-        m_Position = 0;
         m_Current = m_Next;
+        m_Position = 0;
         return TRUE;
     }
 
     if (Pos > m_Position) {
         do {
-            if (!m_Current->m_Next) {
-                m_Position = -1;
-                m_Current = nullptr;
-                return FALSE;
-            }
-
             m_Current = m_Current->m_Next;
         } while (++m_Position != Pos);
         return TRUE;
@@ -90,11 +102,6 @@ CKBOOL CKObjectArray::PositionSeek(int Pos) {
 
     if (Pos < m_Position) {
         do {
-            if (!m_Current->m_Prev) {
-                m_Position = -1;
-                m_Current = nullptr;
-                return FALSE;
-            }
             m_Current = m_Current->m_Prev;
         } while (--m_Position != Pos);
         return TRUE;
@@ -183,13 +190,13 @@ CK_ID CKObjectArray::PositionFind(int pos) {
     Node *prevCurrent = m_Current;
     int prevPosition = m_Position;
 
-    Reset();
     CK_ID id = 0;
+    Reset();
     if (PositionSeek(pos))
         id = GetDataId();
 
-    m_Current = prevCurrent;
     m_Position = prevPosition;
+    m_Current = prevCurrent;
     return id;
 }
 
