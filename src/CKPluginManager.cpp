@@ -49,7 +49,6 @@ CKPluginEntry &CKPluginEntry::operator=(const CKPluginEntry &ent) {
     m_Active = ent.m_Active;
     m_NeededByFile = ent.m_NeededByFile;
     m_IndexInCategory = ent.m_IndexInCategory;
-    m_PluginDllIndex = ent.m_PluginDllIndex;
 
     return *this;
 }
@@ -481,6 +480,9 @@ CKParameterOut *CKPluginManager::GetReaderOptionData(CKContext *context, void *m
     }
 
     if (!entry)
+        return nullptr;
+
+    if (!entry->m_ReadersInfo)
         return nullptr;
 
     CKGUID paramGuid = entry->m_ReadersInfo->m_SettingsParameterGuid;
