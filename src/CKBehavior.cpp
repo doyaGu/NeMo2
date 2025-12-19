@@ -28,8 +28,10 @@ CK_BEHAVIOR_TYPE CKBehavior::GetType() {
 }
 
 void CKBehavior::SetType(CK_BEHAVIOR_TYPE type) {
-    if (type == CKBEHAVIORTYPE_SCRIPT)
+    // Only sets the SCRIPT flag when type is SCRIPT, does not clear otherwise
+    if (type == CKBEHAVIORTYPE_SCRIPT) {
         m_Flags |= CKBEHAVIOR_SCRIPT;
+    }
 }
 
 void CKBehavior::SetFlags(CK_BEHAVIOR_FLAGS flags) {
@@ -134,18 +136,21 @@ CKERROR CKBehavior::UseTarget(CKBOOL Use) {
         // Update sub-behaviors
         CKBehavior *parent = GetParent();
         if (parent) {
-            CK_CLASSID baseCID = m_CompatibleClassID;
-            int subCount = parent->GetSubBehaviorCount();
+            // Enabling target usage removes this behavior from the set of sub-behaviors that
+            // constrain the owner type. Recompute from scratch using only sub-behaviors that
+            // don't use a target parameter.
+            CK_CLASSID newCid = CKCID_BEOBJECT;
+            const int subCount = parent->GetSubBehaviorCount();
             for (int i = 0; i < subCount; ++i) {
                 CKBehavior *sub = parent->GetSubBehavior(i);
                 if (sub && sub->m_InputTargetParam == 0) {
-                    CK_CLASSID subCID = sub->GetCompatibleClassID();
-                    if (CKIsChildClassOf(subCID, baseCID)) {
-                        baseCID = subCID;
+                    const CK_CLASSID subCID = sub->GetCompatibleClassID();
+                    if (CKIsChildClassOf(subCID, newCid)) {
+                        newCid = subCID;
                     }
                 }
             }
-            parent->SetCompatibleClassID(baseCID);
+            parent->SetCompatibleClassID(newCid);
         }
     }
 
@@ -303,8 +308,8 @@ int CKBehavior::Execute(float delta) {
         int iterationCount = 0;
         int maxIterations = behaviorManager->GetBehaviorMaxIteration();
 
-        while (m_GraphData && m_GraphData->m_BehaviorIteratorIndex > 0) {
-            if (iterationCount >= maxIterations) {
+        while (m_GraphData->m_BehaviorIteratorIndex > 0) {
+            if (iterationCount > maxIterations) {
                 WarnInfiniteLoop();
                 retVal = CKBR_INFINITELOOP;
                 if (m_GraphData)
@@ -315,13 +320,10 @@ int CKBehavior::Execute(float delta) {
 
             --m_GraphData->m_BehaviorIteratorIndex;
             CKBehavior *subBehavior = m_GraphData->m_BehaviorIterators[m_GraphData->m_BehaviorIteratorIndex];
-            if (!subBehavior) continue;
 
             subBehavior->m_Flags &= ~CKBEHAVIOR_RESERVED0;
 
-            if (subBehavior->IsActive()) {
-                subBehavior->Execute(delta);
-            }
+            subBehavior->Execute(delta);
 
             behaviorManager->m_CurrentBehavior = this;
             FindNextBehaviorsToExecute(subBehavior);
@@ -1166,8 +1168,6 @@ CKBehavior *CKBehavior::RemoveSubBehavior(int pos) {
         return nullptr;
 
     XObjectPointerArray &subBehaviors = m_GraphData->m_SubBehaviors;
-    if (subBehaviors.Size() == 0)
-        return nullptr;
 
     if (pos < 0 || pos >= subBehaviors.Size())
         return nullptr;
@@ -1175,24 +1175,30 @@ CKBehavior *CKBehavior::RemoveSubBehavior(int pos) {
     CKBehavior *removed = (CKBehavior *) subBehaviors[pos];
     subBehaviors.RemoveAt(pos);
 
-    removed->m_Flags |= CKBEHAVIOR_TOPMOST;
+    // CK2.dll: If array becomes empty, just set m_CompatibleClassID = CKCID_BEOBJECT
+    if (subBehaviors.Size() == 0) {
+        m_CompatibleClassID = CKCID_BEOBJECT;
+    } else {
+        // Only set TOPMOST and clear parent when array still has elements
+        removed->m_Flags |= CKBEHAVIOR_TOPMOST;
+        removed->SetParent(nullptr);
 
-    removed->SetParent(nullptr);
-
-    CK_CLASSID newCid = CKCID_BEOBJECT;
-    if (removed->GetCompatibleClassID() == m_CompatibleClassID) {
-        const int count = GetSubBehaviorCount();
-        for (int i = 0; i < count; ++i) {
-            CKBehavior *beh = GetSubBehavior(i);
-            if (beh && !beh->m_InputTargetParam) {
-                CK_CLASSID cid = beh->GetCompatibleClassID();
-                if (CKIsChildClassOf(cid, newCid)) {
-                    newCid = cid;
+        // Update compatible class ID if the removed behavior had same CompatibleClassID
+        if (removed->GetCompatibleClassID() == m_CompatibleClassID) {
+            CK_CLASSID newCid = CKCID_BEOBJECT;
+            const int count = GetSubBehaviorCount();
+            for (int i = 0; i < count; ++i) {
+                CKBehavior *beh = GetSubBehavior(i);
+                if (beh && !beh->m_InputTargetParam) {
+                    CK_CLASSID cid = beh->GetCompatibleClassID();
+                    if (CKIsChildClassOf(cid, newCid)) {
+                        newCid = cid;
+                    }
                 }
             }
+            m_CompatibleClassID = newCid;
         }
     }
-    m_CompatibleClassID = newCid;
 
     return removed;
 }
@@ -1235,10 +1241,7 @@ CKBehaviorLink *CKBehavior::RemoveSubBehaviorLink(int pos) {
         return nullptr;
 
     CKBehaviorLink *plink = (CKBehaviorLink *) subBehaviorLinks[pos];
-    if (!plink)
-        return nullptr;
-
-    m_GraphData->m_SubBehaviorLinks.RemoveAt(pos);
+    subBehaviorLinks.RemoveAt(pos);
     m_GraphData->m_Links.Remove(plink);
     return plink;
 }
@@ -1413,11 +1416,12 @@ void CKBehavior::SetInterfaceChunk(CKStateChunk *state) {
 }
 
 CKBehavior::CKBehavior(CKContext *Context, CKSTRING name) : CKSceneObject(Context, name) {
+    m_LastExecutionTime = 0.0f;
     m_Owner = 0;
     m_InputTargetParam = 0;
     m_CompatibleClassID = CKCID_BEOBJECT;
     m_Priority = 0;
-    m_Flags = CKBEHAVIOR_USEFUNCTION | CKBEHAVIOR_TOPMOST | CKBEHAVIOR_BUILDINGBLOCK;
+    m_Flags = CKBEHAVIOR_BUILDINGBLOCK | CKBEHAVIOR_TOPMOST | CKBEHAVIOR_USEFUNCTION;
     m_GraphData = nullptr;
     m_BlockData = new BehaviorBlockData();
     m_InterfaceChunk = nullptr;
@@ -1500,6 +1504,7 @@ CKStateChunk *CKBehavior::Save(CKFile *file, CKDWORD flags) {
         if (m_CompatibleClassID != CKCID_BEOBJECT)
             behaviorFlags |= CKBEHAVIOR_COMPATIBLECLASSID;
 
+        behaviorFlags &= ~CKBEHAVIOR_LAUNCHEDONCE;
         behaviorChunk->WriteDword(behaviorFlags);
 
         if (behaviorFlags & CKBEHAVIOR_BUILDINGBLOCK) {
@@ -1975,15 +1980,18 @@ CKERROR CKBehavior::PrepareDependencies(CKDependenciesContext &context) {
 }
 
 CKERROR CKBehavior::RemapDependencies(CKDependenciesContext &context) {
-    CKERROR err = CKSceneObject::RemapDependencies(context);
+    CKERROR err = CKObject::RemapDependencies(context);
     if (err != CK_OK)
         return err;
 
     // Remap owner reference
     CK_ID oldOwner = m_Owner;
-    m_Owner = context.RemapID(m_Owner);
-    if (m_Owner != oldOwner) {
+    CK_ID remappedOwner = context.RemapID(m_Owner);
+    if (remappedOwner == oldOwner) {
+        m_Owner = 0;
         RemoveFromAllScenes();
+    } else {
+        m_Owner = remappedOwner;
     }
 
     // Remap other object references
@@ -2027,7 +2035,7 @@ CKERROR CKBehavior::RemapDependencies(CKDependenciesContext &context) {
 }
 
 CKERROR CKBehavior::Copy(CKObject &o, CKDependenciesContext &context) {
-    CKERROR err = CKSceneObject::Copy(o, context);
+    CKERROR err = CKObject::Copy(o, context);
     if (err != CK_OK)
         return err;
 
@@ -2052,8 +2060,6 @@ CKERROR CKBehavior::Copy(CKObject &o, CKDependenciesContext &context) {
 
     // Handle BehaviorGraphData
     if (m_GraphData) {
-        if (m_GraphData->m_BehaviorIterators)
-            delete[] m_GraphData->m_BehaviorIterators;
         delete m_GraphData;
         m_GraphData = nullptr;
     }
@@ -2070,7 +2076,6 @@ CKERROR CKBehavior::Copy(CKObject &o, CKDependenciesContext &context) {
 
     // Handle interface chunk
     if (src->m_InterfaceChunk) {
-        delete m_InterfaceChunk;
         m_InterfaceChunk = new CKStateChunk(*src->m_InterfaceChunk);
     }
 
@@ -2464,7 +2469,7 @@ void CKBehavior::CheckIOsActivation() {
         CKBehaviorIO *io = *it;
         if (io) {
             io->Activate(TRUE); // Activate
-            if (io->GetType() == CK_BEHAVIORIO_IN && io->GetOwner()) {
+            if ((io->m_ObjectFlags & CK_BEHAVIORIO_IN) && io->GetOwner()) {
                 // If it's an input of another behavior
                 io->GetOwner()->ModifyFlags(CKBEHAVIOR_ACTIVE, 0); // Mark the target behavior as active
             }
@@ -2488,7 +2493,7 @@ void CKBehavior::CheckIOsActivation() {
         CKBehavior *subBeh = (CKBehavior *) m_GraphData->m_SubBehaviors[k];
         if (subBeh && subBeh != this) {
             // Don't add self
-            if (subBeh->IsActive() && !(subBeh->m_Flags & CKBEHAVIOR_RESERVED0)) {
+            if (subBeh->IsActive()) {
                 subBeh->ModifyFlags(CKBEHAVIOR_RESERVED0, 0); // Mark as scheduled for this cycle
                 if (m_GraphData->m_BehaviorIteratorIndex < m_GraphData->m_BehaviorIteratorCount) {
                     // Bounds check
@@ -2663,9 +2668,7 @@ void CKBehavior::FindNextBehaviorsToExecute(CKBehavior *beh) {
                     targetInputIO->Activate(TRUE); // Activate the target IO
 
                     CKBehavior *targetBehavior = targetInputIO->GetOwner();
-                    // Check if target is different from the current graph behavior (this)
-                    // and if it's a valid behavior to schedule
-                    if (targetBehavior && targetBehavior != this) {
+                    if ((targetInputIO->m_ObjectFlags & CK_BEHAVIORIO_IN) && targetBehavior && targetBehavior != this) {
                         targetBehavior->ModifyFlags(CKBEHAVIOR_ACTIVE, 0); // Mark target behavior as active
 
                         if (!(targetBehavior->GetFlags() & CKBEHAVIOR_RESERVED0)) {
@@ -2688,21 +2691,8 @@ void CKBehavior::FindNextBehaviorsToExecute(CKBehavior *beh) {
                                 // Bounds check for insertion
                                 m_GraphData->m_BehaviorIterators[insertPos] = targetBehavior;
                                 m_GraphData->m_BehaviorIteratorIndex++; // Increment count of items in iterator
-                                // Ensure iterator array is not overflown (should be sized by m_BehaviorIteratorCount)
-                                if (m_GraphData->m_BehaviorIteratorIndex > m_GraphData->m_BehaviorIteratorCount) {
-                                    // This case should ideally not happen if m_BehaviorIteratorCount is correctly sized
-                                    // to m_SubBehaviors.Size(). If it can happen, array needs resize or error.
-                                    // For now, assume m_BehaviorIteratorCount is sufficient.
-                                    // To be safe, we could cap it:
-                                    // m_GraphData->m_BehaviorIteratorIndex = m_GraphData->m_BehaviorIteratorCount;
-                                }
                             }
                         }
-                    } else if (targetBehavior == this && targetInputIO->GetType() == CK_BEHAVIORIO_IN) {
-                        // If linking to an input of the *same* graph behavior (this),
-                        // this input will be processed by CheckIOsActivation in the *next* iteration of the main while loop
-                        // in CKBehavior::Execute, or if already past that, in the next frame.
-                        // No need to add 'this' to its own m_BehaviorIterators.
                     }
                 }
             }
@@ -2830,7 +2820,7 @@ void CKBehavior::HierarchyPostLoad() {
             CKBehavior *subBeh = (CKBehavior *) *it;
             if (subBeh) {
                 subBeh->SetParent(this);
-                subBeh->m_Flags &= ~CKBEHAVIOR_DEACTIVATENEXTFRAME;
+                subBeh->m_Flags &= ~CKBEHAVIOR_TOPMOST;
                 subBeh->HierarchyPostLoad();
             }
         }
