@@ -148,7 +148,7 @@ CKERROR CKBehaviorLink::Copy(CKObject &o, CKDependenciesContext &context) {
         return err;
 
     CKBehaviorLink *link = (CKBehaviorLink *)&o;
-    m_OldFlags = link->m_OldFlags & ~1;
+    m_OldFlags = link->m_OldFlags & ~CKBL_OLD_IN_DELAYED_LIST;
     m_ActivationDelay = link->m_ActivationDelay;
     m_InitialActivationDelay = link->m_InitialActivationDelay;
     m_InIO = link->m_InIO;

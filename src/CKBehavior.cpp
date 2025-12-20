@@ -16,7 +16,31 @@
 #include "CKDependencies.h"
 #include "CKDebugContext.h"
 
+static CKBehaviorIO **g_IosToDeactivate = nullptr;
+static CKBehaviorIO **g_IosToActivate = nullptr;
+static int g_IosBufferCapacity = 0;
+
+static void EnsureIoBuffers(int neededCount) {
+    if (neededCount <= g_IosBufferCapacity)
+        return;
+
+    delete[] g_IosToDeactivate;
+    delete[] g_IosToActivate;
+
+    g_IosToDeactivate = new CKBehaviorIO *[neededCount];
+    g_IosToActivate = new CKBehaviorIO *[neededCount];
+    g_IosBufferCapacity = neededCount;
+}
+
 CK_CLASSID CKBehavior::m_ClassID = CKCID_BEHAVIOR;
+
+BehaviorGraphData::~BehaviorGraphData()
+{
+    delete[] m_BehaviorIterators;
+    m_BehaviorIterators = nullptr;
+    m_BehaviorIteratorCount = 0;
+    m_BehaviorIteratorIndex = 0;
+}
 
 CK_BEHAVIOR_TYPE CKBehavior::GetType() {
     if ((m_Flags & CKBEHAVIOR_BUILDINGBLOCK) != 0)
@@ -61,8 +85,6 @@ void CKBehavior::UseFunction() {
         m_BlockData = new BehaviorBlockData;
     }
     if (m_GraphData) {
-        if (m_GraphData->m_BehaviorIterators)
-            delete[] m_GraphData->m_BehaviorIterators;
         delete m_GraphData;
         m_GraphData = nullptr;
     }
@@ -312,8 +334,6 @@ int CKBehavior::Execute(float delta) {
             if (iterationCount > maxIterations) {
                 WarnInfiniteLoop();
                 retVal = CKBR_INFINITELOOP;
-                if (m_GraphData)
-                    m_GraphData->m_BehaviorIteratorIndex = 0;
                 break;
             }
             ++iterationCount;
@@ -1218,7 +1238,7 @@ int CKBehavior::GetSubBehaviorCount() {
 CKERROR CKBehavior::AddSubBehaviorLink(CKBehaviorLink *cbkl) {
     if (!m_GraphData || !cbkl)
         return CKERR_INVALIDPARAMETER;
-    cbkl->m_OldFlags &= ~1;
+    cbkl->SetOldFlags(cbkl->GetOldFlags() & ~CKBL_OLD_IN_DELAYED_LIST);
     m_GraphData->m_SubBehaviorLinks.AddIfNotHere(cbkl);
     return CK_OK;
 }
@@ -1441,8 +1461,6 @@ CKBehavior::~CKBehavior() {
 
     // Cleanup graph data
     if (m_GraphData) {
-        if (m_GraphData->m_BehaviorIterators)
-            delete[] m_GraphData->m_BehaviorIterators;
         delete m_GraphData;
         m_GraphData = nullptr;
     }
@@ -1847,7 +1865,7 @@ CKERROR CKBehavior::Load(CKStateChunk *chunk, CKFile *file) {
         if (proto && proto->IsRunTime())
             m_Context->m_RunTime = TRUE;
 
-        m_Flags &= ~CKBEHAVIOR_RESETNEXTFRAME;
+        m_Flags &= ~CKBEHAVIOR_LAUNCHEDONCE;
     }
 
     if (chunk->SeekIdentifier(CK_STATESAVE_BEHAVIORSINGLEACTIVITY)) {
@@ -2118,7 +2136,7 @@ void CKBehavior::Reset() {
              it != m_GraphData->m_Links.End(); ++it) {
             CKBehaviorLink *link = (CKBehaviorLink *) *it;
             if (link) {
-                link->m_OldFlags &= ~1;
+                link->SetOldFlags(link->GetOldFlags() & ~CKBL_OLD_IN_DELAYED_LIST);
             }
         }
         m_GraphData->m_Links.Resize(0);
@@ -2313,7 +2331,6 @@ void CKBehavior::ExecuteStepStart() {
     ++m_Context->m_Stats.BehaviorsExecuted;
 
     VxTimeProfiler profiler;
-    profiler.Reset();
 
     if (!IsUsingFunction()) {
         CheckIOsActivation();
@@ -2326,7 +2343,6 @@ void CKBehavior::ExecuteStepStart() {
 
 int CKBehavior::ExecuteStep(float delta, CKDebugContext *Context) {
     VxTimeProfiler profiler;
-    profiler.Reset();
 
     if (m_Flags & CKBEHAVIOR_USEFUNCTION) {
         int result = ExecuteFunction();
@@ -2413,192 +2429,139 @@ int CKBehavior::InternalGetShortestDelay(CKBehavior *beh, XObjectPointerArray &b
 }
 
 void CKBehavior::CheckIOsActivation() {
-    if (!m_GraphData) return;
+    if (!m_GraphData)
+        return;
 
-    XArray<CKBehaviorIO *> iosToDeactivate;
-    XArray<CKBehaviorIO *> iosToActivate;
+    int deactivateCount = 0;
+    int activateCount = 0;
 
-    if (!m_GraphData->m_SubBehaviorLinks.IsEmpty()) {
-        for (XObjectPointerArray::Iterator it = m_GraphData->m_SubBehaviorLinks.Begin();
-             it != m_GraphData->m_SubBehaviorLinks.End(); ++it) {
-            m_Context->m_Stats.BehaviorLinksParsed++;
-            CKBehaviorLink *link = (CKBehaviorLink *) *it;
-            if (!link) continue;
+    const int linkCount = m_GraphData->m_SubBehaviorLinks.Size();
+    if (linkCount > 0) {
+        EnsureIoBuffers(linkCount);
 
-            CKBehaviorIO *inIO = link->GetInBehaviorIO();
-            link->m_OldFlags &= ~2; // Clear "processed this frame" related flag
+        for (int idx = 0; idx < linkCount; ++idx) {
+            ++m_Context->m_Stats.BehaviorLinksParsed;
+
+            CKBehaviorLink *link = (CKBehaviorLink *)m_GraphData->m_SubBehaviorLinks[idx];
+            CKBehaviorIO *inIO = link ? link->GetInBehaviorIO() : nullptr;
+            if (link)
+                link->SetOldFlags(link->GetOldFlags() & ~CKBL_OLD_TRIGGERED_THIS_FRAME);
 
             if (inIO && inIO->IsActive()) {
-                link->m_OldFlags |= 2u; // Mark as processed
+                g_IosToDeactivate[deactivateCount++] = inIO;
 
-                if (link->GetInitialActivationDelay() > 0) {
-                    if (link->GetActivationDelay() == 0) {
-                        link->SetActivationDelay(link->GetInitialActivationDelay()); // Reset delay for next time
-                    }
+                const int initialDelay = link->GetInitialActivationDelay();
+                link->SetOldFlags(link->GetOldFlags() | CKBL_OLD_TRIGGERED_THIS_FRAME);
 
-                    if ((link->m_OldFlags & 1) == 0) {
-                        // If not already in the delayed links list
-                        link->m_OldFlags |= 1; // Mark as "in delayed list"
+                if (initialDelay) {
+                    if (link->GetActivationDelay() == 0)
+                        link->SetActivationDelay(initialDelay);
+
+                    if ((link->GetOldFlags() & CKBL_OLD_IN_DELAYED_LIST) == 0) {
+                        link->SetOldFlags(link->GetOldFlags() | CKBL_OLD_IN_DELAYED_LIST);
                         m_GraphData->m_Links.PushBack(link);
-                        m_Context->m_Stats.BehaviorDelayedLinks++;
+                        ++m_Context->m_Stats.BehaviorDelayedLinks;
                     }
-                    // For delayed links, the input is consumed now. Deactivate it.
-                    iosToDeactivate.PushBack(inIO);
                 } else {
-                    // Immediate link (delay == 0)
-                    CKBehaviorIO *outIO = link->GetOutBehaviorIO();
-                    if (outIO) {
-                        iosToActivate.PushBack(outIO);
-                    }
-                    // For immediate links, input is consumed. Deactivate it.
-                    iosToDeactivate.PushBack(inIO);
+                    g_IosToActivate[activateCount++] = link->GetOutBehaviorIO();
                 }
             }
         }
     }
 
-    // Deactivate all inputs that triggered a link (either immediate or start of delay)
-    for (XArray<CKBehaviorIO *>::Iterator it = iosToDeactivate.Begin(); it != iosToDeactivate.End(); ++it) {
-        CKBehaviorIO *io = *it;
-        if (io) io->Activate(FALSE); // Deactivate
+    for (int i = 0; i < deactivateCount; ++i) {
+        CKBehaviorIO *io = g_IosToDeactivate[i];
+        if (io)
+            io->Activate(FALSE);
     }
-    iosToDeactivate.Clear(); // Clear for next potential use if any
 
-    // Activate all outputs that were part of an immediate link
-    for (XArray<CKBehaviorIO *>::Iterator it = iosToActivate.Begin(); it != iosToActivate.End(); ++it) {
-        CKBehaviorIO *io = *it;
-        if (io) {
-            io->Activate(TRUE); // Activate
-            if ((io->m_ObjectFlags & CK_BEHAVIORIO_IN) && io->GetOwner()) {
-                // If it's an input of another behavior
-                io->GetOwner()->ModifyFlags(CKBEHAVIOR_ACTIVE, 0); // Mark the target behavior as active
-            }
+    for (int i = 0; i < activateCount; ++i) {
+        CKBehaviorIO *io = g_IosToActivate[i];
+        if (!io)
+            continue;
+
+        io->Activate(TRUE);
+        if (io->GetType() == CK_BEHAVIORIO_IN) {
+            CKBehavior *owner = io->GetOwner();
+            if (owner)
+                owner->ModifyFlags(CKBEHAVIOR_ACTIVE, 0);
         }
     }
-    iosToActivate.Clear();
 
-
-    // Prepare behavior iterator array
     m_GraphData->m_BehaviorIteratorIndex = 0;
-    int subBehaviorCount = m_GraphData->m_SubBehaviors.Size();
-
+    const int subBehaviorCount = m_GraphData->m_SubBehaviors.Size();
     if (subBehaviorCount > m_GraphData->m_BehaviorIteratorCount) {
-        delete[] m_GraphData->m_BehaviorIterators; // delete existing if any
+        delete[] m_GraphData->m_BehaviorIterators;
         m_GraphData->m_BehaviorIterators = new CKBehavior *[subBehaviorCount];
-        m_GraphData->m_BehaviorIteratorCount = subBehaviorCount;
+        m_GraphData->m_BehaviorIteratorCount = (CKWORD)subBehaviorCount;
     }
 
-    // Populate active sub-behaviors in reverse order (higher priority first, assuming sort)
     for (int k = subBehaviorCount - 1; k >= 0; --k) {
-        CKBehavior *subBeh = (CKBehavior *) m_GraphData->m_SubBehaviors[k];
-        if (subBeh && subBeh != this) {
-            // Don't add self
-            if (subBeh->IsActive()) {
-                subBeh->ModifyFlags(CKBEHAVIOR_RESERVED0, 0); // Mark as scheduled for this cycle
-                if (m_GraphData->m_BehaviorIteratorIndex < m_GraphData->m_BehaviorIteratorCount) {
-                    // Bounds check
-                    m_GraphData->m_BehaviorIterators[m_GraphData->m_BehaviorIteratorIndex++] = subBeh;
-                }
+        CKBehavior *subBeh = (CKBehavior *)m_GraphData->m_SubBehaviors[k];
+        if (subBeh != this) {
+            if (subBeh && subBeh->IsActive()) {
+                subBeh->ModifyFlags(CKBEHAVIOR_RESERVED0, 0);
+                m_GraphData->m_BehaviorIterators[m_GraphData->m_BehaviorIteratorIndex++] = subBeh;
             }
         }
     }
 }
 
 void CKBehavior::CheckBehaviorActivity() {
-    if (!m_GraphData && !(m_Flags & CKBEHAVIOR_USEFUNCTION)) {
-        if (m_Flags & CKBEHAVIOR_USEFUNCTION) {
-            bool inputStillActive = false;
-            for (int i = 0; i < GetInputCount(); ++i) {
-                if (IsInputActive(i)) {
-                    inputStillActive = true;
-                    break;
-                }
-            }
-            if (inputStillActive || (m_Flags & CKBEHAVIOR_WAITSFORMESSAGE)) {
-                m_Flags |= CKBEHAVIOR_ACTIVE;
-            } else {
-                m_Flags &= ~CKBEHAVIOR_ACTIVE;
-            }
-        }
-        return;
-    }
+    // Original behavior assumes m_GraphData is valid (only used for graph behaviors).
+    XObjectPointerArray remaining;
 
-    if (!m_GraphData) return; // Should not happen if previous check passed for graph
+    for (XObjectPointerArray::Iterator it = m_GraphData->m_Links.Begin(); it != m_GraphData->m_Links.End(); ++it) {
+        CKBehaviorLink *link = (CKBehaviorLink *)*it;
+        if (!link)
+            continue;
 
-    XObjectPointerArray remainingDelayedLinks;
-    // Process delayed links
-    for (XObjectPointerArray::Iterator it = m_GraphData->m_Links.Begin();
-         it != m_GraphData->m_Links.End(); ++it) {
-        CKBehaviorLink *link = (CKBehaviorLink *) *it;
-        if (!link) continue;
+        link->SetOldFlags(link->GetOldFlags() | CKBL_OLD_TRIGGERED_THIS_FRAME);
+        link->SetActivationDelay(link->GetActivationDelay() - 1);
 
-        link->m_OldFlags |= 2; // Mark as processed this frame
-        link->m_ActivationDelay--;
-
-        if (link->GetActivationDelay() <= 0) {
-            // Delay elapsed
-            link->m_ActivationDelay = 0; // Ensure it's 0
-            link->m_OldFlags &= ~1;     // Clear "is in delayed list" flag
+        if (link->GetActivationDelay() > 0) {
+            remaining.PushBack(link);
+        } else {
+            link->SetActivationDelay(0);
+            link->SetOldFlags(link->GetOldFlags() & ~CKBL_OLD_IN_DELAYED_LIST);
 
             CKBehaviorIO *outIO = link->GetOutBehaviorIO();
             if (outIO) {
-                outIO->Activate(TRUE); // Activate the target IO
-                CKBehavior *ownerBehavior = outIO->GetOwner();
-                if (ownerBehavior && outIO->GetType() == CK_BEHAVIORIO_IN) {
-                    // If it's an input of another behavior
-                    ownerBehavior->ModifyFlags(CKBEHAVIOR_ACTIVE, 0); // Mark its owner active
-                }
+                CKBehavior *owner = outIO->GetOwner();
+                if (owner)
+                    owner->ModifyFlags(CKBEHAVIOR_ACTIVE, 0);
+                outIO->Activate(TRUE);
             }
-        } else {
-            // Still delayed
-            remainingDelayedLinks.PushBack(link);
         }
     }
 
-    // Update the main links list with those still delayed
-    m_GraphData->m_Links.Swap(remainingDelayedLinks); // Efficiently replaces content
+    if (!remaining.IsEmpty()) {
+        m_GraphData->m_Links.Swap(remaining);
+    } else {
+        m_GraphData->m_Links.Resize(0);
+    }
 
-    // Determine if this behavior (the graph itself) should remain active
-    bool shouldBeActive = false;
+    ModifyFlags(0, CKBEHAVIOR_ACTIVE);
+
     if (!m_GraphData->m_Links.IsEmpty()) {
-        // Still has delayed links waiting
-        shouldBeActive = true;
-    } else {
-        // Check if any sub-behavior is active or waiting for a message
-        for (XObjectPointerArray::Iterator it = m_GraphData->m_SubBehaviors.Begin();
-             it != m_GraphData->m_SubBehaviors.End(); ++it) {
-            CKBehavior *subBeh = (CKBehavior *) *it;
-            if (subBeh && (subBeh->GetFlags() & (CKBEHAVIOR_ACTIVE | CKBEHAVIOR_WAITSFORMESSAGE))) {
-                shouldBeActive = true;
-                break;
-            }
-        }
-    }
-    // If graph itself has active inputs and no sub-behaviors/delayed links, it might need to stay active
-    // This case is less common for pure graphs but could happen.
-    if (!shouldBeActive) {
-        for (int i = 0; i < GetInputCount(); ++i) {
-            if (IsInputActive(i)) {
-                shouldBeActive = true;
-                break;
-            }
-        }
-    }
-
-
-    if (shouldBeActive || (m_Flags & CKBEHAVIOR_WAITSFORMESSAGE)) {
         m_Flags |= CKBEHAVIOR_ACTIVE;
-    } else {
-        m_Flags &= ~CKBEHAVIOR_ACTIVE;
-        if (m_Flags & CKBEHAVIOR_SCRIPT) {
-            // If it's a script and it just became inactive
-            CKScene *currentScene = m_Context->GetCurrentScene();
-            if (currentScene) {
-                CKSceneObjectDesc *desc = currentScene->GetSceneObjectDesc(this);
-                if (desc) {
-                    desc->m_Flags &= ~CK_SCENEOBJECT_ACTIVE; // Update scene status
-                }
-            }
+        return;
+    }
+
+    for (XObjectPointerArray::Iterator it = m_GraphData->m_SubBehaviors.Begin(); it != m_GraphData->m_SubBehaviors.End(); ++it) {
+        CKBehavior *sub = (CKBehavior *)*it;
+        if (sub && (sub->GetFlags() & (CKBEHAVIOR_ACTIVE | CKBEHAVIOR_WAITSFORMESSAGE)) != 0) {
+            ModifyFlags(CKBEHAVIOR_ACTIVE, 0);
+            return;
+        }
+    }
+
+    if ((m_Flags & CKBEHAVIOR_SCRIPT) != 0) {
+        CKScene *scene = m_Context->GetCurrentScene();
+        if (scene) {
+            CKSceneObjectDesc *desc = scene->GetSceneObjectDesc(this);
+            if (desc)
+                desc->m_Global &= ~CK_SCENEOBJECT_ACTIVE;
         }
     }
 }
@@ -2628,71 +2591,69 @@ int CKBehavior::ExecuteFunction() {
 }
 
 void CKBehavior::FindNextBehaviorsToExecute(CKBehavior *beh) {
-    if (!beh || !m_GraphData) return;
+    if (!beh || !m_GraphData)
+        return;
 
-    for (XObjectPointerArray::Iterator outputIt = beh->m_OutputArray.Begin();
-         outputIt != beh->m_OutputArray.End(); ++outputIt) {
-        CKBehaviorIO *outputIO = (CKBehaviorIO *) *outputIt;
-        if (!outputIO || !outputIO->IsActive()) {
-            // Only process active outputs
+    for (XObjectPointerArray::Iterator outIt = beh->m_OutputArray.Begin(); outIt != beh->m_OutputArray.End(); ++outIt) {
+        CKBehaviorIO *outIO = (CKBehaviorIO *)*outIt;
+        if (!outIO)
             continue;
-        }
 
-        outputIO->Activate(FALSE); // Consume/deactivate the output that just fired
+        if (!outIO->IsActive())
+            continue;
 
-        for (XObjectPointerArray::Iterator linkIt = outputIO->m_Links.Begin();
-             linkIt != outputIO->m_Links.End(); ++linkIt) {
-            CKBehaviorLink *link = (CKBehaviorLink *) *linkIt;
-            if (!link) continue;
+        outIO->Activate(FALSE);
 
-            link->m_OldFlags |= 2; // Mark link as processed in this step
+        for (XObjectPointerArray::Iterator linkIt = outIO->m_Links.Begin(); linkIt != outIO->m_Links.End(); ++linkIt) {
+            CKBehaviorLink *link = (CKBehaviorLink *)*linkIt;
+            if (!link)
+                continue;
 
-            if (link->GetInitialActivationDelay() > 0) {
-                // Delayed link
-                if (link->GetActivationDelay() == 0) {
-                    // If delay counter reached zero (or first time for this activation)
-                    link->SetActivationDelay(link->GetInitialActivationDelay());
-                    // Reset delay for next cycle through this link
-                }
+            link->SetOldFlags(link->GetOldFlags() | CKBL_OLD_TRIGGERED_THIS_FRAME);
 
-                if ((link->m_OldFlags & 1) == 0) {
-                    // If not already in the graph's main delayed links list
-                    link->m_OldFlags |= 1; // Mark as "in delayed list"
+            const int initialDelay = link->GetInitialActivationDelay();
+            const CKDWORD oldFlags = link->GetOldFlags();
+
+            if (initialDelay) {
+                if (!link->GetActivationDelay())
+                    link->SetActivationDelay(initialDelay);
+
+                if ((oldFlags & 1u) == 0) {
+                    link->SetOldFlags(oldFlags | CKBL_OLD_IN_DELAYED_LIST);
                     m_GraphData->m_Links.PushBack(link);
-                    m_Context->m_Stats.BehaviorDelayedLinks++;
+                    ++m_Context->m_Stats.BehaviorDelayedLinks;
                 }
             } else {
-                // Immediate link (delay == 0)
-                CKBehaviorIO *targetInputIO = link->GetOutBehaviorIO();
-                if (targetInputIO) {
-                    targetInputIO->Activate(TRUE); // Activate the target IO
+                CKBehaviorIO *dstIO = link->GetOutBehaviorIO();
+                if (!dstIO)
+                    continue;
 
-                    CKBehavior *targetBehavior = targetInputIO->GetOwner();
-                    if ((targetInputIO->m_ObjectFlags & CK_BEHAVIORIO_IN) && targetBehavior && targetBehavior != this) {
-                        targetBehavior->ModifyFlags(CKBEHAVIOR_ACTIVE, 0); // Mark target behavior as active
+                dstIO->Activate(TRUE);
 
-                        if (!(targetBehavior->GetFlags() & CKBEHAVIOR_RESERVED0)) {
-                            // If not already scheduled in this graph cycle
-                            targetBehavior->ModifyFlags(CKBEHAVIOR_RESERVED0, 0); // Mark as scheduled
+                CKBehavior *dstBeh = dstIO->GetOwner();
+                if (dstIO->GetType() == CK_BEHAVIORIO_IN && dstBeh && dstBeh != this) {
+                    dstBeh->ModifyFlags(CKBEHAVIOR_ACTIVE, 0);
 
-                            // Replicating sorted insertion (descending priority):
-                            int insertPos = m_GraphData->m_BehaviorIteratorIndex;
-                            // Find correct insertion point to maintain descending priority order
-                            while (insertPos > 0 && targetBehavior->GetPriority() > m_GraphData->m_BehaviorIterators[
-                                insertPos - 1]->GetPriority()) {
-                                if (insertPos < m_GraphData->m_BehaviorIteratorCount) {
-                                    // Bounds check for shift
-                                    m_GraphData->m_BehaviorIterators[insertPos] = m_GraphData->m_BehaviorIterators[
-                                        insertPos - 1];
-                                }
-                                insertPos--;
-                            }
-                            if (insertPos < m_GraphData->m_BehaviorIteratorCount) {
-                                // Bounds check for insertion
-                                m_GraphData->m_BehaviorIterators[insertPos] = targetBehavior;
-                                m_GraphData->m_BehaviorIteratorIndex++; // Increment count of items in iterator
-                            }
+                    const CKDWORD dstFlags = dstBeh->GetFlags();
+                    if ((dstFlags & CKBEHAVIOR_RESERVED0) == 0) {
+                        dstBeh->ModifyFlags(CKBEHAVIOR_RESERVED0, 0);
+
+                        const int currentCount = m_GraphData->m_BehaviorIteratorIndex;
+                        int insertPos = currentCount - 1;
+                        const int priority = dstBeh->GetPriority();
+
+                        while (insertPos >= 0) {
+                            if (priority >= m_GraphData->m_BehaviorIterators[insertPos]->GetPriority())
+                                break;
+                            --insertPos;
                         }
+
+                        const int targetPos = insertPos + 1;
+                        for (int i = currentCount; i > targetPos; --i)
+                            m_GraphData->m_BehaviorIterators[i] = m_GraphData->m_BehaviorIterators[i - 1];
+
+                        m_GraphData->m_BehaviorIterators[targetPos] = dstBeh;
+                        ++m_GraphData->m_BehaviorIteratorIndex;
                     }
                 }
             }

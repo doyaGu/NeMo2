@@ -3,6 +3,17 @@
 
 #include "CKObject.h"
 
+// Internal runtime bits stored in CKBehaviorLink::m_OldFlags.
+// These are not serialized; they are used by the graph scheduler.
+enum CK_BEHAVIORLINK_OLD_FLAGS : CKDWORD {
+    // Link is currently queued in the owning graph's delayed-links list (BehaviorGraphData::m_Links).
+    CKBL_OLD_IN_DELAYED_LIST = 0x00000001,
+
+    // Link has been triggered/parsed this frame by activation propagation.
+    // (The engine toggles this bit while scanning sub-behavior links.)
+    CKBL_OLD_TRIGGERED_THIS_FRAME = 0x00000002,
+};
+
 /***********************************************************************
 Name: CKBehaviorLink
 
@@ -139,6 +150,10 @@ protected:
 
     CKDWORD GetOldFlags() { return m_OldFlags; }
     void SetOldFlags(CKDWORD flags) { m_OldFlags = flags; }
+
+    CKBOOL HasOldFlag(CKDWORD mask) const { return (m_OldFlags & mask) != 0; }
+    void SetOldFlag(CKDWORD mask) { m_OldFlags |= mask; }
+    void ClearOldFlag(CKDWORD mask) { m_OldFlags &= ~mask; }
 };
 
 #endif // CKBEHAVIORLINK_H

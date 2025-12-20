@@ -61,6 +61,8 @@ struct BehaviorGraphData
         m_BehaviorIteratorCount = 0;
         m_BehaviorIteratorIndex = 0;
     }
+
+    ~BehaviorGraphData();
 };
 
 /**************************************************************************
