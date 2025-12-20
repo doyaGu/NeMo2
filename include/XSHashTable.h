@@ -666,10 +666,10 @@ public:
     /**
      * @brief Finds an element by key.
      * @param key The key of the element to find.
-     * @return An `Iterator` to the found element, or `End()` if the element is not found.
+     * @return A `ConstIterator` to the found element, or `End()` if the element is not found.
      */
-    tIterator Find(const K &key) const {
-        return tIterator(XFindIndex(key), this);
+    tConstIterator Find(const K &key) const {
+        return tConstIterator(XFindIndex(key), this);
     }
 
     /**
