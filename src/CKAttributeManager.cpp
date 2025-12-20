@@ -275,7 +275,7 @@ const XObjectPointerArray &CKAttributeManager::GetGlobalAttributeListPtr(CKAttri
 }
 
 const XObjectPointerArray &CKAttributeManager::FillListByAttributes(CKAttributeType *ListAttrib, int AttribCount) {
-    m_AttributeList.Clear();
+    m_AttributeList.Resize(0);
     if (!ListAttrib || AttribCount == 0 || !m_AttributeInfos)
         return m_AttributeList;
 
@@ -304,9 +304,8 @@ const XObjectPointerArray &CKAttributeManager::FillListByAttributes(CKAttributeT
     return m_AttributeList;
 }
 
-const XObjectPointerArray &
-CKAttributeManager::FillListByGlobalAttributes(CKAttributeType *ListAttrib, int AttribCount) {
-    m_AttributeList.Clear();
+const XObjectPointerArray &CKAttributeManager::FillListByGlobalAttributes(CKAttributeType *ListAttrib, int AttribCount) {
+    m_AttributeList.Resize(0);
     if (!ListAttrib)
         return m_AttributeList;
 

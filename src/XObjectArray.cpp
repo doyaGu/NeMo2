@@ -180,8 +180,8 @@ void XSObjectArray::Remap(CKDependenciesContext &context) {
 }
 
 void XObjectArray::ConvertFromObjects(const XObjectPointerArray &array) {
-    Clear();
-    Reserve(array.Size());
+    Resize(array.Size());
+    Resize(0);
     for (auto it = array.Begin(); it != array.End(); ++it) {
         if (it && *it)
             PushBack((*it)->GetID());

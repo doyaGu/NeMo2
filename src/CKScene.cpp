@@ -48,7 +48,7 @@ CKBOOL CKScene::IsObjectHere(CKObject *o) {
 void CKScene::BeginAddSequence(CKBOOL Begin) {
     if (Begin) {
         if (m_AddObjectCount == 0) {
-            m_AddObjectList.Clear();
+            m_AddObjectList.Resize(0);
         }
         ++m_AddObjectCount;
     } else if (--m_AddObjectCount <= 0) {
@@ -57,7 +57,7 @@ void CKScene::BeginAddSequence(CKBOOL Begin) {
             m_Context->ExecuteManagersOnSequenceAddedToScene(this, m_AddObjectList.Begin(), objectCount);
         }
 
-        m_AddObjectList.Clear();
+        m_AddObjectList.Resize(0);
         m_AddObjectCount = 0;
     }
 }
@@ -65,7 +65,7 @@ void CKScene::BeginAddSequence(CKBOOL Begin) {
 void CKScene::BeginRemoveSequence(CKBOOL Begin) {
     if (Begin) {
         if (m_RemoveObjectCount == 0) {
-            m_RemoveObjectList.Clear();
+            m_RemoveObjectList.Resize(0);
         }
         ++m_RemoveObjectCount;
     } else if (--m_RemoveObjectCount <= 0) {
@@ -74,7 +74,7 @@ void CKScene::BeginRemoveSequence(CKBOOL Begin) {
             m_Context->ExecuteManagersOnSequenceRemovedFromScene(this, m_RemoveObjectList.Begin(), objectCount);
         }
 
-        m_RemoveObjectList.Clear();
+        m_RemoveObjectList.Resize(0);
         m_RemoveObjectCount = 0;
     }
 }
@@ -146,6 +146,8 @@ void CKScene::RemoveObject(CKSceneObject *o) {
 }
 
 void CKScene::RemoveAllObjects() {
+    // RemoveAllObjects does not access CKContext nor touch scene membership.
+    // Relationship cleanup (RemoveSceneIn) is handled in PreDelete().
     for (CKSODHashIt it = m_SceneObjects.Begin(); it != m_SceneObjects.End(); ++it) {
         CKSceneObjectDesc &desc = *it;
         desc.Clear();
@@ -154,7 +156,8 @@ void CKScene::RemoveAllObjects() {
 }
 
 const XObjectPointerArray &CKScene::ComputeObjectList(CK_CLASSID cid, CKBOOL derived) {
-    m_ObjectList.Clear();
+    m_ObjectList.Resize(0);
+
     for (CKSODHashIt it = m_SceneObjects.Begin(); it != m_SceneObjects.End(); ++it) {
         CKObject *obj = m_Context->GetObject(it.GetKey());
         if (obj) {
@@ -545,8 +548,7 @@ CKERROR CKScene::Merge(CKScene *mergedScene, CKLevel *fromLevel) {
     return CK_OK;
 }
 
-void CKScene::Init(XObjectPointerArray &renderContexts, CK_SCENEOBJECTACTIVITY_FLAGS activityFlags,
-                   CK_SCENEOBJECTRESET_FLAGS resetFlags) {
+void CKScene::Init(XObjectPointerArray &renderContexts, CK_SCENEOBJECTACTIVITY_FLAGS activityFlags, CK_SCENEOBJECTRESET_FLAGS resetFlags) {
     if (GetScriptCount() > 0)
         m_Context->GetBehaviorManager()->AddObject(this);
 

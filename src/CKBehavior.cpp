@@ -2121,7 +2121,7 @@ void CKBehavior::Reset() {
                 link->m_OldFlags &= ~1;
             }
         }
-        m_GraphData->m_Links.Clear();
+        m_GraphData->m_Links.Resize(0);
 
         // Reset sub-behaviors
         for (XObjectPointerArray::Iterator it = m_GraphData->m_SubBehaviors.Begin();

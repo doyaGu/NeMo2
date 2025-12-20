@@ -115,7 +115,7 @@ const XObjectArray &CKContext::CopyObjects(const XObjectArray &SrcObjects, CKDep
     depContext.AddObjects(SrcObjects.Begin(), SrcObjects.Size());
     depContext.Copy(AppendName);
 
-    m_CopyObjects.Clear();
+    m_CopyObjects.Resize(0);
     const int count = depContext.GetObjectsCount();
     for (int i = 0; i < count; i++) {
         CKObject *obj = depContext.GetObjects(i);
@@ -187,7 +187,7 @@ const XObjectPointerArray &CKContext::CKFillObjectsUnused() {
 
     CKScene *currentScene = GetCurrentScene();
 
-    m_ObjectsUnused.Clear();
+    m_ObjectsUnused.Resize(0);
     const int count = m_ObjectManager->GetObjectsCount();
     for (int i = 0; i < count; ++i) {
         CKObject *obj = m_ObjectManager->GetObject(i);
@@ -218,7 +218,7 @@ CKObject *CKContext::GetObjectByNameAndParentClass(CKSTRING name, CK_CLASSID pci
 }
 
 const XObjectPointerArray &CKContext::GetObjectListByType(CK_CLASSID cid, CKBOOL derived) {
-    m_ObjectsUnused.Clear();
+    m_ObjectsUnused.Resize(0);
     m_ObjectManager->GetObjectListByType(cid, m_ObjectsUnused, derived);
     return m_ObjectsUnused;
 }

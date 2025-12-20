@@ -927,7 +927,7 @@ CKERROR CKBeObject::RemoveAllLastFrameMessage() {
         for (XArray<CKMessage *>::Iterator it = m_LastFrameMessages->Begin(); it != m_LastFrameMessages->End(); ++it) {
             if (*it) (*it)->Release();
         }
-        m_LastFrameMessages->Clear();
+        m_LastFrameMessages->Resize(0);
     }
     return CK_OK;
 }

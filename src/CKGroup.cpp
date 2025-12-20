@@ -68,7 +68,7 @@ void CKGroup::Clear() {
             o->RemoveFromGroup(this);
         }
     }
-    m_ObjectArray.Clear();
+    m_ObjectArray.Resize(0);
     m_ClassIdUpdated = FALSE;
 }
 

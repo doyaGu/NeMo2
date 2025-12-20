@@ -211,7 +211,7 @@ CKERROR CKBehaviorManager::PreProcess() {
         if (beh)
             beh->m_Flags &= ~CKBEHAVIOR_EXECUTEDLASTFRAME;
     }
-    m_Behaviors.Clear();
+    m_Behaviors.Resize(0);
     return CK_OK;
 }
 
