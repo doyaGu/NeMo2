@@ -25,63 +25,10 @@ struct CKPARAMETER_DESC
     int Owner;
 
 public:
-    CKPARAMETER_DESC()
-    {
-        Type = 0;
-        Name = NULL;
-        DefaultValueString = NULL;
-        DefaultValue = NULL;
-        DefaultValueSize = 0;
-        Guid = CKGUID();
-        Owner = -1;
-    }
-    CKPARAMETER_DESC(const CKPARAMETER_DESC &d)
-    {
-        Type = d.Type;
-        Name = d.Name ? MAKESTRING(d.Name) : NULL;
-        DefaultValueString = d.DefaultValueString ? MAKESTRING(d.DefaultValueString) : NULL;
-        DefaultValue = NULL;
-        DefaultValueSize = 0;
-        Guid = d.Guid;
-        Owner = d.Owner;
-        if (d.DefaultValue && d.DefaultValueSize)
-        {
-            DefaultValue = new CKBYTE[d.DefaultValueSize];
-            DefaultValueSize = d.DefaultValueSize;
-            memcpy(DefaultValue, d.DefaultValue, DefaultValueSize);
-        }
-    }
-    ~CKPARAMETER_DESC()
-    {
-        DELETESTRING(Name);
-        DELETESTRING(DefaultValueString);
-        delete[] DefaultValue;
-    }
-    CKPARAMETER_DESC &operator=(const CKPARAMETER_DESC &d)
-    {
-        if (this == &d)
-            return *this;
-
-        DELETESTRING(Name);
-        DELETESTRING(DefaultValueString);
-        delete[] DefaultValue;
-
-        Type = d.Type;
-        Name = d.Name ? MAKESTRING(d.Name) : NULL;
-        DefaultValueString = d.DefaultValueString ? MAKESTRING(d.DefaultValueString) : NULL;
-        DefaultValue = NULL;
-        DefaultValueSize = 0;
-        Guid = d.Guid;
-        Owner = d.Owner;
-        if (d.DefaultValue && d.DefaultValueSize)
-        {
-            DefaultValue = new CKBYTE[d.DefaultValueSize];
-            DefaultValueSize = d.DefaultValueSize;
-            memcpy(DefaultValue, d.DefaultValue, DefaultValueSize);
-        }
-
-        return *this;
-    }
+    DLL_EXPORT CKPARAMETER_DESC();
+    DLL_EXPORT CKPARAMETER_DESC(const CKPARAMETER_DESC &d);
+    DLL_EXPORT ~CKPARAMETER_DESC();
+    DLL_EXPORT CKPARAMETER_DESC &operator=(const CKPARAMETER_DESC &d);
 };
 
 struct CKBEHAVIORIO_DESC
@@ -91,12 +38,9 @@ struct CKBEHAVIORIO_DESC
 
 public:
     // Ctor
-    CKBEHAVIORIO_DESC() : Name(0) {}
+    DLL_EXPORT CKBEHAVIORIO_DESC();
     // Dtor
-    ~CKBEHAVIORIO_DESC()
-    {
-        // CKDeletePointer(Name);
-    }
+    DLL_EXPORT ~CKBEHAVIORIO_DESC();
 };
 
 /*************************************************

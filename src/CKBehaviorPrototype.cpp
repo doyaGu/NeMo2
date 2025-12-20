@@ -1,5 +1,66 @@
 #include "CKBehaviorPrototype.h"
 
+CKPARAMETER_DESC::CKPARAMETER_DESC() {
+    Type = 0;
+    Name = NULL;
+    DefaultValueString = NULL;
+    DefaultValue = NULL;
+    DefaultValueSize = 0;
+    Guid = CKGUID();
+    Owner = -1;
+}
+
+CKPARAMETER_DESC::CKPARAMETER_DESC(const CKPARAMETER_DESC &d) {
+    Type = d.Type;
+    Name = d.Name ? MAKESTRING(d.Name) : NULL;
+    DefaultValueString = d.DefaultValueString ? MAKESTRING(d.DefaultValueString) : NULL;
+    DefaultValue = NULL;
+    DefaultValueSize = 0;
+    Guid = d.Guid;
+    Owner = d.Owner;
+    if (d.DefaultValue && d.DefaultValueSize) {
+        DefaultValue = new CKBYTE[d.DefaultValueSize];
+        DefaultValueSize = d.DefaultValueSize;
+        memcpy(DefaultValue, d.DefaultValue, DefaultValueSize);
+    }
+}
+
+CKPARAMETER_DESC::~CKPARAMETER_DESC() {
+    DELETESTRING(Name);
+    DELETESTRING(DefaultValueString);
+    delete[] DefaultValue;
+}
+
+CKPARAMETER_DESC &CKPARAMETER_DESC::operator=(const CKPARAMETER_DESC &d) {
+    if (this == &d)
+        return *this;
+
+    DELETESTRING(Name);
+    DELETESTRING(DefaultValueString);
+    delete[] DefaultValue;
+
+    Type = d.Type;
+    Name = d.Name ? MAKESTRING(d.Name) : NULL;
+    DefaultValueString = d.DefaultValueString ? MAKESTRING(d.DefaultValueString) : NULL;
+    DefaultValue = NULL;
+    DefaultValueSize = 0;
+    Guid = d.Guid;
+    Owner = d.Owner;
+    if (d.DefaultValue && d.DefaultValueSize) {
+        DefaultValue = new CKBYTE[d.DefaultValueSize];
+        DefaultValueSize = d.DefaultValueSize;
+        memcpy(DefaultValue, d.DefaultValue, DefaultValueSize);
+    }
+
+    return *this;
+}
+
+CKBEHAVIORIO_DESC::CKBEHAVIORIO_DESC() : Name(0) {}
+
+CKBEHAVIORIO_DESC::~CKBEHAVIORIO_DESC() {
+    DELETESTRING(Name);
+}
+
 int CKBehaviorPrototype::DeclareInput(CKSTRING name) {
     CKBEHAVIORIO_DESC **newList = new CKBEHAVIORIO_DESC *[m_InIOCount + 1];
 
@@ -392,7 +453,6 @@ CKSTRING CKBehaviorPrototype::GetLocalParamIndex(int idx) {
 CKBehaviorPrototype::~CKBehaviorPrototype() {
     for (int i = 0; i < m_InIOCount; ++i) {
         if (m_InIOList && m_InIOList[i]) {
-            DELETESTRING(m_InIOList[i]->Name);
             delete m_InIOList[i];
         }
     }
@@ -400,18 +460,10 @@ CKBehaviorPrototype::~CKBehaviorPrototype() {
 
     for (int i = 0; i < m_OutIOCount; ++i) {
         if (m_OutIOList && m_OutIOList[i]) {
-            DELETESTRING(m_OutIOList[i]->Name);
             delete m_OutIOList[i];
         }
     }
     delete[] m_OutIOList;
-
-    auto CleanParameters = [](CKPARAMETER_DESC **list, int count) {
-        for (int i = 0; i < count; ++i) {
-            delete list[i];
-        }
-        delete[] list;
-    };
 
     for (int i = 0; i < m_InParameterCount; ++i) {
         delete m_InParameterList[i];
