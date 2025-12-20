@@ -4,6 +4,11 @@
 #include "XArray.h"
 #include "XHashFun.h"
 
+#if VX_HAS_CXX11
+#include <initializer_list>
+#include <utility>
+#endif
+
 #ifdef VX_MSVC
 #pragma warning(disable : 4786)
 #endif
@@ -32,6 +37,18 @@ public:
      * @param v The data for the entry.
      */
     XNHashTableEntry(const K &k, const T &v) : m_Key(k), m_Data(v), m_Next(0) {}
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Constructor to initialize with a key and a value by moving the value (C++11).
+     */
+    XNHashTableEntry(const K &k, T &&v) : m_Key(k), m_Data(std::move(v)), m_Next(0) {}
+
+    /**
+     * @brief Constructor to initialize with a key and a value by moving both (C++11).
+     */
+    XNHashTableEntry(K &&k, T &&v) : m_Key(std::move(k)), m_Data(std::move(v)), m_Next(0) {}
+#endif
 
     /**
      * @brief Copy constructor.
@@ -365,7 +382,7 @@ class XNHashTable {
     typedef XNHashTableIt<T, K, H, Eq> tIterator;
     typedef XNHashTableConstIt<T, K, H, Eq> tConstIterator;
     typedef XNHashTablePair<T, K, H, Eq> tPair;
-    
+
     /// @brief Friend class declaration for the iterator.
     friend class XNHashTableIt<T, K, H, Eq>;
     /// @brief Friend class declaration for the const iterator.
@@ -414,6 +431,23 @@ public:
         XCopy(a);
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Move constructor (C++11).
+     */
+    XNHashTable(XNHashTable &&a) VX_NOEXCEPT { XMove(std::move(a)); }
+
+    /**
+     * @brief Constructs the table from an initializer list of key/value pairs (C++11).
+     */
+    XNHashTable(std::initializer_list<std::pair<K, T>> init, int initialize = 16, float l = 0.75f)
+        : XNHashTable(((int) init.size() * 2 > initialize) ? (int) init.size() * 2 : initialize, l) {
+        for (const auto &kv : init) {
+            Insert(kv.first, kv.second);
+        }
+    }
+#endif
+
     /**
      * @brief Destructor.
      * @remarks Releases all elements contained in the hash table by deleting each entry.
@@ -456,6 +490,30 @@ public:
         return *this;
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Move assignment operator (C++11).
+     */
+    tTable &operator=(tTable &&a) VX_NOEXCEPT {
+        if (this != &a) {
+            Clear();
+            XMove(std::move(a));
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Assigns the table from an initializer list of key/value pairs (C++11).
+     */
+    tTable &operator=(std::initializer_list<std::pair<K, T>> init) {
+        Clear();
+        for (const auto &kv : init) {
+            Insert(kv.first, kv.second);
+        }
+        return *this;
+    }
+#endif
+
     /**
      * @brief Inserts an element, with an option to override existing elements.
      * @param key The key of the element.
@@ -486,6 +544,36 @@ public:
         return TRUE;
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element by moving the value (C++11).
+     */
+    XBOOL Insert(const K &key, T &&o, XBOOL override) {
+        Eq equalFunc;
+
+        while (true) {
+            int index = Index(key);
+
+            for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
+                if (equalFunc(e->m_Key, key)) {
+                    if (!override)
+                        return FALSE;
+                    e->m_Data = std::move(o);
+                    return TRUE;
+                }
+            }
+
+            if (m_Count >= m_Threshold) {
+                Rehash(m_Table.Size() * 2);
+                continue;
+            }
+
+            XInsert(index, key, std::move(o));
+            return TRUE;
+        }
+    }
+#endif
+
     /**
      * @brief Inserts or updates an element.
      * @param key The key of the element.
@@ -515,6 +603,32 @@ public:
         }
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts or updates an element by moving the value (C++11).
+     */
+    tIterator Insert(const K &key, T &&o) {
+        Eq equalFunc;
+
+        while (true) {
+            int index = Index(key);
+            for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
+                if (equalFunc(e->m_Key, key)) {
+                    e->m_Data = std::move(o);
+                    return tIterator(e, this);
+                }
+            }
+
+            if (m_Count >= m_Threshold) {
+                Rehash(m_Table.Size() * 2);
+                continue;
+            }
+
+            return tIterator(XInsert(index, key, std::move(o)), this);
+        }
+    }
+#endif
+
     /**
      * @brief Inserts an element and reports whether it was new.
      * @param key The key of the element.
@@ -543,6 +657,31 @@ public:
             return tPair(tIterator(XInsert(index, key, o), this), 1);
         }
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element and reports whether it was new by moving the value (C++11).
+     */
+    tPair TestInsert(const K &key, T &&o) {
+        Eq equalFunc;
+
+        while (true) {
+            int index = Index(key);
+            for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
+                if (equalFunc(e->m_Key, key)) {
+                    return tPair(tIterator(e, this), 0);
+                }
+            }
+
+            if (m_Count >= m_Threshold) {
+                Rehash(m_Table.Size() * 2);
+                continue;
+            }
+
+            return tPair(tIterator(XInsert(index, key, std::move(o)), this), 1);
+        }
+    }
+#endif
 
     /**
      * @brief Inserts an element only if the key does not already exist.
@@ -576,6 +715,68 @@ public:
             return tIterator(newe, this);
         }
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element only if the key does not already exist by moving the value (C++11).
+     */
+    tIterator InsertUnique(const K &key, T &&o) {
+        Eq equalFunc;
+
+        while (true) {
+            int index = Index(key);
+            for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
+                if (equalFunc(e->m_Key, key)) {
+                    return tIterator(e, this);
+                }
+            }
+
+            if (m_Count >= m_Threshold) {
+                Rehash(m_Table.Size() * 2);
+                continue;
+            }
+
+            tEntry newe = new XNHashTableEntry<T, K>(key, std::move(o));
+            newe->m_Next = m_Table[index];
+            m_Table[index] = newe;
+            m_Count++;
+            return tIterator(newe, this);
+        }
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts/overwrites (C++11).
+     */
+    template <class... Args>
+    tIterator Emplace(const K &key, Args &&... args) {
+        return Insert(key, T(std::forward<Args>(args)...));
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts if missing (C++11).
+     */
+    template <class... Args>
+    tIterator EmplaceUnique(const K &key, Args &&... args) {
+        return InsertUnique(key, T(std::forward<Args>(args)...));
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts if missing, reporting whether it was new (C++11).
+     */
+    template <class... Args>
+    tPair TestEmplace(const K &key, Args &&... args) {
+        return TestInsert(key, T(std::forward<Args>(args)...));
+    }
+
+    /// @brief STL-compatible begin/end for range-for and algorithms (C++11).
+    tIterator begin() { return Begin(); }
+    tConstIterator begin() const { return Begin(); }
+    tConstIterator cbegin() const { return Begin(); }
+
+    tIterator end() { return End(); }
+    tConstIterator end() const { return End(); }
+    tConstIterator cend() const { return End(); }
+#endif
 
     /**
      * @brief Removes an element by its key.
@@ -944,6 +1145,30 @@ private:
         ++m_Count;
         return newe;
     }
+
+#if VX_HAS_CXX11
+    tEntry XInsert(int index, const K &key, T &&o) {
+        tEntry newe = new XNHashTableEntry<T, K>(key, std::move(o));
+        newe->m_Next = m_Table[index];
+        m_Table[index] = newe;
+        ++m_Count;
+        return newe;
+    }
+#endif
+
+#if VX_HAS_CXX11
+    void XMove(XNHashTable &&a) {
+        m_Table = std::move(a.m_Table);
+        m_Count = a.m_Count;
+        m_Threshold = a.m_Threshold;
+        m_LoadFactor = a.m_LoadFactor;
+
+        a.m_Table.Resize(0);
+        a.m_Count = 0;
+        a.m_Threshold = 0;
+        a.m_LoadFactor = 0.0f;
+    }
+#endif
 
     /// @brief The array of buckets, where each bucket is a pointer to the first entry in a linked list.
     XArray<tEntry> m_Table;

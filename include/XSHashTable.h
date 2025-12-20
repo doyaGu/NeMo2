@@ -12,6 +12,8 @@
 
 #if VX_HAS_CXX11
 #include <algorithm>
+#include <initializer_list>
+#include <utility>
 #endif
 
 template <class T, class K, class H, class Eq>
@@ -50,14 +52,42 @@ public:
      */
     XSHashTableEntry(const XSHashTableEntry<T, K> &e) : m_Key(e.m_Key), m_Data(e.m_Data), m_Status(STATUS_OCCUPIED) {}
 
+    /**
+     * @brief Copy assignment operator.
+     * @param e The entry to copy from.
+     * @return A reference to this entry.
+     */
+    XSHashTableEntry<T, K> &operator=(const XSHashTableEntry<T, K> &e) {
+        if (this != &e) {
+            m_Key = e.m_Key;
+            m_Data = e.m_Data;
+            m_Status = e.m_Status;
+        }
+        return *this;
+    }
+
 #if VX_HAS_CXX11
     /**
      * @brief Move constructor (C++11).
      * @param e The entry to move from. The source entry's status is set to FREE.
      */
-    XSHashTableEntry(XSHashTableEntry<T, K> &&e) VX_NOEXCEPT : m_Key(std::move(e.m_Key)), m_Data(std::move(e.m_Data)), m_Status(e.m_Status)
-    {
+    XSHashTableEntry(XSHashTableEntry<T, K> &&e) VX_NOEXCEPT : m_Key(std::move(e.m_Key)), m_Data(std::move(e.m_Data)), m_Status(e.m_Status) {
         e.m_Status = STATUS_FREE;
+    }
+
+    /**
+     * @brief Move assignment operator (C++11).
+     * @param e The entry to move from.
+     * @return A reference to this entry.
+     */
+    XSHashTableEntry<T, K> &operator=(XSHashTableEntry<T, K> &&e) VX_NOEXCEPT {
+        if (this != &e) {
+            m_Key = std::move(e.m_Key);
+            m_Data = std::move(e.m_Data);
+            m_Status = e.m_Status;
+            e.m_Status = STATUS_FREE;
+        }
+        return *this;
     }
 #endif
     /**
@@ -76,6 +106,26 @@ public:
         m_Data = data;
         m_Status = STATUS_OCCUPIED;
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Sets the key and data for this entry and marks it as occupied by moving the data (C++11).
+     */
+    void Set(const K &key, T &&data) {
+        m_Key = key;
+        m_Data = std::move(data);
+        m_Status = STATUS_OCCUPIED;
+    }
+
+    /**
+     * @brief Sets the key and data for this entry and marks it as occupied by moving both (C++11).
+     */
+    void Set(K &&key, T &&data) {
+        m_Key = std::move(key);
+        m_Data = std::move(data);
+        m_Status = STATUS_OCCUPIED;
+    }
+#endif
 
     /// The key associated with this entry.
     K m_Key;
@@ -132,15 +182,42 @@ public:
      */
     XSHashTableIt(const tIterator &n) : m_Node(n.m_Node), m_Table(n.m_Table) {}
 
+    /**
+     * @brief Copy assignment operator.
+     * @param n The iterator to copy from.
+     * @return A reference to this iterator.
+     */
+    tIterator &operator=(const tIterator &n) {
+        if (this != &n) {
+            m_Node = n.m_Node;
+            m_Table = n.m_Table;
+        }
+        return *this;
+    }
+
 #if VX_HAS_CXX11
     /**
      * @brief Move constructor (C++11).
      * @param n The iterator to move from.
      */
-    XSHashTableIt(tIterator &&n) VX_NOEXCEPT : m_Node(n.m_Node), m_Table(n.m_Table)
-    {
+    XSHashTableIt(tIterator &&n) VX_NOEXCEPT : m_Node(n.m_Node), m_Table(n.m_Table) {
         n.m_Node = NULL;
         n.m_Table = NULL;
+    }
+
+    /**
+     * @brief Move assignment operator (C++11).
+     * @param n The iterator to move from.
+     * @return A reference to this iterator.
+     */
+    tIterator &operator=(tIterator &&n) VX_NOEXCEPT {
+        if (this != &n) {
+            m_Node = n.m_Node;
+            m_Table = n.m_Table;
+            n.m_Node = NULL;
+            n.m_Table = NULL;
+        }
+        return *this;
     }
 #endif
 
@@ -273,15 +350,42 @@ public:
      */
     XSHashTableConstIt(const tConstIterator &n) : m_Node(n.m_Node), m_Table(n.m_Table) {}
 
+    /**
+     * @brief Copy assignment operator.
+     * @param n The iterator to copy from.
+     * @return A reference to this iterator.
+     */
+    tConstIterator &operator=(const tConstIterator &n) {
+        if (this != &n) {
+            m_Node = n.m_Node;
+            m_Table = n.m_Table;
+        }
+        return *this;
+    }
+
 #if VX_HAS_CXX11
     /**
      * @brief Move constructor (C++11).
      * @param n The iterator to move from.
      */
-    XSHashTableConstIt(tConstIterator &&n) VX_NOEXCEPT : m_Node(n.m_Node), m_Table(n.m_Table)
-    {
+    XSHashTableConstIt(tConstIterator &&n) VX_NOEXCEPT : m_Node(n.m_Node), m_Table(n.m_Table) {
         n.m_Node = NULL;
         n.m_Table = NULL;
+    }
+
+    /**
+     * @brief Move assignment operator (C++11).
+     * @param n The iterator to move from.
+     * @return A reference to this iterator.
+     */
+    tConstIterator &operator=(tConstIterator &&n) VX_NOEXCEPT {
+        if (this != &n) {
+            m_Node = n.m_Node;
+            m_Table = n.m_Table;
+            n.m_Node = NULL;
+            n.m_Table = NULL;
+        }
+        return *this;
     }
 #endif
 
@@ -413,7 +517,7 @@ class XSHashTable {
     typedef XSHashTableIt<T, K, H, Eq> tIterator;
     typedef XSHashTableConstIt<T, K, H, Eq> tConstIterator;
     typedef XSHashTablePair<T, K, H, Eq> tPair;
-    
+
     /// @brief Friend class declaration for the iterator.
     friend class XSHashTableIt<T, K, H, Eq>;
     /// @brief Friend class declaration for the const iterator.
@@ -424,6 +528,11 @@ public:
     typedef XSHashTableIt<T, K, H, Eq> Iterator;
     /// @typedef ConstIterator The constant iterator for this hash table.
     typedef XSHashTableConstIt<T, K, H, Eq> ConstIterator;
+
+#if VX_HAS_CXX11
+    /// @typedef Pair The type returned by TestInsert/TestEmplace (C++11 convenience).
+    typedef XSHashTablePair<T, K, H, Eq> Pair;
+#endif
 
     /**
      * @brief Constructor.
@@ -462,7 +571,18 @@ public:
      * @brief Move constructor (C++11).
      * @param a The hash table to move from.
      */
-    XSHashTable(XSHashTable &&a) VX_NOEXCEPT { XMove(a); }
+    XSHashTable(XSHashTable &&a) VX_NOEXCEPT { XMove(std::move(a)); }
+
+    /**
+     * @brief Constructs the table from an initializer list of key/value pairs (C++11).
+     * @remarks Existing entries are inserted using Insert(key, value, TRUE).
+     */
+    XSHashTable(std::initializer_list<std::pair<K, T>> init, int initialize = 8, float l = 0.75f)
+        : XSHashTable((initialize > (int) init.size() * 2) ? initialize : (int) init.size() * 2, l) {
+        for (const auto &kv : init) {
+            Insert(kv.first, kv.second, TRUE);
+        }
+    }
 #endif
 
     /**
@@ -508,14 +628,23 @@ public:
      * @param a The hash table to move from.
      * @return A reference to this hash table.
      */
-    tTable &operator=(tTable &&a) VX_NOEXCEPT
-    {
-        if (this != &a)
-        {
+    tTable &operator=(tTable &&a) VX_NOEXCEPT {
+        if (this != &a) {
             // We clear the current table
             Clear();
             // we then move the content of a
-            XMove(a);
+            XMove(std::move(a));
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Assigns the table from an initializer list of key/value pairs (C++11).
+     */
+    tTable &operator=(std::initializer_list<std::pair<K, T>> init) {
+        Clear();
+        for (const auto &kv : init) {
+            Insert(kv.first, kv.second, TRUE);
         }
         return *this;
     }
@@ -557,6 +686,35 @@ public:
         return TRUE;
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element by moving the value (C++11).
+     */
+    XBOOL Insert(const K &key, T &&o, XBOOL override) {
+        int index = XFindPos(key);
+
+        if (m_Table[index].m_Status != STATUS_OCCUPIED) {
+            if ((m_Table[index].m_Status != STATUS_DELETED)) {
+                ++m_Occupation;
+                ++m_Count;
+            } else {
+                ++m_Count;
+            }
+        } else {
+            if (!override)
+                return FALSE;
+        }
+
+        m_Table[index].Set(key, std::move(o));
+
+        if (m_Occupation < m_Threshold)
+            return TRUE;
+
+        Rehash(m_Table.Size() * 2);
+        return TRUE;
+    }
+#endif
+
     /**
      * @brief Inserts an element only if the key does not already exist.
      * @param key The key of the element.
@@ -591,6 +749,121 @@ public:
             return tIterator(&m_Table[index], this);
         }
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element only if the key does not already exist by moving the value (C++11).
+     */
+    tIterator InsertUnique(const K &key, T &&o) {
+        int index = XFindPos(key);
+
+        if (m_Table[index].m_Status == STATUS_OCCUPIED) {
+            return tIterator(&m_Table[index], this);
+        }
+
+        // If this insertion would exceed threshold, rehash first to avoid moving twice.
+        if (m_Count + 1 >= m_Threshold) {
+            Rehash(m_Table.Size() * 2);
+            index = XFindPos(key);
+        }
+
+        if (m_Table[index].m_Status != STATUS_DELETED) {
+            ++m_Occupation;
+            ++m_Count;
+        } else {
+            ++m_Count;
+        }
+
+        m_Table[index].Set(key, std::move(o));
+        return tIterator(&m_Table[index], this);
+    }
+
+    /**
+     * @brief Inserts an element only if the key does not already exist and reports whether it was new (C++11).
+     */
+    tPair TestInsert(const K &key, const T &o) {
+        int index = XFindPos(key);
+
+        if (m_Table[index].m_Status == STATUS_OCCUPIED) {
+            return tPair(tIterator(&m_Table[index], this), FALSE);
+        }
+
+        if (m_Count + 1 >= m_Threshold) {
+            Rehash(m_Table.Size() * 2);
+            index = XFindPos(key);
+        }
+
+        if (m_Table[index].m_Status != STATUS_DELETED) {
+            ++m_Occupation;
+            ++m_Count;
+        } else {
+            ++m_Count;
+        }
+
+        m_Table[index].Set(key, o);
+        return tPair(tIterator(&m_Table[index], this), TRUE);
+    }
+
+    /**
+     * @brief Inserts an element only if the key does not already exist and reports whether it was new by moving the value (C++11).
+     */
+    tPair TestInsert(const K &key, T &&o) {
+        int index = XFindPos(key);
+
+        if (m_Table[index].m_Status == STATUS_OCCUPIED) {
+            return tPair(tIterator(&m_Table[index], this), FALSE);
+        }
+
+        if (m_Count + 1 >= m_Threshold) {
+            Rehash(m_Table.Size() * 2);
+            index = XFindPos(key);
+        }
+
+        if (m_Table[index].m_Status != STATUS_DELETED) {
+            ++m_Occupation;
+            ++m_Count;
+        } else {
+            ++m_Count;
+        }
+
+        m_Table[index].Set(key, std::move(o));
+        return tPair(tIterator(&m_Table[index], this), TRUE);
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts/overwrites (C++11).
+     */
+    template <class... Args>
+    tIterator Emplace(const K &key, XBOOL override, Args &&... args) {
+        Insert(key, T(std::forward<Args>(args)...), override);
+        return tIterator(XFindIndex(key), this);
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts if missing (C++11).
+     */
+    template <class... Args>
+    tIterator EmplaceUnique(const K &key, Args &&... args) {
+        return InsertUnique(key, T(std::forward<Args>(args)...));
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts if missing, reporting whether it was new (C++11).
+     */
+    template <class... Args>
+    tPair TestEmplace(const K &key, Args &&... args) {
+        return TestInsert(key, T(std::forward<Args>(args)...));
+    }
+
+    /// @brief STL-compatible begin/end for range-for and algorithms (C++11).
+    tIterator begin() { return Begin(); }
+    tConstIterator begin() const { return Begin(); }
+    tConstIterator cbegin() const { return Begin(); }
+
+    tIterator end() { return End(); }
+    tConstIterator end() const { return End(); }
+    tConstIterator cend() const { return End(); }
+#endif
 
     /**
      * @brief Removes an element by its key.
@@ -837,8 +1110,7 @@ private:
      * @brief Internal helper to move data from another hash table.
      * @param a The source hash table to move from.
      */
-    void XMove(XSHashTable &&a)
-    {
+    void XMove(XSHashTable &&a) {
         m_Table = std::move(a.m_Table);
         m_Count = a.m_Count;
         m_Occupation = a.m_Occupation;

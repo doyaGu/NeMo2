@@ -2,6 +2,12 @@
 #define XLIST_H
 
 #include "VxMathDefines.h"
+#include "XUtil.h"
+
+#if VX_HAS_CXX11
+#include <initializer_list>
+#include <utility>
+#endif
 
 /**
  * @class XNode
@@ -148,6 +154,25 @@ public:
         m_Count = 0;
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Move constructor (C++11).
+     * @remark Leaves the source list empty.
+     */
+    XList(XList<T> &&list) VX_NOEXCEPT : XList() {
+        Swap(list);
+    }
+
+    /**
+     * @brief Constructs from an initializer_list (C++11).
+     */
+    XList(std::initializer_list<T> init) : XList() {
+        for (typename std::initializer_list<T>::const_iterator it = init.begin(); it != init.end(); ++it) {
+            PushBack(*it);
+        }
+    }
+#endif
+
     /**
      * @brief Copy constructor. Creates a deep copy of another list.
      * @param list The list to copy from.
@@ -177,6 +202,29 @@ public:
         return *this;
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Move assignment operator (C++11).
+     * @remark Leaves the source list empty.
+     */
+    XList &operator=(XList<T> &&list) VX_NOEXCEPT {
+        Swap(list);
+        list.Clear();
+        return *this;
+    }
+
+    /**
+     * @brief Assigns from an initializer_list (C++11).
+     */
+    XList &operator=(std::initializer_list<T> init) {
+        Clear();
+        for (typename std::initializer_list<T>::const_iterator it = init.begin(); it != init.end(); ++it) {
+            PushBack(*it);
+        }
+        return *this;
+    }
+#endif
+
     /**
      * @brief Destructor.
      * @remarks Frees all nodes in the list. If the list stores pointers, it is the
@@ -201,6 +249,11 @@ public:
         m_Node->m_Next = m_Node;
         m_Count = 0;
     }
+
+    /**
+     * @brief Returns TRUE if the list contains no elements.
+     */
+    XBOOL IsEmpty() const { return m_Count == 0; }
 
     /**
      * @brief Returns the number of elements in the list.
@@ -245,6 +298,24 @@ public:
         XInsert(XEnd(), o);
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Adds an element to the end of the list (move) (C++11).
+     */
+    void PushBack(T &&o) {
+        XInsert(XEnd(), std::move(o));
+    }
+
+    /**
+     * @brief Emplaces an element at the end of the list (C++11).
+     */
+    template <class... Args>
+    void EmplaceBack(Args &&... args) {
+        T tmp(std::forward<Args>(args)...);
+        XInsert(XEnd(), std::move(tmp));
+    }
+#endif
+
     /**
      * @brief Adds an element to the beginning of the list.
      * @param o The element to add.
@@ -252,6 +323,24 @@ public:
     void PushFront(const T &o) {
         XInsert(XBegin(), o);
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Adds an element to the beginning of the list (move) (C++11).
+     */
+    void PushFront(T &&o) {
+        XInsert(XBegin(), std::move(o));
+    }
+
+    /**
+     * @brief Emplaces an element at the beginning of the list (C++11).
+     */
+    template <class... Args>
+    void EmplaceFront(Args &&... args) {
+        T tmp(std::forward<Args>(args)...);
+        XInsert(XBegin(), std::move(tmp));
+    }
+#endif
 
     /**
      * @brief Inserts an element before the specified position.
@@ -261,6 +350,24 @@ public:
     void Insert(Iterator &i, const T &o) {
         XInsert(i.m_Node, o);
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element before the specified position (move) (C++11).
+     */
+    void Insert(Iterator &i, T &&o) {
+        XInsert(i.m_Node, std::move(o));
+    }
+
+    /**
+     * @brief Emplaces an element before the specified position (C++11).
+     */
+    template <class... Args>
+    void Emplace(Iterator &i, Args &&... args) {
+        T tmp(std::forward<Args>(args)...);
+        XInsert(i.m_Node, std::move(tmp));
+    }
+#endif
 
     /**
      * @brief Removes the last element of the list.
@@ -344,6 +451,14 @@ public:
      */
     Iterator End() const { return XEnd(); }
 
+#if VX_HAS_CXX11
+    /** @brief STL-compatible begin/end for range-for (C++11). */
+    Iterator begin() const { return Begin(); }
+    Iterator end() const { return End(); }
+    Iterator cbegin() const { return Begin(); }
+    Iterator cend() const { return End(); }
+#endif
+
     /**
      * @brief Swaps the contents of this list with another.
      * @param a The other list to swap with.
@@ -371,6 +486,19 @@ private:
         return n;
     }
 
+#if VX_HAS_CXX11
+    XNode<T> *XInsert(XNode<T> *i, T &&o) {
+        XNode<T> *n = new XNode<T>;
+        n->m_Data = std::move(o);
+        n->m_Next = i;
+        n->m_Prev = i->m_Prev;
+        i->m_Prev->m_Next = n;
+        i->m_Prev = n;
+        m_Count++;
+        return n;
+    }
+#endif
+
     XNode<T> *XRemove(XNode<T> *i) {
         XNode<T> *next = i->m_Next;
         XNode<T> *prev = i->m_Prev;
@@ -380,6 +508,7 @@ private:
         m_Count--;
         return next;
     }
+
     ///@}
 
     /// @name Members

@@ -5,6 +5,11 @@
 #include "XArray.h"
 #include "XHashFun.h"
 
+#if VX_HAS_CXX11
+#include <initializer_list>
+#include <utility>
+#endif
+
 #ifdef VX_MSVC
 #pragma warning(disable : 4786)
 #endif
@@ -467,7 +472,7 @@ class XHashTable {
     typedef XHashTableIt<T, K, H, Eq> tIterator;
     typedef XHashTableConstIt<T, K, H, Eq> tConstIterator;
     typedef XHashTablePair<T, K, H, Eq> tPair;
-    
+
     /// @brief Friend class declaration for the iterator.
     friend class XHashTableIt<T, K, H, Eq>;
     /// @brief Friend class declaration for the const iterator.
@@ -509,6 +514,16 @@ public:
      * @param a The hash table to move from.
      */
     XHashTable(XHashTable &&a) VX_NOEXCEPT { XMove(std::move(a)); }
+
+    /**
+     * @brief Constructs the table from an initializer list of key/value pairs (C++11).
+     */
+    XHashTable(std::initializer_list<std::pair<K, T>> init, int initialize = 16)
+        : XHashTable(((int) init.size() * 2 > initialize) ? (int) init.size() * 2 : initialize) {
+        for (const auto &kv : init) {
+            Insert(kv.first, kv.second);
+        }
+    }
 #endif
 
     /**
@@ -600,6 +615,17 @@ public:
         }
         return *this;
     }
+
+    /**
+     * @brief Assigns the table from an initializer list of key/value pairs (C++11).
+     */
+    tTable &operator=(std::initializer_list<std::pair<K, T>> init) {
+        Clear();
+        for (const auto &kv : init) {
+            Insert(kv.first, kv.second);
+        }
+        return *this;
+    }
 #endif
 
     /**
@@ -632,6 +658,32 @@ public:
         return TRUE;
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element by moving the value (C++11).
+     */
+    XBOOL Insert(const K &key, T &&o, XBOOL override) {
+        while (true) {
+            int index = Index(key);
+            tEntry e = XFind(index, key);
+            if (!e) {
+                if (m_Pool.Size() == m_Pool.Allocated()) {
+                    Rehash(m_Table.Size() * 2);
+                    continue;
+                }
+                XInsert(index, key, std::move(o));
+                return TRUE;
+            }
+
+            if (!override)
+                return FALSE;
+
+            e->m_Data = std::move(o);
+            return TRUE;
+        }
+    }
+#endif
+
     /**
      * @brief Inserts or updates an element.
      * @param key The key of the element.
@@ -660,6 +712,32 @@ public:
             return Iterator(XInsert(index, key, o), this);
         }
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts or updates an element by moving the value (C++11).
+     */
+    Iterator Insert(const K &key, T &&o) {
+        Eq equalFunc;
+
+        while (true) {
+            int index = Index(key);
+            for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
+                if (equalFunc(e->m_Key, key)) {
+                    e->m_Data = std::move(o);
+                    return Iterator(e, this);
+                }
+            }
+
+            if (m_Pool.Size() == m_Pool.Allocated()) {
+                Rehash(m_Table.Size() * 2);
+                continue;
+            }
+
+            return Iterator(XInsert(index, key, std::move(o)), this);
+        }
+    }
+#endif
 
     /**
      * @brief Inserts an element and reports whether it was new.
@@ -690,6 +768,31 @@ public:
         }
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element and reports whether it was new by moving the value (C++11).
+     */
+    Pair TestInsert(const K &key, T &&o) {
+        Eq equalFunc;
+
+        while (true) {
+            int index = Index(key);
+            for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
+                if (equalFunc(e->m_Key, key)) {
+                    return Pair(Iterator(e, this), 0);
+                }
+            }
+
+            if (m_Pool.Size() == m_Pool.Allocated()) {
+                Rehash(m_Table.Size() * 2);
+                continue;
+            }
+
+            return Pair(Iterator(XInsert(index, key, std::move(o)), this), 1);
+        }
+    }
+#endif
+
     /**
      * @brief Inserts an element only if the key does not already exist.
      * @param key The key of the element.
@@ -717,6 +820,64 @@ public:
             return Iterator(XInsert(index, key, o), this);
         }
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element only if the key does not already exist by moving the value (C++11).
+     */
+    Iterator InsertUnique(const K &key, T &&o) {
+        Eq equalFunc;
+
+        while (true) {
+            int index = Index(key);
+            for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
+                if (equalFunc(e->m_Key, key)) {
+                    return Iterator(e, this);
+                }
+            }
+
+            if (m_Pool.Size() == m_Pool.Allocated()) {
+                Rehash(m_Table.Size() * 2);
+                continue;
+            }
+
+            return Iterator(XInsert(index, key, std::move(o)), this);
+        }
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts/overwrites (C++11).
+     */
+    template <class... Args>
+    Iterator Emplace(const K &key, Args &&... args) {
+        return Insert(key, T(std::forward<Args>(args)...));
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts if missing (C++11).
+     */
+    template <class... Args>
+    Iterator EmplaceUnique(const K &key, Args &&... args) {
+        return InsertUnique(key, T(std::forward<Args>(args)...));
+    }
+
+    /**
+     * @brief Constructs a value in-place (via temporary) and inserts if missing, reporting whether it was new (C++11).
+     */
+    template <class... Args>
+    Pair TestEmplace(const K &key, Args &&... args) {
+        return TestInsert(key, T(std::forward<Args>(args)...));
+    }
+
+    /// @brief STL-compatible begin/end for range-for and algorithms (C++11).
+    Iterator begin() { return Begin(); }
+    ConstIterator begin() const { return Begin(); }
+    ConstIterator cbegin() const { return Begin(); }
+
+    Iterator end() { return End(); }
+    ConstIterator end() const { return End(); }
+    ConstIterator cend() const { return End(); }
+#endif
 
     /**
      * @brief Removes an element by its key.
@@ -1130,6 +1291,17 @@ private:
         m_Table[index] = newe;
         return newe;
     }
+
+#if VX_HAS_CXX11
+    tEntry XInsert(int index, const K &key, T &&o) {
+        tEntry newe = GetFreeEntry();
+        newe->m_Key = key;
+        newe->m_Data = std::move(o);
+        newe->m_Next = m_Table[index];
+        m_Table[index] = newe;
+        return newe;
+    }
+#endif
 
     /**
      * @brief Gets a new, uninitialized entry from the memory pool.

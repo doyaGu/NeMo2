@@ -4,6 +4,11 @@
 #include "VxMathDefines.h"
 #include "XUtil.h"
 
+#if VX_HAS_CXX11
+#include <initializer_list>
+#include <utility>
+#endif
+
 /**
  * @class XArray
  * @brief A template class for a dynamic array.
@@ -23,9 +28,11 @@ template <class T>
 class XArray {
 public:
     // Types
-    typedef T *Iterator; ///< A pointer to an element, used as an iterator.
-    typedef T Type;      ///< The type of the elements stored in the array.
-    typedef T &Reference;///< A reference to an element.
+    typedef T *Iterator;             ///< A pointer to an element, used as an iterator.
+    typedef const T *ConstIterator;  ///< A pointer to a const element, used as a const iterator.
+    typedef T Type;                  ///< The type of the elements stored in the array.
+    typedef T &Reference;            ///< A reference to an element.
+    typedef const T &ConstReference; ///< A const reference to an element.
 
     /**
      * @brief Constructs an empty array, optionally reserving space.
@@ -48,11 +55,37 @@ public:
      */
     XArray(const XArray<T> &a) {
         int size = a.Size();
-        m_Begin = Allocate(size);
-        m_End = m_Begin + size;
-        m_AllocatedEnd = m_End;
-        XCopy(m_Begin, a.m_Begin, a.m_End);
+        if (size > 0) {
+            m_Begin = Allocate(size);
+            m_End = m_Begin + size;
+            m_AllocatedEnd = m_End;
+            XCopy(m_Begin, a.m_Begin, a.m_End);
+        } else {
+            m_AllocatedEnd = NULL;
+            m_Begin = m_End = NULL;
+        }
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Constructs the array from an initializer list (C++11).
+     * @param init The initializer list.
+     */
+    XArray(std::initializer_list<T> init) {
+        int size = (int) init.size();
+        if (size > 0) {
+            m_Begin = Allocate(size);
+            m_End = m_Begin;
+            m_AllocatedEnd = m_Begin + size;
+            for (const auto &v : init) {
+                *(m_End++) = v;
+            }
+        } else {
+            m_AllocatedEnd = NULL;
+            m_Begin = m_End = NULL;
+        }
+    }
+#endif
 
 #if VX_HAS_CXX11
     /**
@@ -83,12 +116,17 @@ public:
      */
     XArray<T> &operator=(const XArray<T> &a) {
         if (this != &a) {
-            if (Allocated() >= a.Size()) {
+            int size = a.Size();
+            if (size == 0) {
+                m_End = m_Begin;
+                if (!m_Begin) {
+                    m_End = NULL;
+                }
+            } else if (Allocated() >= size) {
                 XCopy(m_Begin, a.m_Begin, a.m_End);
-                m_End = m_Begin + a.Size();
+                m_End = m_Begin + size;
             } else {
                 Free();
-                int size = a.Size();
                 m_Begin = Allocate(size);
                 m_End = m_Begin + size;
                 m_AllocatedEnd = m_End;
@@ -97,6 +135,37 @@ public:
         }
         return *this;
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Assignment from initializer list (C++11).
+     * @param init The initializer list.
+     * @return A reference to this array.
+     */
+    XArray<T> &operator=(std::initializer_list<T> init) {
+        int size = (int) init.size();
+        if (size == 0) {
+            m_End = m_Begin;
+            if (!m_Begin) {
+                m_End = NULL;
+            }
+            return *this;
+        }
+
+        if (Allocated() < size) {
+            Free();
+            m_Begin = Allocate(size);
+            m_AllocatedEnd = m_Begin + size;
+        }
+
+        T *out = m_Begin;
+        for (const auto &v : init) {
+            *(out++) = v;
+        }
+        m_End = out;
+        return *this;
+    }
+#endif
 
 #if VX_HAS_CXX11
     /**
@@ -200,6 +269,7 @@ public:
      * @brief Reduces the allocated capacity to match the current size of the array.
      */
     void Compact() {
+        if (!m_Begin) return;
         if (m_AllocatedEnd > m_End) {
             int size = Size();
             if (size == 0)
@@ -221,14 +291,20 @@ public:
         T *newData = Allocate(size);
 
         // Recopy of old elements
-        T *last = XMin(m_Begin + size, m_End);
-        XCopy(newData, m_Begin, last);
+        int oldCount = Size();
+        if (oldCount > 0) {
+            T *last = XMin(m_Begin + size, m_End);
+            XCopy(newData, m_Begin, last);
+            oldCount = (int) (last - m_Begin);
+        } else {
+            oldCount = 0;
+        }
 
         // new Pointers
         Free();
-        m_End = newData + (last - m_Begin);
         m_Begin = newData;
-        m_AllocatedEnd = newData + size;
+        m_End = newData ? (newData + oldCount) : NULL;
+        m_AllocatedEnd = newData ? (newData + size) : NULL;
     }
 
     /**
@@ -242,6 +318,10 @@ public:
      */
     void Resize(int size) {
         XASSERT(size >= 0);
+        if (size == 0 && !m_Begin) {
+            m_End = NULL;
+            return;
+        }
         if (size > Allocated()) {
             Reserve(size);
         }
@@ -288,6 +368,31 @@ public:
         *(m_End++) = o;
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element at the end of the array by moving it (C++11).
+     * @param o The element to insert.
+     */
+    void PushBack(T &&o) {
+        if (m_End == m_AllocatedEnd) {
+            Reserve(Size() ? Size() * 2 : 2);
+        }
+        *(m_End++) = std::move(o);
+    }
+
+    /**
+     * @brief Constructs an element at the end of the array (C++11).
+     * @remarks Implemented via assignment into an existing slot.
+     */
+    template <class... Args>
+    void EmplaceBack(Args &&... args) {
+        if (m_End == m_AllocatedEnd) {
+            Reserve(Size() ? Size() * 2 : 2);
+        }
+        *(m_End++) = T(std::forward<Args>(args)...);
+    }
+#endif
+
     /**
      * @brief Inserts an element at the beginning of the array.
      * @param o The element to insert.
@@ -307,6 +412,28 @@ public:
             XInsert(i, o);
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element at a specified position by moving it (C++11).
+     * @param i An iterator (pointer) to the element before which to insert.
+     * @param o The element to insert.
+     */
+    void Insert(T *i, T &&o) {
+        if (i >= m_Begin && i <= m_End)
+            XInsert(i, std::move(o));
+    }
+
+    /**
+     * @brief Constructs and inserts an element at a specified position (C++11).
+     * @remarks Implemented via assignment into an existing slot.
+     */
+    template <class... Args>
+    void Emplace(T *i, Args &&... args) {
+        if (i >= m_Begin && i <= m_End)
+            XInsert(i, T(std::forward<Args>(args)...));
+    }
+#endif
+
     /**
      * @brief Inserts an element at a specified index.
      * @param pos The index at which to insert the element.
@@ -315,6 +442,15 @@ public:
     void Insert(int pos, const T &o) {
         Insert(m_Begin + pos, o);
     }
+
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element at a specified index by moving it (C++11).
+     */
+    void Insert(int pos, T &&o) {
+        Insert(m_Begin + pos, std::move(o));
+    }
+#endif
 
     /**
      * @brief Inserts an element into a sorted array while maintaining order.
@@ -344,6 +480,9 @@ public:
             int insertpos = i - m_Begin;
             if (n < i) --insertpos;
             T tn = *n;
+#if VX_HAS_CXX11
+            tn = std::move(*n);
+#endif
             XRemove(n);
             Insert(insertpos, tn);
         }
@@ -650,6 +789,13 @@ public:
     T *Begin() const { return m_Begin; }
 
     /**
+     * @brief STL-compatible begin() for range-for and algorithms.
+     */
+    T *begin() { return m_Begin; }
+    const T *begin() const { return m_Begin; }
+    const T *cbegin() const { return m_Begin; }
+
+    /**
      * @brief Returns a reverse iterator to the end of the array.
      */
     T *RBegin() const { return m_End - 1; }
@@ -660,6 +806,13 @@ public:
     T *End() const { return m_End; }
 
     /**
+     * @brief STL-compatible end() for range-for and algorithms.
+     */
+    T *end() { return m_End; }
+    const T *end() const { return m_End; }
+    const T *cend() const { return m_End; }
+
+    /**
      * @brief Returns a reverse iterator to the position before the first element.
      */
     T *REnd() const { return m_Begin - 1; }
@@ -667,7 +820,7 @@ public:
     /**
      * @brief Returns the number of elements in the array.
      */
-    int Size() const { return m_End - m_Begin; }
+    int Size() const { return m_Begin ? (int) (m_End - m_Begin) : 0; }
 
     /**
      * @brief Checks if the array is empty.
@@ -688,14 +841,14 @@ public:
     /**
      * @brief Returns the number of elements the array can hold without reallocating.
      */
-    int Allocated() const { return m_AllocatedEnd - m_Begin; }
+    int Allocated() const { return m_Begin ? (int) (m_AllocatedEnd - m_Begin) : 0; }
 
     /**
      * @brief A default comparison function for sorting.
      * @internal
      */
     static int XCompare(const void *elem1, const void *elem2) {
-        return (*(T *)elem1 > *(T *)elem2) ? 1 : ((*(T *)elem1 < *(T *)elem2) ? -1 : 0);
+        return (*(T *) elem1 > *(T *) elem2) ? 1 : ((*(T *) elem1 < *(T *) elem2) ? -1 : 0);
     }
 
     /**
@@ -745,6 +898,7 @@ protected:
      * @internal
      */
     void XCopy(T *dest, T *start, T *end) {
+        if (start == end) return;
         int size = ((XBYTE *) end - (XBYTE *) start);
         if (size > 0) memcpy(dest, start, size);
     }
@@ -754,6 +908,7 @@ protected:
      * @internal
      */
     void XMove(T *dest, T *start, T *end) {
+        if (start == end) return;
         int size = ((XBYTE *) end - (XBYTE *) start);
         if (size > 0) memmove(dest, start, size);
     }
@@ -797,6 +952,47 @@ protected:
         ++m_End;
     }
 
+#if VX_HAS_CXX11
+    /**
+     * @brief Inserts an element by moving it (C++11).
+     * @internal
+     */
+    void XInsert(T *i, T &&o) {
+        XASSERT(i >= m_Begin);
+        XASSERT(i <= m_End);
+
+        // Test For Reallocation
+        if (m_End == m_AllocatedEnd) {
+            int newSize = Allocated() * 2;
+            if (newSize == 0)
+                newSize = 2;
+            T *newData = Allocate(newSize);
+
+            // copy before insertion point
+            XCopy(newData, m_Begin, i);
+
+            // copy the new element
+            T *insertionPoint = newData + (i - m_Begin);
+            *(insertionPoint) = std::move(o);
+
+            // copy after insertion point
+            XCopy(insertionPoint + 1, i, m_End);
+
+            // New Pointers
+            m_End = newData + (m_End - m_Begin);
+            Free();
+            m_Begin = newData;
+            m_AllocatedEnd = newData + newSize;
+        } else {
+            // copy after insertion point
+            XMove(i + 1, i, m_End);
+            // copy the new element
+            *i = std::move(o);
+        }
+        ++m_End;
+    }
+#endif
+
     /**
      * @brief Removes an element by shifting subsequent elements.
      * @internal
@@ -834,13 +1030,14 @@ protected:
             VxFree(m_Begin);
 #endif
     }
+
     ///@}
 
     /// @name Members
     ///@{
-    T *m_Begin;       ///< @internal Pointer to the beginning of the allocated memory.
-    T *m_End;         ///< @internal Pointer to the position after the last element.
-    T *m_AllocatedEnd;///< @internal Pointer to the end of the allocated memory block.
+    T *m_Begin;        ///< @internal Pointer to the beginning of the allocated memory.
+    T *m_End;          ///< @internal Pointer to the position after the last element.
+    T *m_AllocatedEnd; ///< @internal Pointer to the end of the allocated memory block.
     ///@}
 };
 

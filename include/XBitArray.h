@@ -3,6 +3,11 @@
 
 #include "XUtil.h"
 
+#if VX_HAS_CXX11
+#include <initializer_list>
+#include <utility>
+#endif
+
 /**
  * @class XBitArray
  * @brief An efficient class for managing a set of bit flags.
@@ -43,11 +48,31 @@ public:
 
 #if VX_HAS_CXX11
     /**
+     * @brief Constructs a bit array and sets the given bit indices (C++11).
+     * @param setBits Bit indices to set to 1.
+     */
+    XBitArray(std::initializer_list<int> setBits) : m_Data(NULL), m_Size(0) {
+        int maxBit = -1;
+        for (int b : setBits) {
+            if (b > maxBit) maxBit = b;
+        }
+
+        int dwords = (maxBit >= 0) ? ((maxBit >> 5) + 1) : 1;
+        m_Size = (dwords << 5);
+        m_Data = Allocate(dwords);
+        Clear();
+        for (int b : setBits) {
+            Set(b);
+        }
+    }
+#endif
+
+#if VX_HAS_CXX11
+    /**
      * @brief Move constructor (C++11).
      * @param a The XBitArray to move from.
      */
-    XBitArray(XBitArray &&a) VX_NOEXCEPT
-    {
+    XBitArray(XBitArray &&a) VX_NOEXCEPT {
         m_Data = a.m_Data;
         m_Size = a.m_Size;
         a.m_Data = NULL;
@@ -82,14 +107,47 @@ public:
 
 #if VX_HAS_CXX11
     /**
+     * @brief Assignment from initializer list of bit indices (C++11).
+     * @param setBits Bit indices to set to 1.
+     * @return A reference to this object.
+     */
+    XBitArray &operator=(std::initializer_list<int> setBits) {
+        int maxBit = -1;
+        for (int b : setBits) {
+            if (b > maxBit) maxBit = b;
+        }
+
+        int dwords = (maxBit >= 0) ? ((maxBit >> 5) + 1) : 1;
+        int newSize = (dwords << 5);
+        if (m_Size != newSize) {
+            Free();
+            m_Size = newSize;
+            m_Data = Allocate(dwords);
+        }
+        Clear();
+        for (int b : setBits) {
+            Set(b);
+        }
+        return *this;
+    }
+#endif
+
+    /**
+     * @brief Swaps the contents of this array with another.
+     */
+    void Swap(XBitArray &a) VX_NOEXCEPT {
+        XSwap(m_Data, a.m_Data);
+        XSwap(m_Size, a.m_Size);
+    }
+
+#if VX_HAS_CXX11
+    /**
      * @brief Move assignment operator (C++11).
      * @param a The XBitArray to move from.
      * @return A reference to this object.
      */
-    XBitArray &operator=(XBitArray &&a) VX_NOEXCEPT
-    {
-        if (this != &a)
-        {
+    XBitArray &operator=(XBitArray &&a) VX_NOEXCEPT {
+        if (this != &a) {
             Free();
             m_Data = a.m_Data;
             m_Size = a.m_Size;

@@ -12,7 +12,9 @@
 
 #if VX_HAS_CXX11
 #include <algorithm>  // For std::move
+#include <initializer_list>
 #include <iterator>   // For std::reverse_iterator
+#include <string>     // For std::string
 #include <stdexcept>  // For std::out_of_range
 #endif
 
@@ -158,6 +160,8 @@ public:
     /// @typedef ConstIterator A constant iterator.
     typedef const char *ConstIterator;
 #if VX_HAS_CXX11
+    /// @brief std::string-style npos constant (C++11).
+    static const size_t NPOS = static_cast<size_t>(-1);
     /// @typedef ReverseIterator A mutable reverse iterator.
     typedef std::reverse_iterator<Iterator> ReverseIterator;
     /// @typedef ConstReverseIterator A constant reverse iterator.
@@ -266,6 +270,81 @@ public:
         }
         return *this;
     }
+
+    /**
+     * @brief Constructs from an std::string (C++11).
+     * @remark Content is copied; embedded NULs are preserved.
+     */
+    explicit XString(const std::string &s) : XBaseString() {
+        const size_t kMaxLen = 0xffffu;
+        const size_t n = (s.size() < kMaxLen) ? s.size() : kMaxLen;
+        Assign(s.data(), static_cast<int>(n));
+    }
+
+    /**
+     * @brief Constructs from an initializer_list<char> (C++11).
+     * @remark All characters are copied; embedded NULs are preserved.
+     */
+    XString(std::initializer_list<char> chars) : XBaseString() {
+        const size_t kMaxLen = 0xffffu;
+        const size_t n = (chars.size() < kMaxLen) ? chars.size() : kMaxLen;
+        if (n == 0) {
+            m_Buffer = NULL;
+            m_Length = 0;
+            m_Allocated = 0;
+            return;
+        }
+        CheckSize(static_cast<int>(n));
+        size_t i = 0;
+        for (std::initializer_list<char>::const_iterator it = chars.begin(); it != chars.end() && i < n; ++it, ++i) {
+            m_Buffer[i] = *it;
+        }
+        m_Length = static_cast<XWORD>(n);
+        m_Buffer[m_Length] = '\0';
+    }
+
+    /**
+     * @brief Assigns from an std::string (C++11).
+     * @remark Content is copied; embedded NULs are preserved.
+     */
+    XString &operator=(const std::string &s) {
+        const size_t kMaxLen = 0xffffu;
+        const size_t n = (s.size() < kMaxLen) ? s.size() : kMaxLen;
+        Assign(s.data(), static_cast<int>(n));
+        return *this;
+    }
+
+    /**
+     * @brief Appends an std::string (C++11).
+     * @remark Content is appended; embedded NULs are preserved.
+     */
+    XString &operator<<(const std::string &s) {
+        if (!s.empty()) {
+            const size_t kMaxLen = 0xffffu;
+            const size_t curLen = static_cast<size_t>(m_Length);
+            const size_t remaining = (curLen < kMaxLen) ? (kMaxLen - curLen) : 0;
+            const size_t toCopy = (s.size() < remaining) ? s.size() : remaining;
+            if (toCopy > 0) {
+                const size_t newLen = curLen + toCopy;
+                CheckSize(static_cast<int>(newLen));
+                memcpy(&m_Buffer[curLen], s.data(), toCopy);
+                m_Length = static_cast<XWORD>(newLen);
+                m_Buffer[m_Length] = '\0';
+            }
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Converts to std::string (C++11).
+     * @remark Preserves embedded NULs.
+     */
+    std::string ToStdString() const {
+        return std::string(m_Buffer ? m_Buffer : "", static_cast<size_t>(m_Length));
+    }
+
+    /** @brief Explicit conversion to std::string (C++11). */
+    explicit operator std::string() const { return ToStdString(); }
 #endif
 
     /**
@@ -281,6 +360,40 @@ public:
      * @return A `char*` pointer to the string buffer. Returns "" for a null string.
      */
     char *Str() { return (m_Buffer) ? m_Buffer : (char *) ""; }
+
+    /** @brief Appends a character. */
+    void PushBack(char c) {
+        (*this) << c;
+    }
+
+    /** @brief Removes last character if any. */
+    void PopBack() {
+        if (m_Length == 0)
+            return;
+        --m_Length;
+        m_Buffer[m_Length] = '\0';
+    }
+
+    /** @brief Access first/last character. */
+    char &Front() {
+        XASSERT(m_Length > 0);
+        return m_Buffer[0];
+    }
+
+    const char &Front() const {
+        XASSERT(m_Length > 0);
+        return m_Buffer[0];
+    }
+
+    char &XString::Back() {
+        XASSERT(m_Length > 0);
+        return m_Buffer[m_Length - 1];
+    }
+
+    const char &XString::Back() const {
+        XASSERT(m_Length > 0);
+        return m_Buffer[m_Length - 1];
+    }
 
     /**
      * @brief Accesses a character by index (read/write).
@@ -452,8 +565,8 @@ public:
         while (index < iN) {
             // Check if we've reached the end of either string
             if (*s1 == '\0' || *s2 == '\0') {
-                if (*s1 == '\0' && *s2 == '\0') return 0;  // Both ended at same position
-                return (*s1 == '\0') ? -1 : 1;  // One ended before the other
+                if (*s1 == '\0' && *s2 == '\0') return 0; // Both ended at same position
+                return (*s1 == '\0') ? -1 : 1;            // One ended before the other
             }
 
             c1 = tolower(*s1);
@@ -468,7 +581,7 @@ public:
             index++;
         }
 
-        return 0;  // All compared characters were equal
+        return 0; // All compared characters were equal
     }
 
     /// @name Complex string operations
@@ -887,6 +1000,9 @@ public:
         return m_Allocated;
     }
 
+    /** @brief Const overload for Capacity(). */
+    XWORD Capacity() const { return m_Allocated; }
+
     /**
      * @brief Requests that the string capacity be at least enough to contain `iLength` characters.
      * @param iLength The new capacity of the string.
@@ -908,6 +1024,16 @@ public:
     }
 
     /**
+     * @brief Explicit conversion to std::string (C++11).
+     */
+    /** @brief Clears the string content, keeps capacity (C++11). */
+    void Clear() {
+        m_Length = 0;
+        if (m_Buffer)
+            m_Buffer[0] = '\0';
+    }
+
+    /**
      * @brief Returns whether the string is empty.
      * @return `true` if the string's length is 0, `false` otherwise.
      */
@@ -926,6 +1052,10 @@ public:
     XString &operator+=(int v) { return (*this) << v; }
     /** @brief Appends a float. Alias for `operator<<`. */
     XString &operator+=(float v) { return (*this) << v; }
+#if VX_HAS_CXX11
+    /** @brief Appends an std::string. Alias for `operator<<` (C++11). */
+    XString &operator+=(const std::string &v) { return (*this) << v; }
+#endif
     //@}
 
     /**
@@ -938,9 +1068,9 @@ public:
     /** @brief Returns a constant iterator to the beginning. */
     ConstIterator Begin() const { return m_Buffer; }
     /** @brief Returns a mutable iterator to the end. */
-    Iterator End() { return m_Buffer + m_Length; }
+    Iterator End() { return m_Buffer ? (m_Buffer + m_Length) : NULL; }
     /** @brief Returns a constant iterator to the end. */
-    ConstIterator End() const { return m_Buffer + m_Length; }
+    ConstIterator End() const { return m_Buffer ? (m_Buffer + m_Length) : NULL; }
 
 #if VX_HAS_CXX11
     /** @brief Returns a mutable iterator to the beginning (C++11 STL compatibility). */
@@ -948,13 +1078,13 @@ public:
     /** @brief Returns a constant iterator to the beginning (C++11 STL compatibility). */
     ConstIterator begin() const { return m_Buffer; }
     /** @brief Returns a mutable iterator to the end (C++11 STL compatibility). */
-    Iterator end() { return m_Buffer + m_Length; }
+    Iterator end() { return m_Buffer ? (m_Buffer + m_Length) : NULL; }
     /** @brief Returns a constant iterator to the end (C++11 STL compatibility). */
-    ConstIterator end() const { return m_Buffer + m_Length; }
+    ConstIterator end() const { return m_Buffer ? (m_Buffer + m_Length) : NULL; }
     /** @brief Returns a constant iterator to the beginning (C++11 STL compatibility). */
     ConstIterator cbegin() const { return m_Buffer; }
     /** @brief Returns a constant iterator to the end (C++11 STL compatibility). */
-    ConstIterator cend() const { return m_Buffer + m_Length; }
+    ConstIterator cend() const { return m_Buffer ? (m_Buffer + m_Length) : NULL; }
 
     /** @brief Returns a mutable reverse iterator to the beginning. */
     ReverseIterator rbegin() { return ReverseIterator(end()); }
