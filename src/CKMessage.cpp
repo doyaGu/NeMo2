@@ -59,7 +59,7 @@ CKMessage::~CKMessage() {
         for (XObjectArray::Iterator it = m_Parameters->Begin(); it != m_Parameters->End(); ++it) {
             CKObject *obj = m_Context->GetObject(*it);
             if (obj && (obj->GetObjectFlags() & CK_PARAMETEROUT_DELETEAFTERUSE)) {
-                m_Context->DestroyObject(obj->GetID(), CK_DESTROY_TEMPOBJECT);
+                CKDestroyObject(obj, CK_DESTROY_TEMPOBJECT);
             }
         }
         delete m_Parameters;

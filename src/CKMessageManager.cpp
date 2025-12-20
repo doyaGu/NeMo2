@@ -37,7 +37,7 @@ CKMessageType CKMessageManager::AddMessageType(CKSTRING MsgName) {
 
 CKSTRING CKMessageManager::GetMessageTypeName(CKMessageType MsgType) {
     if (MsgType >= 0 && MsgType < m_RegisteredMessageTypes.Size())
-        return m_RegisteredMessageTypes[MsgType].Str();
+        return m_RegisteredMessageTypes[MsgType].Str() ? m_RegisteredMessageTypes[MsgType].Str() : (CKSTRING)"";
     return nullptr;
 }
 
@@ -75,7 +75,7 @@ CKERROR CKMessageManager::SendMessage(CKMessage *msg) {
 }
 
 CKMessage *CKMessageManager::SendMessageSingle(CKMessageType MsgType, CKBeObject *dest, CKBeObject *sender) {
-    if (!dest || MsgType < 0 || MsgType >= m_RegisteredMessageTypes.Size())
+    if (MsgType < 0)
         return nullptr;
 
     CKMessage *msg = CreateMessageSingle(MsgType, dest, sender);
@@ -87,7 +87,7 @@ CKMessage *CKMessageManager::SendMessageSingle(CKMessageType MsgType, CKBeObject
 }
 
 CKMessage *CKMessageManager::SendMessageGroup(CKMessageType MsgType, CKGroup *group, CKBeObject *sender) {
-    if (!group || MsgType < 0 || MsgType >= m_RegisteredMessageTypes.Size())
+    if (!group || MsgType < 0)
         return nullptr;
 
     CKMessage *msg = CreateMessageGroup(MsgType, group, sender);
@@ -107,8 +107,7 @@ CKMessage *CKMessageManager::SendMessageBroadcast(CKMessageType MsgType, CK_CLAS
     return msg;
 }
 
-CKERROR CKMessageManager::RegisterWait(CKMessageType MsgType, CKBehavior *behav, int OutputToActivate,
-                                       CKBeObject *obj) {
+CKERROR CKMessageManager::RegisterWait(CKMessageType MsgType, CKBehavior *behav, int OutputToActivate, CKBeObject *obj) {
     if (MsgType < 0 || MsgType >= m_RegisteredMessageTypes.Size()) return CKERR_INVALIDMESSAGE;
     if (!behav) return CKERR_INVALIDPARAMETER;
 
@@ -142,22 +141,19 @@ CKERROR CKMessageManager::RegisterWait(CKSTRING MsgName, CKBehavior *behav, int 
 
 CKERROR CKMessageManager::UnRegisterWait(CKMessageType MsgType, CKBehavior *behav, int OutputToActivate) {
     if (MsgType < 0 || MsgType >= m_RegisteredMessageTypes.Size()) return CKERR_INVALIDMESSAGE;
-    if (!behav) return CKERR_INVALIDPARAMETER;
-
     CKWaitingObjectArray *waitList = m_MsgWaitingList[MsgType];
     if (!waitList) return CK_OK;
 
-    CKBehaviorIO *output = (OutputToActivate == -1) ? nullptr : behav->GetOutput(OutputToActivate);
-    if (OutputToActivate != -1 && !output)
-        return CKERR_INVALIDPARAMETER;
+    CKBehaviorIO *output = nullptr;
+    if (behav && OutputToActivate != -1)
+        output = behav->GetOutput(OutputToActivate);
 
-    for (CKWaitingObjectArray::Iterator it = waitList->Begin(); it != waitList->End();) {
+    for (CKWaitingObjectArray::Iterator it = waitList->Begin(); it != waitList->End(); ++it) {
         if (it->m_Behavior == behav && (output == nullptr || it->m_Output == output)) {
-            it = waitList->Remove(it);
+            waitList->Remove(it);
             if (behav)
                 behav->ModifyFlags(0, CKBEHAVIOR_WAITSFORMESSAGE);
-        } else {
-            ++it;
+            break;
         }
     }
 
@@ -250,10 +246,12 @@ CKERROR CKMessageManager::PreClearAll() {
         CKMessage *msg = m_ReceivedMsgThisFrame[i];
         if (msg) {
             msg->Release();
+            m_ReceivedMsgThisFrame[i] = nullptr;
         }
     }
-    m_ReceivedMsgThisFrame.Clear();
-    m_LastFrameObjects.Clear();
+
+    m_ReceivedMsgThisFrame.Resize(0);
+    m_LastFrameObjects.Resize(0);
     return RegisterDefaultMessages();
 }
 
@@ -266,8 +264,8 @@ CKERROR CKMessageManager::PostProcess() {
         }
     }
 
-    // Clear the list of objects that received messages last frame
-    m_LastFrameObjects.Clear();
+    // Clear the list of objects that received messages last frame (keep allocation)
+    m_LastFrameObjects.Resize(0);
 
     // Get current scene for message processing
     CKScene *currentScene = m_Context->GetCurrentScene();
@@ -384,16 +382,16 @@ CKERROR CKMessageManager::PostProcess() {
         }
     }
 
-    // Release all processed messages
+    // Release all processed messages and keep allocation
     for (int i = 0; i < m_ReceivedMsgThisFrame.Size(); ++i) {
         CKMessage *message = m_ReceivedMsgThisFrame[i];
         if (message) {
             message->Release();
+            m_ReceivedMsgThisFrame[i] = nullptr;
         }
     }
 
-    // Clear the received messages array
-    m_ReceivedMsgThisFrame.Clear();
+    m_ReceivedMsgThisFrame.Resize(0);
 
     return CK_OK;
 }
@@ -405,7 +403,10 @@ CKERROR CKMessageManager::OnCKReset() {
         }
     }
 
-    m_ReceivedMsgThisFrame.Clear();
+    // Discards any pending messages here; keep allocation and just clear the list.
+    for (int i = 0; i < m_ReceivedMsgThisFrame.Size(); ++i)
+        m_ReceivedMsgThisFrame[i] = nullptr;
+    m_ReceivedMsgThisFrame.Resize(0);
 
     for (int i = 0; i < m_LastFrameObjects.Size(); ++i) {
         CKBeObject *obj = (CKBeObject *)m_LastFrameObjects[i];
@@ -469,7 +470,9 @@ CKMessageManager::~CKMessageManager() {
     m_RegisteredMessageTypes.Clear();
 }
 
-CKMessageManager::CKMessageManager(CKContext *Context) : CKBaseManager(Context, MESSAGE_MANAGER_GUID, (CKSTRING)"Message Manager") {
+CKMessageManager::CKMessageManager(CKContext *Context)
+    : CKBaseManager(Context, MESSAGE_MANAGER_GUID, (CKSTRING)"Message Manager"),
+      m_ReceivedMsgThisFrame(100) {
     m_MsgWaitingList = nullptr;
     RegisterDefaultMessages();
     Context->RegisterNewManager(this);
