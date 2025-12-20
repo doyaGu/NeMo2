@@ -107,11 +107,11 @@ CKBOOL CKDebugContext::DebugStep() {
             for (XObjectPointerArray::Iterator it = array->Begin(); it != array->End(); ++it) {
                 CK_ID id = (*it) ? (*it)->m_ID : 0;
                 ScriptsToExecute.InsertRear(id);
+                array = CurrentObject->m_ScriptArray;
             }
         }
 
         VxTimeProfiler profiler;
-        profiler.Reset();
         if (CurrentObject->GetClassID() == CKCID_CHARACTER) {
             CKCharacter *character = (CKCharacter *)CurrentObject;
             if (character->IsAutomaticProcess()) {
@@ -121,8 +121,8 @@ CKBOOL CKDebugContext::DebugStep() {
 
         float d = profiler.Current();
         CurrentObject->m_LastExecutionTime += d;
-        m_Context->m_Stats.BehaviorCodeExecution = d;
-        m_Context->m_Stats.TotalBehaviorExecution = d;
+        m_Context->m_Stats.BehaviorCodeExecution += d;
+        m_Context->m_Stats.TotalBehaviorExecution += d;
     }
 
     return TRUE;
