@@ -309,7 +309,7 @@ typedef CK_LOADMODE (*CK_LOADRENAMECALLBACK)(CK_CLASSID Cid, CKSTRING OldName, C
 //		Class Identifier List								//
 //----------------------------------------------------------//
 
-#define  CKCID_OBJECT					1
+#define  CKCID_OBJECT					    1
     #define  CKCID_PARAMETERIN				2
     #define  CKCID_PARAMETEROPERATION		4
     #define  CKCID_STATE					5
