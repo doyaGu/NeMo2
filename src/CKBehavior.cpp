@@ -16,6 +16,10 @@
 #include "CKDependencies.h"
 #include "CKDebugContext.h"
 
+#if defined(_MSC_VER)
+#include <excpt.h>
+#endif
+
 static CKBehaviorIO **g_IosToDeactivate = nullptr;
 static CKBehaviorIO **g_IosToActivate = nullptr;
 static int g_IosBufferCapacity = 0;
@@ -560,34 +564,29 @@ void CKBehavior::SetVersion(CKDWORD version) {
 }
 
 void CKBehavior::ActivateOutput(int pos, CKBOOL active) {
-    if (pos < 0 || pos >= GetOutputCount())
+    if (pos < 0)
         return;
 
-    CKBehaviorIO *io = (CKBehaviorIO *) m_OutputArray[pos];
+    CKBehaviorIO *io = GetOutput(pos);
     if (!io)
         return;
 
-    if (active) {
-        io->m_ObjectFlags |= CK_BEHAVIORIO_ACTIVE;
-    } else {
-        io->m_ObjectFlags &= ~CK_BEHAVIORIO_ACTIVE;
-    }
+    io->Activate(active);
 }
 
 CKBOOL CKBehavior::IsOutputActive(int pos) {
-    if (pos < 0 || pos >= GetOutputCount())
+    if (pos < 0)
         return FALSE;
 
-    CKBehaviorIO *io = (CKBehaviorIO *) m_OutputArray[pos];
-    return io ? (io->m_ObjectFlags & CK_BEHAVIORIO_ACTIVE) != 0 : FALSE;
+    CKBehaviorIO *io = GetOutput(pos);
+    return io ? io->IsActive() : FALSE;
 }
 
 CKBehaviorIO *CKBehavior::RemoveOutput(int pos) {
     CKBehaviorIO *io = GetOutput(pos);
     if (!io)
         return nullptr;
-    if (pos >= 0 && pos < m_OutputArray.Size())
-        m_OutputArray.RemoveAt(pos);
+    m_OutputArray.RemoveAt(pos);
     return io;
 }
 
@@ -635,33 +634,34 @@ CKBehaviorIO *CKBehavior::ReplaceOutput(int pos, CKBehaviorIO *io) {
 }
 
 CKBehaviorIO *CKBehavior::CreateOutput(CKSTRING name) {
-    CKBehaviorIO *io = (CKBehaviorIO *) m_Context->CreateObject(CKCID_BEHAVIORIO, name, CK_OBJECTCREATION_SameDynamic);
+    const CK_OBJECTCREATION_OPTIONS options = ((m_ObjectFlags & CK_OBJECT_DYNAMIC) == CK_OBJECT_DYNAMIC)
+                                                  ? CK_OBJECTCREATION_DYNAMIC
+                                                  : CK_OBJECTCREATION_NONAMECHECK;
+    CKBehaviorIO *io = (CKBehaviorIO *) m_Context->CreateObject(CKCID_BEHAVIORIO, name, options, 0);
     if (io) {
         m_OutputArray.PushBack(io);
-        io->m_OwnerBehavior = this;
-        io->ModifyObjectFlags(CK_BEHAVIORIO_OUT, CK_OBJECT_IOTYPEMASK);
+        io->SetOwner(this);
+        io->SetType(CK_BEHAVIORIO_OUT);
     }
     return io;
 }
 
 void CKBehavior::ActivateInput(int pos, CKBOOL active) {
-    if (pos < 0 || pos >= m_InputArray.Size())
+    if (pos < 0)
         return;
 
-    CKBehaviorIO *io = (CKBehaviorIO *) m_InputArray[pos];
-    if (io) {
-        if (active)
-            io->ModifyObjectFlags(CK_BEHAVIORIO_ACTIVE, 0);
-        else
-            io->ModifyObjectFlags(0, CK_BEHAVIORIO_ACTIVE);
-    }
+    CKBehaviorIO *io = GetInput(pos);
+    if (!io)
+        return;
+
+    io->Activate(active);
 }
 
 CKBOOL CKBehavior::IsInputActive(int pos) {
-    if (pos < 0 || pos >= m_InputArray.Size())
+    if (pos < 0)
         return FALSE;
 
-    CKBehaviorIO *io = (CKBehaviorIO *) m_InputArray[pos];
+    CKBehaviorIO *io = GetInput(pos);
     return io ? io->IsActive() : FALSE;
 }
 
@@ -669,8 +669,7 @@ CKBehaviorIO *CKBehavior::RemoveInput(int pos) {
     CKBehaviorIO *io = GetInput(pos);
     if (!io)
         return nullptr;
-    if (pos >= 0 && pos < m_InputArray.Size())
-        m_InputArray.RemoveAt(pos);
+    m_InputArray.RemoveAt(pos);
     return io;
 }
 
@@ -718,11 +717,14 @@ CKBehaviorIO *CKBehavior::ReplaceInput(int pos, CKBehaviorIO *io) {
 }
 
 CKBehaviorIO *CKBehavior::CreateInput(CKSTRING name) {
-    CKBehaviorIO *io = (CKBehaviorIO *) m_Context->CreateObject(CKCID_BEHAVIORIO, name, CK_OBJECTCREATION_SameDynamic);
+    const CK_OBJECTCREATION_OPTIONS options = ((m_ObjectFlags & CK_OBJECT_DYNAMIC) == CK_OBJECT_DYNAMIC)
+                                                  ? CK_OBJECTCREATION_DYNAMIC
+                                                  : CK_OBJECTCREATION_NONAMECHECK;
+    CKBehaviorIO *io = (CKBehaviorIO *) m_Context->CreateObject(CKCID_BEHAVIORIO, name, options, 0);
     if (io) {
         m_InputArray.PushBack(io);
-        io->m_OwnerBehavior = this;
-        io->ModifyObjectFlags(CK_BEHAVIORIO_IN, CK_OBJECT_IOTYPEMASK); // Clear OUT, set IN
+        io->SetOwner(this);
+        io->SetType(CK_BEHAVIORIO_IN);
     }
     return io;
 }
@@ -789,14 +791,15 @@ CKParameterIn *CKBehavior::RemoveInputParameter(int pos) {
 }
 
 CKParameterIn *CKBehavior::ReplaceInputParameter(int pos, CKParameterIn *param) {
-    if (param) {
-        CKParameterIn *oldParam = GetInputParameter(pos);
-        if (oldParam) {
-            m_InParameter[pos] = param;
-        }
-        return oldParam;
-    }
-    return nullptr;
+    if (!param)
+        return nullptr;
+
+    CKParameterIn *oldParam = GetInputParameter(pos);
+    if (!oldParam)
+        return nullptr;
+
+    m_InParameter[pos] = param;
+    return oldParam;
 }
 
 int CKBehavior::GetInputParameterCount() {
@@ -841,8 +844,9 @@ CKBOOL CKBehavior::IsInputParameterEnabled(int pos) {
 
 void CKBehavior::EnableInputParameter(int pos, CKBOOL enable) {
     CKParameterIn *inParam = GetInputParameter(pos);
-    if (inParam)
-        inParam->Enable(enable);
+    if (!inParam)
+        return;
+    inParam->Enable(enable);
 }
 
 CKERROR CKBehavior::ExportOutputParameter(CKParameterOut *p) {
@@ -892,14 +896,15 @@ int CKBehavior::GetOutputParameterPosition(CKParameterOut *p) {
 }
 
 CKParameterOut *CKBehavior::ReplaceOutputParameter(int pos, CKParameterOut *p) {
-    if (p) {
-        CKParameterOut *oldParam = GetOutputParameter(pos);
-        if (oldParam) {
-            m_OutParameter[pos] = p;
-        }
-        return oldParam;
-    }
-    return nullptr;
+    if (!p)
+        return nullptr;
+
+    CKParameterOut *oldParam = GetOutputParameter(pos);
+    if (!oldParam)
+        return nullptr;
+
+    m_OutParameter[pos] = p;
+    return oldParam;
 }
 
 CKParameterOut *CKBehavior::RemoveOutputParameter(int pos) {
@@ -1367,10 +1372,13 @@ CKERROR CKBehavior::SetOwner(CKBeObject *owner, CKBOOL callback) {
         if (owner) {
             err = CallCallbackFunction(CKM_BEHAVIORATTACH);
             if (err != CK_OK) {
-                // Rollback owner change on failure
-                m_Owner = previousOwnerID;
-                if (currentOwner)
+                // Rollback owner change on failure (CK2.dll restores previous owner and re-attaches).
+                if (previousOwnerID) {
+                    m_Owner = previousOwnerID;
                     CallCallbackFunction(CKM_BEHAVIORATTACH);
+                }
+                if (err == CKBR_LOCKED)
+                    m_Context->OutputToConsoleExBeep("Cannot add or move behavior, because the behavior is locked.");
                 return err;
             }
         }
@@ -1388,18 +1396,17 @@ CKERROR CKBehavior::SetOwner(CKBeObject *owner, CKBOOL callback) {
 
     CKBeObject *actualOwner = GetOwner();
     err = SetSubBehaviorOwner(actualOwner, callback);
-    if (err != CK_OK && callback) {
-        // Rollback to previous owner
+    if (err != CK_OK) {
+        // Rollback to previous owner for graph sub-behaviors.
         m_Owner = previousOwnerID;
-        CKBeObject *previousOwner = (CKBeObject *) m_Context->GetObject(previousOwnerID);
+        CKBeObject *previousOwner = (CKBeObject *)m_Context->GetObject(previousOwnerID);
         SetSubBehaviorOwner(previousOwner, callback);
-        return err;
     }
 
     if (err == CKBR_LOCKED)
         m_Context->OutputToConsoleExBeep("Cannot add or move behavior, because the behavior is locked.");
 
-    return CK_OK;
+    return err;
 }
 
 CKERROR CKBehavior::SetSubBehaviorOwner(CKBeObject *owner, CKBOOL callback) {
@@ -1956,7 +1963,7 @@ CKBOOL CKBehavior::IsObjectUsed(CKObject *obj, CK_CLASSID cid) {
 }
 
 CKERROR CKBehavior::PrepareDependencies(CKDependenciesContext &context) {
-    CKERROR err = CKSceneObject::PrepareDependencies(context);
+    CKERROR err = CKObject::PrepareDependencies(context);
     if (err != CK_OK)
         return err;
 
@@ -2156,8 +2163,7 @@ void CKBehavior::Reset() {
     for (XObjectPointerArray::Iterator it = m_InputArray.Begin(); it != m_InputArray.End(); ++it) {
         CKBehaviorIO *io = (CKBehaviorIO *) *it;
         if (io) {
-            // Null check
-            io->m_ObjectFlags &= ~CK_BEHAVIORIO_ACTIVE; // Deactivate input
+            io->Activate(FALSE);
         }
     }
 
@@ -2165,7 +2171,7 @@ void CKBehavior::Reset() {
     for (XObjectPointerArray::Iterator it = m_OutputArray.Begin(); it != m_OutputArray.End(); ++it) {
         CKBehaviorIO *io = (CKBehaviorIO *) *it;
         if (io) {
-            io->m_ObjectFlags &= ~CK_BEHAVIORIO_ACTIVE; // Deactivate output
+            io->Activate(FALSE);
         }
     }
 
@@ -2174,11 +2180,8 @@ void CKBehavior::Reset() {
                 CKBEHAVIOR_RESETNEXTFRAME |
                 CKBEHAVIOR_DEACTIVATENEXTFRAME |
                 CKBEHAVIOR_ACTIVATENEXTFRAME);
-    if ((m_Flags & CKBEHAVIOR_SCRIPT) != 0) {
-        if (GetInputCount() > 0) {
-            ActivateInput(0, TRUE);
-        }
-    }
+    if ((m_Flags & CKBEHAVIOR_SCRIPT) != 0)
+        ActivateInput(0, TRUE);
 }
 
 void CKBehavior::ErrorMessage(CKSTRING Error, CKSTRING Context, CKBOOL ShowOwner, CKBOOL ShowScript) {
@@ -2256,6 +2259,9 @@ void CKBehavior::ErrorMessage(CKSTRING Error, CKDWORD Context, CKBOOL ShowOwner,
         break;
     case CKM_BEHAVIORRESUME:
         contextStr = "Resume";
+        break;
+    case CKM_BEHAVIORRESET:
+        contextStr = "Reset";
         break;
     case CKM_BEHAVIORPOSTSAVE:
         contextStr = "Post Save";
@@ -2375,13 +2381,10 @@ void CKBehavior::WarnInfiniteLoop() {
     char buffer[512];
 
     CKBeObject *owner = GetOwner();
-    const char *name = (owner && owner->m_Name) ? owner->m_Name : "?";
+    const char *ownerName = (owner && owner->m_Name) ? owner->m_Name : "?";
+    const char *behaviorName = m_Name ? m_Name : "?";
 
-    if (m_Name) {
-        snprintf(buffer, sizeof(buffer), "ERROR: Infinite Loop Detected. Object %s: In Behavior %s", name, m_Name);
-    } else {
-        snprintf(buffer, sizeof(buffer), "ERROR: Infinite Loop Detected. Object ? : In Behavior ?");
-    }
+    snprintf(buffer, sizeof(buffer), "ERROR : Infinite Loop Detected. Object %s : In Behavior %s:", ownerName, behaviorName);
 
     m_Context->OutputToConsole(buffer, true);
 }
@@ -2391,10 +2394,8 @@ int CKBehavior::InternalGetShortestDelay(CKBehavior *beh, XObjectPointerArray &b
         return 0;
 
     // Prevent infinite recursion
-    if (behparsed.AddIfNotHere(this))
-        return 1000; // Max delay
-
-    behparsed.PushBack(this);
+    if (!behparsed.AddIfNotHere(this))
+        return 1000; // Loop detected
 
     int shortestDelay = 1000;
     const int outputCount = m_OutputArray.Size();
@@ -2508,7 +2509,6 @@ void CKBehavior::CheckIOsActivation() {
 }
 
 void CKBehavior::CheckBehaviorActivity() {
-    // Original behavior assumes m_GraphData is valid (only used for graph behaviors).
     XObjectPointerArray remaining;
 
     for (XObjectPointerArray::Iterator it = m_GraphData->m_Links.Begin(); it != m_GraphData->m_Links.End(); ++it) {
@@ -2575,6 +2575,31 @@ int CKBehavior::ExecuteFunction() {
 
     int result = 0;
 
+#if defined(_MSC_VER)
+    if (m_Context->m_ProfilingEnabled) {
+        VxTimeProfiler profiler;
+        bool callSucceeded = false;
+
+        __try {
+            result = m_BlockData->m_Function(m_Context->m_BehaviorContext);
+            callSucceeded = true;
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+            ErrorMessage("Error", "Execution", 1, 1);
+            result = CKBR_OK;
+        }
+
+        if (callSucceeded) {
+            m_Context->m_Stats.BehaviorCodeExecution += profiler.Current();
+        }
+    } else {
+        __try {
+            result = m_BlockData->m_Function(m_Context->m_BehaviorContext);
+        } __except (EXCEPTION_EXECUTE_HANDLER) {
+            ErrorMessage("Error", "Execution", 1, 1);
+            result = CKBR_OK;
+        }
+    }
+#else
     if (m_Context->m_ProfilingEnabled) {
         VxTimeProfiler profiler;
         result = m_BlockData->m_Function(m_Context->m_BehaviorContext);
@@ -2582,6 +2607,7 @@ int CKBehavior::ExecuteFunction() {
     } else {
         result = m_BlockData->m_Function(m_Context->m_BehaviorContext);
     }
+#endif
 
     if ((result & CKBR_ACTIVATENEXTFRAME) == 0) {
         m_Flags &= ~CKBEHAVIOR_ACTIVE;
@@ -2666,19 +2692,21 @@ void CKBehavior::HierarchyPostLoad() {
     CKBehaviorPrototype *proto = GetPrototype();
     if (proto) {
         CKSTRING protoName = proto->GetName();
-        if (protoName) {
-            // Special case handling for specific prototype names
-            if (strcmp(protoName, "Particle Systems") != 0 && strcmp(protoName, "Eval") != 0) {
-                SetName(protoName, TRUE);
-            }
-        }
+        if (!protoName)
+            protoName = "";
+        if (strcmp(protoName, "Particle Systems") != 0 && strcmp(protoName, "Eval") != 0)
+            SetName(protoName, TRUE);
     }
 
     // Handle target parameter ownership
     if (m_InputTargetParam) {
-        CKParameterIn *targetParam = GetTargetParameter();
-        if (targetParam) {
-            targetParam->SetOwner(this);
+        CKObject *targetObj = m_Context->GetObject(m_InputTargetParam);
+        if (targetObj) {
+            if (CKParameterIn *pin = CKParameterIn::Cast(targetObj)) {
+                pin->SetOwner(this);
+            } else if (CKParameter *p = CKParameter::Cast(targetObj)) {
+                p->SetOwner(this);
+            }
         }
     }
 
@@ -2714,7 +2742,7 @@ void CKBehavior::HierarchyPostLoad() {
         CKParameterOut *param = (CKParameterOut *) *it;
         if (!param) continue;
 
-        if (!(param->GetObjectFlags() & CK_OBJECT_NAMESHARED)) {
+        if ((param->GetObjectFlags() & CK_PARAMETEROUT_PARAMOP) == 0) {
             param->SetOwner(this);
 
             if (proto) {
