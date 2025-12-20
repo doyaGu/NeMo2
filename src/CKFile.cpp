@@ -76,7 +76,7 @@ CKBufferParser::CKBufferParser(void *Buffer, int Size)
 
 CKBufferParser::~CKBufferParser() {
     if (m_Valid)
-        delete m_Buffer;
+        delete[] m_Buffer;
 }
 
 CKBOOL CKBufferParser::Write(void *x, int size) {
@@ -177,7 +177,12 @@ CKBufferParser *CKBufferParser::Extract(int Size) {
     if (Size < 0 || m_CursorPos + Size > m_Size)
         return nullptr;
 
-    auto *parser = new CKBufferParser(nullptr, Size);
+    auto *buffer = new char[Size];
+    if (!buffer)
+        return nullptr;
+
+    auto *parser = new CKBufferParser(buffer, Size);
+    parser->m_Valid = TRUE;
     parser->Write(&m_Buffer[m_CursorPos], Size);
     return parser;
 }
@@ -344,9 +349,9 @@ void CKFile::ClearData() {
          it != m_FileObjects.End(); ++it) {
         if (it->Data) {
             it->Data->Clear();
-            CKDeletePointer(it->Data);
+            delete it->Data;
         }
-        CKDeletePointer(it->Name);
+        delete[] it->Name;
         it->Data = nullptr;
         it->Name = nullptr;
     }
@@ -355,7 +360,7 @@ void CKFile::ClearData() {
          it != m_ManagersData.End(); ++it) {
         if (it->data) {
             it->data->Clear();
-            CKDeletePointer(it->data);
+            delete it->data;
             it->data = nullptr;
         }
     }
@@ -367,7 +372,7 @@ void CKFile::ClearData() {
     m_ReferencedObjects.Clear();
     m_IndexByClassId.Clear();
 
-    CKDeletePointer(m_FileName);
+    delete[] m_FileName;
     m_FileName = nullptr;
 
     if (m_Parser) {

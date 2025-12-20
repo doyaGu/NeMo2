@@ -1,7 +1,7 @@
 #include "CKObjectDeclaration.h"
 
 void CKObjectDeclaration::SetDescription(CKSTRING Description) {
-    CKDeletePointer(m_Description);
+    delete[] m_Description;
     m_Description = CKStrdup(Description);
 }
 
@@ -52,7 +52,7 @@ CKGUID CKObjectDeclaration::GetAuthorGuid() {
 }
 
 void CKObjectDeclaration::SetAuthorName(CKSTRING Name) {
-    CKDeletePointer(m_AuthorName);
+    delete[] m_AuthorName;
     m_AuthorName = CKStrdup(Name);
 }
 
@@ -77,7 +77,7 @@ CK_CLASSID CKObjectDeclaration::GetCompatibleClassId() {
 }
 
 void CKObjectDeclaration::SetCategory(CKSTRING cat) {
-    CKDeletePointer(m_Category);
+    delete[] m_Category;
     m_Category = CKStrdup(cat);
 }
 
@@ -101,7 +101,7 @@ CKObjectDeclaration::CKObjectDeclaration(CKSTRING Name) {
 }
 
 CKObjectDeclaration::~CKObjectDeclaration() {
-    CKDeletePointer(m_Description);
-    CKDeletePointer(m_AuthorName);
-    CKDeletePointer(m_Category);
+    delete[] m_Description;
+    delete[] m_AuthorName;
+    delete[] m_Category;
 }

@@ -934,7 +934,7 @@ void CKPluginManager::InitInstancePluginEntry(CKPluginEntry *entry, CKContext *c
         optionNames[i] = CKStrdup(name);
         optionNamesLength += strlen(name) + 2;
 
-        CKDeletePointer(desc);
+        delete[] desc;
     }
 
     auto *data = new char[optionNamesLength];
@@ -955,7 +955,7 @@ void CKPluginManager::InitInstancePluginEntry(CKPluginEntry *entry, CKContext *c
         paramTypeDesc->dwFlags |= CKPARAMETERTYPE_HIDDEN;
 
     for (int i = 0; i < optionCount; ++i) {
-        CKDeletePointer(optionNames[i]);
+        delete[] optionNames[i];
     }
     memset(optionNames, 0, sizeof(CKSTRING) * optionCount);
     delete[] optionNames;

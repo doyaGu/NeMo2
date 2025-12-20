@@ -855,7 +855,7 @@ CKBitmapProperties *CKContext::GetGlobalImagesSaveFormat() {
 
 void CKContext::SetGlobalImagesSaveFormat(CKBitmapProperties *Format) {
     if (Format && Format->m_Size != 0) {
-        CKDeletePointer(m_GlobalImagesSaveFormat);
+        delete[] reinterpret_cast<CKBYTE *>(m_GlobalImagesSaveFormat);
         m_GlobalImagesSaveFormat = CKCopyBitmapProperties(Format);
     }
 }
@@ -1759,7 +1759,7 @@ CKContext::CKContext(WIN_HANDLE iWin, int iRenderEngine, CKDWORD Flags) : m_Depe
 
 CKContext::~CKContext() {
     m_Init = TRUE;
-    CKDeletePointer(m_GlobalImagesSaveFormat);
+    delete[] reinterpret_cast<CKBYTE *>(m_GlobalImagesSaveFormat);
 
     delete[] field_3C8;
     field_3C8 = nullptr;

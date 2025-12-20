@@ -427,7 +427,7 @@ CKERROR CKParameter::Load(CKStateChunk *chunk, CKFile *file) {
     if ((m_ParamType->dwFlags & CKPARAMETERTYPE_VARIABLESIZE) || (buffer && bufferSize > 0))
         SetValue(buffer, bufferSize);
 
-    CKDeletePointer(buffer);
+    delete[] buffer;
 
     return CK_OK;
 }
