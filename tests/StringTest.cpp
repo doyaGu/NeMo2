@@ -193,6 +193,40 @@ TEST(XStringTest, Iteration) {
     }
     EXPECT_EQ(temp, "123");
 }
+
+TEST(XStringTest, Cxx11StdStringInteropAndUtilities) {
+    std::string src("hello\0world", 11);
+    XString s(src);
+
+    EXPECT_EQ(static_cast<size_t>(s.Length()), src.size());
+    EXPECT_FALSE(s.IsEmpty());
+    EXPECT_STREQ(s.CStr(), "hello");
+    EXPECT_EQ(s.ToStdString(), src);
+
+    XString t;
+    t = src;
+    EXPECT_EQ(t.ToStdString(), src);
+    t << std::string("!");
+    EXPECT_EQ(t.Back(), '!');
+
+    // push_back / pop_back
+    XString u("ab");
+    u.PushBack('c');
+    ExpectStringState(u, "abc", 3);
+    u.PopBack();
+    ExpectStringState(u, "ab", 2);
+    EXPECT_EQ(u.Front(), 'a');
+    EXPECT_EQ(u.Back(), 'b');
+}
+
+TEST(XStringTest, Cxx11EmptyRangeForIsSafe) {
+    XString s;
+    std::string temp;
+    for (char c : s) {
+        temp += c;
+    }
+    EXPECT_TRUE(temp.empty());
+}
 #endif
 
 // 4. Searching

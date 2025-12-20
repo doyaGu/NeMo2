@@ -59,8 +59,10 @@ set(VX_TEST_SOURCES
         ImageTest.cpp
         PathParsingTest.cpp
         StringTest.cpp
+        ListTest.cpp
         GeometryTest.cpp
         ArrayTest.cpp
+        HashTableTest.cpp
         VectorTest.cpp
         QuaternionTest.cpp
         MatrixTest.cpp
@@ -112,24 +114,4 @@ add_ck2_test(PlayerTest
         Player.cpp
         DEPENDENCIES
         CK2 VxMath
-)
-
-add_executable(Player Player.cpp)
-
-set_target_properties(Player PROPERTIES
-        WIN32_EXECUTABLE TRUE
-)
-
-target_compile_definitions(Player PRIVATE
-        PLAYER_STANDALONE
-)
-
-target_include_directories(Player PRIVATE
-        ${NEMO_INCLUDE_DIR}
-        ${NEMO_SOURCE_DIR}
-)
-
-target_link_libraries(Player PRIVATE
-        CK2
-        VxMath
 )
