@@ -35,17 +35,40 @@ public:
         Guid = CKGUID();
         Owner = -1;
     }
+    CKPARAMETER_DESC(const CKPARAMETER_DESC &d)
+    {
+        Type = d.Type;
+        Name = d.Name ? MAKESTRING(d.Name) : NULL;
+        DefaultValueString = d.DefaultValueString ? MAKESTRING(d.DefaultValueString) : NULL;
+        DefaultValue = NULL;
+        DefaultValueSize = 0;
+        Guid = d.Guid;
+        Owner = d.Owner;
+        if (d.DefaultValue && d.DefaultValueSize)
+        {
+            DefaultValue = new CKBYTE[d.DefaultValueSize];
+            DefaultValueSize = d.DefaultValueSize;
+            memcpy(DefaultValue, d.DefaultValue, DefaultValueSize);
+        }
+    }
     ~CKPARAMETER_DESC()
     {
-        // CKDeletePointer(Name);
-        // CKDeletePointer(DefaultValueString);
+        DELETESTRING(Name);
+        DELETESTRING(DefaultValueString);
         delete[] DefaultValue;
     }
     CKPARAMETER_DESC &operator=(const CKPARAMETER_DESC &d)
     {
+        if (this == &d)
+            return *this;
+
+        DELETESTRING(Name);
+        DELETESTRING(DefaultValueString);
+        delete[] DefaultValue;
+
         Type = d.Type;
-        Name = d.Name;
-        DefaultValueString = d.DefaultValueString;
+        Name = d.Name ? MAKESTRING(d.Name) : NULL;
+        DefaultValueString = d.DefaultValueString ? MAKESTRING(d.DefaultValueString) : NULL;
         DefaultValue = NULL;
         DefaultValueSize = 0;
         Guid = d.Guid;
@@ -68,9 +91,7 @@ struct CKBEHAVIORIO_DESC
 
 public:
     // Ctor
-    CKBEHAVIORIO_DESC() : Name(0)
-    {
-    }
+    CKBEHAVIORIO_DESC() : Name(0) {}
     // Dtor
     ~CKBEHAVIORIO_DESC()
     {
