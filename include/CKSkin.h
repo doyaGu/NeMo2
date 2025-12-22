@@ -230,6 +230,25 @@ public:
     See Also:CalcPoints
     **********************************************/
     virtual void ConstructBoneTransfoMatrices(CKContext *context) = 0;
+    
+    /*********************************************
+    Summary: Computes the transformed vertices positions and Normals.
+
+    Return Value:
+        TRUE if successful.
+    Arguments:
+        VertexCount: Number of vertices to be computed.
+        VertexPtr: A pointer to a strided array of VxVector to be filled with transformed positions.
+        VStride: Amount in bytes between each VxVector in the VertexPtr buffer.
+        NormalPtr: A pointer to a strided array of VxVector to be filled with transformed normals.
+        NStride: Amount in bytes between each VxVector in the NormalPtr buffer.
+    Remarks:
+        + This method computes the positions of the skin vertices according to the
+        current bones matrices.
+        + ConstructBoneTransfoMatrices must have been called before evaluating the vertices transformed positions.
+    See Also:ConstructBoneTransfoMatrices
+    **********************************************/
+    virtual CKBOOL CalcPoints(int VertexCount, CKBYTE *VertexPtr, CKDWORD VStride, CKBYTE *NormalPtr, CKDWORD NStride) = 0;
 
     /*********************************************
     Summary: Computes the transformed vertices positions.
@@ -302,25 +321,6 @@ public:
     virtual void SetNormal(int Index, const VxVector &Norm) = 0;
 
     virtual VxVector &GetNormal(int Index) = 0;
-
-    /*********************************************
-    Summary: Computes the transformed vertices positions and Normals.
-
-    Return Value:
-        TRUE if successful.
-    Arguments:
-        VertexCount: Number of vertices to be computed.
-        VertexPtr: A pointer to a strided array of VxVector to be filled with transformed positions.
-        VStride: Amount in bytes between each VxVector in the VertexPtr buffer.
-        NormalPtr: A pointer to a strided array of VxVector to be filled with transformed normals.
-        NStride: Amount in bytes between each VxVector in the NormalPtr buffer.
-    Remarks:
-        + This method computes the positions of the skin vertices according to the
-        current bones matrices.
-        + ConstructBoneTransfoMatrices must have been called before evaluating the vertices transformed positions.
-    See Also:ConstructBoneTransfoMatrices
-    **********************************************/
-    virtual CKBOOL CalcPoints(int VertexCount, CKBYTE *VertexPtr, CKDWORD VStride, CKBYTE *NormalPtr, CKDWORD NStride) = 0;
 };
 
 #endif // CKSKIN_H
