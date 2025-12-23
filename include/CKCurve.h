@@ -119,8 +119,8 @@ public:
 
     See also: SetTangents
     ************************************************/
-    virtual CKERROR GetTangents(int index, VxVector *in, VxVector *out) CK_PURE;
     virtual CKERROR GetTangents(CKCurvePoint *pt, VxVector *in, VxVector *out) CK_PURE;
+    virtual CKERROR GetTangents(int index, VxVector *in, VxVector *out) CK_PURE;
 
     /************************************************
     Summary: Sets tangents to a control point
@@ -134,8 +134,8 @@ public:
 
     See also: GetTangents
     ************************************************/
-    virtual CKERROR SetTangents(int index, VxVector *in, VxVector *out) CK_PURE;
     virtual CKERROR SetTangents(CKCurvePoint *pt, VxVector *in, VxVector *out) CK_PURE;
+    virtual CKERROR SetTangents(int index, VxVector *in, VxVector *out) CK_PURE;
 
     /************************************************
     Summary: Sets the fitting coefficient for the curve.
@@ -260,6 +260,8 @@ public:
 
     virtual void Update() CK_PURE;
 
+#ifndef CK_3DIMPLEMENTATION
+
     /*************************************************
     Summary: Dynamic cast operator.
     Arguments:
@@ -276,7 +278,6 @@ public:
     {
         return CKIsChildClassOf(iO, CKCID_CURVE) ? (CKCurve *)iO : NULL;
     }
-#ifndef CK_3DIMPLEMENTATION
 };
 #endif
 
