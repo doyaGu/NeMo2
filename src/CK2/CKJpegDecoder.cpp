@@ -15,8 +15,6 @@
 #define STBI_WRITE_NO_STDIO
 #include "stb_image_write.h"
 
-namespace {
-
 void CKJpegEncoderWriteCallback(void *context, void *data, int size) {
     if (!context || !data || size <= 0)
         return;
@@ -24,8 +22,6 @@ void CKJpegEncoderWriteCallback(void *context, void *data, int size) {
     auto *buffer = static_cast<std::vector<CKBYTE> *>(context);
     const CKBYTE *bytes = static_cast<const CKBYTE *>(data);
     buffer->insert(buffer->end(), bytes, bytes + size);
-}
-
 }
 
 CKBOOL CKJpegDecoder::DecodeGrayscalePlane(const CKBYTE *encodedData,
