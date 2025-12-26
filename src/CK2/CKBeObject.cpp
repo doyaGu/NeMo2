@@ -678,9 +678,20 @@ void CKBeObject::PreDelete() {
 }
 
 int CKBeObject::GetMemoryOccupation() {
-    int size = CKSceneObject::GetMemoryOccupation() + 52;
-    if (m_ScriptArray) size += m_ScriptArray->GetMemoryOccupation();
-    if (m_LastFrameMessages) size += m_LastFrameMessages->GetMemoryOccupation();
+    // Base object + in-object members + owned buffers.
+    int size = CKSceneObject::GetMemoryOccupation();
+    size += static_cast<int>(sizeof(CKBeObject) - sizeof(CKSceneObject));
+    size += m_Groups.GetMemoryOccupation(FALSE);
+    size += m_Attributes.GetMemoryOccupation(FALSE);
+
+    if (m_ScriptArray) {
+        size += m_ScriptArray->GetMemoryOccupation(TRUE);
+    }
+
+    if (m_LastFrameMessages) {
+        size += m_LastFrameMessages->GetMemoryOccupation(TRUE);
+    }
+
     return size;
 }
 

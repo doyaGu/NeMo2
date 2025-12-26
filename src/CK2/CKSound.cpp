@@ -4,6 +4,8 @@
 #include "CKStateChunk.h"
 #include "CKPathManager.h"
 
+#include <cstring>
+
 extern CKSTRING CKJustFile(CKSTRING path);
 
 CK_CLASSID CKSound::m_ClassID = CKCID_SOUND;
@@ -73,7 +75,11 @@ CKERROR CKSound::Load(CKStateChunk *chunk, CKFile *file) {
 }
 
 int CKSound::GetMemoryOccupation() {
-    return CKBeObject::GetMemoryOccupation() + 8;
+    int size = CKBeObject::GetMemoryOccupation() + (int) (sizeof(CKSound) - sizeof(CKBeObject));
+    if (m_FileName) {
+        size += (int) (strlen(m_FileName) + 1);
+    }
+    return size;
 }
 
 CKSTRING CKSound::GetClassName() {

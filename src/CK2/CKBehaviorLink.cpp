@@ -120,7 +120,8 @@ void CKBehaviorLink::PreDelete() {
 }
 
 int CKBehaviorLink::GetMemoryOccupation() {
-    return CKObject::GetMemoryOccupation() + 16;
+    return CKObject::GetMemoryOccupation() +
+        static_cast<int>(sizeof(CKBehaviorLink) - sizeof(CKObject));
 }
 
 CKBOOL CKBehaviorLink::IsObjectUsed(CKObject *obj, CK_CLASSID cid) {

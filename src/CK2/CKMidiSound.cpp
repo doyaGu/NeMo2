@@ -128,7 +128,7 @@ CKERROR CKMidiSound::Load(CKStateChunk *chunk, CKFile *file) {
 }
 
 int CKMidiSound::GetMemoryOccupation() {
-    return CKSound::GetMemoryOccupation() + 8;
+    return CKSound::GetMemoryOccupation() + (int) (sizeof(CKMidiSound) - sizeof(CKSound));
 }
 
 CKSTRING CKMidiSound::GetClassName() {

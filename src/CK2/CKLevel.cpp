@@ -526,9 +526,9 @@ void CKLevel::CheckPostDeletion() {
 }
 
 int CKLevel::GetMemoryOccupation() {
-    int size = CKBeObject::GetMemoryOccupation() + 48;
-    size += m_SceneList.Allocated() * sizeof(CKObject*);
-    size += m_RenderContextList.Allocated() * sizeof(CKObject*);
+    int size = CKBeObject::GetMemoryOccupation() + (int) (sizeof(CKLevel) - sizeof(CKBeObject));
+    size += m_SceneList.GetMemoryOccupation(FALSE);
+    size += m_RenderContextList.GetMemoryOccupation(FALSE);
     return size;
 }
 

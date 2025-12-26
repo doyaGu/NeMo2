@@ -439,7 +439,10 @@ void CKParameter::CheckPostDeletion() {
 }
 
 int CKParameter::GetMemoryOccupation() {
-    return CKObject::GetMemoryOccupation() + 16 + m_Size;
+    // Base object + in-object members + owned value buffer.
+    return CKObject::GetMemoryOccupation() +
+        static_cast<int>(sizeof(CKParameter) - sizeof(CKObject)) +
+        m_Size;
 }
 
 int CKParameter::IsObjectUsed(CKObject *o, CK_CLASSID cid) {

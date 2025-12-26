@@ -1904,21 +1904,29 @@ void CKBehavior::PreDelete() {
 }
 
 int CKBehavior::GetMemoryOccupation() {
-    int size = CKSceneObject::GetMemoryOccupation() + 80;
-    size += m_InputArray.GetMemoryOccupation();
-    size += m_OutputArray.GetMemoryOccupation();
-    size += m_InParameter.GetMemoryOccupation();
-    size += m_OutParameter.GetMemoryOccupation();
-    size += m_LocalParameter.GetMemoryOccupation();
+    int size = CKSceneObject::GetMemoryOccupation() + (int) (sizeof(CKBehavior) - sizeof(CKSceneObject));
+
+    size += m_InputArray.GetMemoryOccupation(FALSE);
+    size += m_OutputArray.GetMemoryOccupation(FALSE);
+    size += m_InParameter.GetMemoryOccupation(FALSE);
+    size += m_OutParameter.GetMemoryOccupation(FALSE);
+    size += m_LocalParameter.GetMemoryOccupation(FALSE);
+
     if (m_GraphData) {
-        size += m_GraphData->m_SubBehaviors.GetMemoryOccupation();
-        size += m_GraphData->m_SubBehaviorLinks.GetMemoryOccupation();
-        size += m_GraphData->m_Operations.GetMemoryOccupation();
-        size += m_GraphData->m_Links.GetMemoryOccupation();
-        size += 4;
+        size += (int) sizeof(*m_GraphData);
+        size += m_GraphData->m_Operations.GetMemoryOccupation(FALSE);
+        size += m_GraphData->m_SubBehaviors.GetMemoryOccupation(FALSE);
+        size += m_GraphData->m_SubBehaviorLinks.GetMemoryOccupation(FALSE);
+        size += m_GraphData->m_Links.GetMemoryOccupation(FALSE);
+        if (m_GraphData->m_BehaviorIterators) {
+            size += (int) (m_GraphData->m_BehaviorIteratorCount * sizeof(*m_GraphData->m_BehaviorIterators));
+        }
     }
-    if (m_BlockData)
-        size += 4;
+
+    if (m_BlockData) {
+        size += (int) sizeof(*m_BlockData);
+    }
+
     return size;
 }
 

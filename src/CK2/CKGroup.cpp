@@ -251,7 +251,9 @@ void CKGroup::CheckPreDeletion() {
 }
 
 int CKGroup::GetMemoryOccupation() {
-    return CKBeObject::GetMemoryOccupation() + 24 + m_ObjectArray.GetMemoryOccupation();
+    int size = CKBeObject::GetMemoryOccupation() + (int) (sizeof(CKGroup) - sizeof(CKBeObject));
+    size += m_ObjectArray.GetMemoryOccupation(FALSE);
+    return size;
 }
 
 int CKGroup::IsObjectUsed(CKObject *o, CK_CLASSID cid) {

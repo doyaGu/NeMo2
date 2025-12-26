@@ -2041,18 +2041,28 @@ void CKDataArray::CheckPostDeletion() {
 }
 
 int CKDataArray::GetMemoryOccupation() {
-    int baseSize = CKBeObject::GetMemoryOccupation();
+    int size = CKBeObject::GetMemoryOccupation() + (int) (sizeof(CKDataArray) - sizeof(CKBeObject));
 
-    int columnCount = m_FormatArray.Size();
-    int rowCount = m_DataMatrix.Size();
-    int allocatedCount = m_DataMatrix.Allocated();
+    size += m_FormatArray.GetMemoryOccupation(FALSE);
+    for (int i = 0; i < m_FormatArray.Size(); ++i) {
+        ColumnFormat *fmt = m_FormatArray[i];
+        if (!fmt)
+            continue;
+        size += (int) sizeof(*fmt);
+        if (fmt->m_Name) {
+            size += (int) (strlen(fmt->m_Name) + 1);
+        }
+    }
 
-    // DLL formula:
-    // base + 32 + (colCount != 0 ? 4 : 0) + 4 * ((rowCount * (colCount + 2)) + (colCount * 6) + allocatedCount)
-    int formatFlag = (columnCount != 0) ? 4 : 0;
-    int matrixMemory = 4 * ((rowCount * (columnCount + 2)) + (columnCount * 6) + allocatedCount);
+    size += m_DataMatrix.GetMemoryOccupation(FALSE);
+    for (int i = 0; i < m_DataMatrix.Size(); ++i) {
+        CKDataRow *row = m_DataMatrix[i];
+        if (!row)
+            continue;
+        size += row->GetMemoryOccupation(TRUE);
+    }
 
-    return baseSize + 32 + formatFlag + matrixMemory;
+    return size;
 }
 
 int CKDataArray::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
