@@ -2129,7 +2129,7 @@ CKSTRING CKBehavior::GetDependencies(int i, int mode) {
 
 void CKBehavior::Register() {
     CKPARAMETERFROMCLASS(CKBehavior, CKPGUID_BEHAVIOR);
-    CKCLASSDEFAULTOPTIONS(CKBehavior, 1);
+    CKCLASSDEFAULTOPTIONS(CKBehavior, CK_DEPENDENCIES_COPY);
 }
 
 CKBehavior *CKBehavior::CreateInstance(CKContext *Context) {

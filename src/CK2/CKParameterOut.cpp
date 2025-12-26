@@ -274,7 +274,7 @@ CKSTRING CKParameterOut::GetDependencies(int i, int mode) {
 }
 
 void CKParameterOut::Register() {
-    CKCLASSDEFAULTOPTIONS(CKParameterOut, 1);
+    CKCLASSDEFAULTOPTIONS(CKParameterOut, CK_DEPENDENCIES_COPY);
 }
 
 CKParameterOut *CKParameterOut::CreateInstance(CKContext *Context) {

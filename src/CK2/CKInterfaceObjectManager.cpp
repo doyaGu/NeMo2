@@ -132,7 +132,7 @@ CKSTRING CKInterfaceObjectManager::GetDependencies(int i, int mode) {
 }
 
 void CKInterfaceObjectManager::Register() {
-    CKCLASSDEFAULTOPTIONS(CKInterfaceObjectManager, 1);
+    CKCLASSDEFAULTOPTIONS(CKInterfaceObjectManager, CK_DEPENDENCIES_COPY);
 }
 
 CKInterfaceObjectManager *CKInterfaceObjectManager::CreateInstance(CKContext *Context) {

@@ -135,7 +135,7 @@ CKSTRING CKSynchroObject::GetDependencies(int i, int mode) {
 
 void CKSynchroObject::Register() {
     CKCLASSNOTIFYFROM(CKSynchroObject, CKBeObject);
-    CKCLASSDEFAULTOPTIONS(CKSynchroObject, 4);
+    CKCLASSDEFAULTOPTIONS(CKSynchroObject, CK_DEPENDENCIES_SAVE);
     CKPARAMETERFROMCLASS(CKSynchroObject, CKPGUID_SYNCHRO);
 }
 
@@ -213,7 +213,7 @@ CKSTRING CKStateObject::GetDependencies(int i, int mode) {
 }
 
 void CKStateObject::Register() {
-    CKCLASSDEFAULTOPTIONS(CKStateObject, 4);
+    CKCLASSDEFAULTOPTIONS(CKStateObject, CK_DEPENDENCIES_SAVE);
     CKPARAMETERFROMCLASS(CKStateObject, CKPGUID_STATE);
 }
 
@@ -306,7 +306,7 @@ CKSTRING CKCriticalSectionObject::GetDependencies(int i, int mode) {
 
 void CKCriticalSectionObject::Register() {
     CKCLASSNOTIFYFROM(CKCriticalSectionObject, CKBeObject);
-    CKCLASSDEFAULTOPTIONS(CKCriticalSectionObject, 4);
+    CKCLASSDEFAULTOPTIONS(CKCriticalSectionObject, CK_DEPENDENCIES_SAVE);
     CKPARAMETERFROMCLASS(CKCriticalSectionObject, CKPGUID_CRITICALSECTION);
 }
 

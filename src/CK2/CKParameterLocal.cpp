@@ -179,7 +179,7 @@ CKSTRING CKParameterLocal::GetDependencies(int i, int mode) {
 }
 
 void CKParameterLocal::Register() {
-    CKCLASSDEFAULTOPTIONS(CKParameterLocal, 1);
+    CKCLASSDEFAULTOPTIONS(CKParameterLocal, CK_DEPENDENCIES_COPY);
 }
 
 CKParameterLocal *CKParameterLocal::CreateInstance(CKContext *Context) {

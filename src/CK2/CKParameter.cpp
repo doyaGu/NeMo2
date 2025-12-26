@@ -549,7 +549,7 @@ CKSTRING CKParameter::GetDependencies(int i, int mode) {
 
 void CKParameter::Register() {
     CKCLASSNOTIFYFROM(CKParameter, CKObject);
-    CKCLASSDEFAULTOPTIONS(CKParameter, 1);
+    CKCLASSDEFAULTOPTIONS(CKParameter, CK_DEPENDENCIES_COPY);
 }
 
 CKParameter *CKParameter::CreateInstance(CKContext *Context) {
