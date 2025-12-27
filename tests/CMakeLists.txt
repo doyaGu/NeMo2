@@ -76,6 +76,7 @@ set(VX_TEST_SOURCES
         MemoryMappedFileTest.cpp
         TimeProfilerTest.cpp
         IntersectionTest.cpp
+        DistanceTest.cpp
 )
 
 foreach (TEST_SOURCE ${VX_TEST_SOURCES})
