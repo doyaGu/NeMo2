@@ -7,44 +7,34 @@
 //---------- Faces
 
 // Is a point inside the boundary of a face
+// Aligned with binary at 0x2428d0b0
 XBOOL VxIntersect::PointInFace(const VxVector &point, const VxVector &pt0, const VxVector &pt1, const VxVector &pt2,
                                const VxVector &norm, int &i1, int &i2) {
     // Find dominant axis of normal to determine projection plane
-    float nx = XAbs(norm.x);
-    float ny = XAbs(norm.y);
-    float nz = XAbs(norm.z);
-
-    // Select the most significant plane to project onto
+    float maxAbs = XAbs(norm.x);
     i1 = 1; // Y
     i2 = 2; // Z
 
-    if (nx < ny) {
+    if (maxAbs < XAbs(norm.y)) {
         i1 = 0; // X
         i2 = 2; // Z
-        nx = ny;
+        maxAbs = XAbs(norm.y);
     }
 
-    if (nx < nz) {
+    if (maxAbs < XAbs(norm.z)) {
         i1 = 0; // X
         i2 = 1; // Y
     }
 
-    // Get 2D coordinates
-    float p0_i1 = pt0[i1], p0_i2 = pt0[i2];
-    float p1_i1 = pt1[i1], p1_i2 = pt1[i2];
-    float p2_i1 = pt2[i1], p2_i2 = pt2[i2];
-    float pt_i1 = point[i1], pt_i2 = point[i2];
-
-    // Perform three edge tests using cross products
+    // Perform three edge tests using 2D cross products
+    // Test: (point - pt1) x (pt2 - pt1)
     char flags = 1;
-
-    // Test edge pt0->pt1 vs point
-    if ((pt_i1 - p1_i1) * (p2_i2 - p1_i2) - (p2_i1 - p1_i1) * (pt_i2 - p1_i2) >= 0.0f) {
+    if ((point[i1] - pt1[i1]) * (pt2[i2] - pt1[i2]) - (pt2[i1] - pt1[i1]) * (point[i2] - pt1[i2]) >= 0.0f) {
         flags = 2;
     }
 
-    // Test edge pt1->pt2 vs point
-    if ((pt_i1 - p2_i1) * (p0_i2 - p2_i2) - (pt_i2 - p2_i2) * (p0_i1 - p2_i1) >= 0.0f) {
+    // Test: (point - pt2) x (pt0 - pt2)
+    if ((point[i1] - pt2[i1]) * (pt0[i2] - pt2[i2]) - (point[i2] - pt2[i2]) * (pt0[i1] - pt2[i1]) >= 0.0f) {
         flags &= 2;
     } else {
         flags &= 1;
@@ -52,8 +42,8 @@ XBOOL VxIntersect::PointInFace(const VxVector &point, const VxVector &pt0, const
 
     if (!flags) return FALSE;
 
-    // Test edge pt2->pt0 vs point
-    if ((pt_i1 - p0_i1) * (p1_i2 - p0_i2) - (pt_i2 - p0_i2) * (p1_i1 - p0_i1) >= 0.0f) {
+    // Test: (point - pt0) x (pt1 - pt0)
+    if ((point[i1] - pt0[i1]) * (pt1[i2] - pt0[i2]) - (point[i2] - pt0[i2]) * (pt1[i1] - pt0[i1]) >= 0.0f) {
         return (flags & 2) != 0;
     }
 

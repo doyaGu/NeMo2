@@ -115,23 +115,25 @@ int VxIntersect::RaySphere(const VxRay &iRay, const VxSphere &iSphere, VxVector 
     VxVector normalizedDir = iRay.m_Direction * invMagnitude;
 
     // Vector from ray origin to sphere center
-    VxVector toCenter = iSphere.Center() - iRay.m_Origin;
+    const VxVector &center = iSphere.Center();
+    float toCenterX = center.x - iRay.m_Origin.x;
+    float toCenterY = center.y - iRay.m_Origin.y;
+    float toCenterZ = center.z - iRay.m_Origin.z;
 
     // Project the toCenter vector onto the normalized ray direction
-    float projection = DotProduct(toCenter, normalizedDir);
+    float projection = normalizedDir.z * toCenterZ + normalizedDir.y * toCenterY + toCenterX * normalizedDir.x;
 
     // Calculate the discriminant using geometric approach
-    float radiusSquared = iSphere.Radius() * iSphere.Radius();
-    float discriminant = radiusSquared - (SquareMagnitude(toCenter) - projection * projection);
+    float radius = iSphere.Radius();
+    float radiusSquared = radius * radius;
+    float discriminant = radiusSquared - (toCenterZ * toCenterZ + toCenterY * toCenterY + toCenterX * toCenterX - projection * projection);
 
     if (discriminant < 0.0f)
         return 0; // No intersection
 
     if (discriminant == 0.0f) {
         // Single intersection point (ray is tangent to sphere)
-        if (oInter1) {
-            *oInter1 = iRay.m_Origin + normalizedDir * projection;
-        }
+        *oInter1 = iRay.m_Origin + normalizedDir * projection;
         return 1;
     }
 
@@ -140,41 +142,34 @@ int VxIntersect::RaySphere(const VxRay &iRay, const VxSphere &iSphere, VxVector 
     float t1 = projection - sqrtDiscriminant;
     float t2 = projection + sqrtDiscriminant;
 
-    // For a ray, only return intersections in the forward direction (t >= 0)
-    if (t1 < 0.0f && t2 < 0.0f) {
-        return 0; // Both intersections are behind the ray origin
-    }
+    // Compute first intersection point
+    *oInter1 = iRay.m_Origin + normalizedDir * t1;
 
-    if (t1 < 0.0f) {
-        // Only t2 is valid (ray originates inside sphere)
-        if (oInter1) {
-            *oInter1 = iRay.m_Origin + normalizedDir * t2;
-        }
-        return 1;
-    }
-
-    // Both intersections are in front of the ray origin
-    if (oInter1) {
-        *oInter1 = iRay.m_Origin + normalizedDir * t1;
-    }
-    if (oInter2) {
-        *oInter2 = iRay.m_Origin + normalizedDir * t2;
-    }
+    // Compute second intersection point
+    *oInter2 = iRay.m_Origin + normalizedDir * t2;
 
     return 2;
 }
 
 // Intersection Sphere - AABB
 XBOOL VxIntersect::SphereAABB(const VxSphere &iSphere, const VxBbox &iBox) {
-    // Calculate the center of the bounding box
-    VxVector boxCenter = (iBox.Min + iBox.Max) * 0.5f;
+    // Get sphere center via accessor
+    const VxVector &sphereCenter = iSphere.Center();
+    
+    // Calculate the center and half-extents of the bounding box
+    VxVector boxSum(iBox.Min.x + iBox.Max.x, iBox.Min.y + iBox.Max.y, iBox.Min.z + iBox.Max.z);
+    VxVector boxCenter(boxSum.x * 0.5f, boxSum.y * 0.5f, boxSum.z * 0.5f);
 
     // Vector from box center to sphere center
-    VxVector centerDiff = boxCenter - iSphere.Center();
+    VxVector centerDiff;
+    centerDiff.x = boxCenter.x - sphereCenter.x;
+    centerDiff.y = boxCenter.y - sphereCenter.y;
+    centerDiff.z = boxCenter.z - sphereCenter.z;
 
     // Create a plane from the center difference and sphere center
     VxPlane plane;
-    plane.Create(centerDiff, iSphere.Center());
+    plane.m_Normal.z = 0.0f;
+    plane.Create(centerDiff, sphereCenter);
 
     // Initialize min and max points for box-plane intersection test
     VxVector minPt = iBox.Min;
@@ -182,27 +177,27 @@ XBOOL VxIntersect::SphereAABB(const VxSphere &iSphere, const VxBbox &iBox) {
 
     // For each axis, select the appropriate extreme point based on plane normal
     for (int i = 0; i < 3; i++) {
-        if (plane.m_Normal[i] < 0.0f) {
-            minPt[i] = iBox.Max[i];
-            maxPt[i] = iBox.Min[i];
+        if (*(&plane.m_Normal.x + i) < 0.0f) {
+            *(&minPt.x + i) = *(&iBox.Max.x + i);
+            *(&maxPt.x + i) = *(&iBox.Min.x + i);
         }
     }
 
     // Calculate signed distances from extreme points to the plane
-    float minDist = plane.Classify(minPt);
-    float maxDist = plane.Classify(maxPt);
+    float minDist = plane.m_Normal.z * minPt.z + plane.m_Normal.y * minPt.y + minPt.x * plane.m_Normal.x + plane.m_D;
 
-    // Determine the final distance value based on the signs
     float finalDist;
     if (minDist <= 0.0f) {
-        finalDist = maxDist;
-        if (maxDist < 0.0f) {
+        float maxDist = plane.m_Normal.z * maxPt.z + plane.m_Normal.y * maxPt.y + maxPt.x * plane.m_Normal.x + plane.m_D;
+        if (maxDist >= 0.0f) {
             finalDist = 0.0f;
+        } else {
+            finalDist = maxDist;
         }
     } else {
         finalDist = minDist;
     }
 
     // Return true if the absolute distance is within the sphere's radius
-    return (XAbs(finalDist) <= iSphere.Radius());
+    return (fabsf(finalDist) <= iSphere.Radius());
 }

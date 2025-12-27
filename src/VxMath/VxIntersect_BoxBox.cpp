@@ -11,25 +11,45 @@
 //----------- Boxes
 
 // Intersection Ray - Box (simple boolean version)
+// Aligned with binary at 0x2428c650
 XBOOL VxIntersect::RayBox(const VxRay &ray, const VxBbox &box) {
     // Get box center and half-extents
+    float boxHalfX = (box.Max.x - box.Min.x) * 0.5f;
+    float boxHalfY = (box.Max.y - box.Min.y) * 0.5f;
+    float boxHalfZ = (box.Max.z - box.Min.z) * 0.5f;
+    
     VxVector boxCenter = (box.Max + box.Min) * 0.5f;
-    VxVector boxHalfSize = (box.Max - box.Min) * 0.5f;
 
     // Vector from box center to ray origin
-    VxVector p = ray.m_Origin - boxCenter;
+    float px = ray.m_Origin.x - boxCenter.x;
+    float py = ray.m_Origin.y - boxCenter.y;
+    float pz = ray.m_Origin.z - boxCenter.z;
 
-    // Test if ray origin is outside box on any axis
-    if (XAbs(p.x) > boxHalfSize.x && p.x * ray.m_Direction.x >= 0.0f) return FALSE;
-    if (XAbs(p.y) > boxHalfSize.y && p.y * ray.m_Direction.y >= 0.0f) return FALSE;
-    if (XAbs(p.z) > boxHalfSize.z && p.z * ray.m_Direction.z >= 0.0f) return FALSE;
+    // Test if ray origin is outside box on any axis and heading away
+    if (!(XAbs(px) <= boxHalfX)) {
+        if (px * ray.m_Direction.x >= 0.0f) return FALSE;
+    }
+    if (!(XAbs(py) <= boxHalfY)) {
+        if (py * ray.m_Direction.y >= 0.0f) return FALSE;
+    }
+    if (!(XAbs(pz) <= boxHalfZ)) {
+        if (pz * ray.m_Direction.z >= 0.0f) return FALSE;
+    }
 
-    // Test separating axes from cross products
-    VxVector cross = CrossProduct(p, ray.m_Direction);
+    // Test separating axes from cross products (p x Direction)
+    float crossX = pz * ray.m_Direction.y - py * ray.m_Direction.z;
+    float crossY = px * ray.m_Direction.z - pz * ray.m_Direction.x;
+    float crossZ = py * ray.m_Direction.x - px * ray.m_Direction.y;
 
-    if (XAbs(cross.x) > boxHalfSize.y * XAbs(ray.m_Direction.z) + boxHalfSize.z * XAbs(ray.m_Direction.y)) return FALSE;
-    if (XAbs(cross.y) > boxHalfSize.x * XAbs(ray.m_Direction.z) + boxHalfSize.z * XAbs(ray.m_Direction.x)) return FALSE;
-    if (XAbs(cross.z) > boxHalfSize.x * XAbs(ray.m_Direction.y) + boxHalfSize.y * XAbs(ray.m_Direction.x)) return FALSE;
+    float absDirY = XAbs(ray.m_Direction.y);
+    float absDirZ = XAbs(ray.m_Direction.z);
+    
+    if (XAbs(crossX) > absDirZ * boxHalfY + absDirY * boxHalfZ) return FALSE;
+    
+    float absDirX = XAbs(ray.m_Direction.x);
+    
+    if (XAbs(crossY) > absDirX * boxHalfZ + absDirZ * boxHalfX) return FALSE;
+    if (XAbs(crossZ) > absDirX * boxHalfY + absDirY * boxHalfX) return FALSE;
 
     return TRUE;
 }
@@ -113,31 +133,50 @@ int VxIntersect::RayBox(const VxRay &ray, const VxBbox &box, VxVector &inpoint, 
 }
 
 // Intersection Segment - Box (simple boolean version)
+// Aligned with binary at 0x2428cae0
 XBOOL VxIntersect::SegmentBox(const VxRay &segment, const VxBbox &box) {
     // Get box center and half-extents
-    VxVector boxCenter = (box.Max + box.Min) * 0.5f;
-    VxVector boxHalfSize = (box.Max - box.Min) * 0.5f;
+    float boxHalfX = (box.Max.x - box.Min.x) * 0.5f;
+    float boxHalfY = (box.Max.y - box.Min.y) * 0.5f;
+    float boxHalfZ = (box.Max.z - box.Min.z) * 0.5f;
 
-    // Segment center and half-vector
-    VxVector segmentHalf = segment.m_Direction * 0.5f;
-    VxVector segmentCenter = segment.m_Origin + segmentHalf;
+    // Segment half-vector
+    float segHalfX = segment.m_Direction.x * 0.5f;
+    float segHalfY = segment.m_Direction.y * 0.5f;
+    float segHalfZ = segment.m_Direction.z * 0.5f;
+    
+    // Segment center
+    float segCenterX = segHalfX + segment.m_Origin.x;
+    float segCenterY = segHalfY + segment.m_Origin.y;
+    float segCenterZ = segHalfZ + segment.m_Origin.z;
+    
+    VxVector boxCenter = (box.Max + box.Min) * 0.5f;
 
     // Vector from box center to segment center
-    VxVector d = segmentCenter - boxCenter;
+    float dx = segCenterX - boxCenter.x;
+    float dy = segCenterY - boxCenter.y;
+    float dz = segCenterZ - boxCenter.z;
 
     // Test separating axes
-    if (XAbs(d.x) > boxHalfSize.x + XAbs(segmentHalf.x)) return FALSE;
-    if (XAbs(d.y) > boxHalfSize.y + XAbs(segmentHalf.y)) return FALSE;
-    if (XAbs(d.z) > boxHalfSize.z + XAbs(segmentHalf.z)) return FALSE;
+    float absSegHalfX = XAbs(segHalfX);
+    if (XAbs(dx) > absSegHalfX + boxHalfX) return FALSE;
+    
+    float absSegHalfY = XAbs(segHalfY);
+    if (XAbs(dy) > absSegHalfY + boxHalfY) return FALSE;
+    
+    float absSegHalfZ = XAbs(segHalfZ);
+    if (XAbs(dz) > absSegHalfZ + boxHalfZ) return FALSE;
 
-    // Test cross product axes
-    VxVector cross = CrossProduct(d, segment.m_Direction);
-
-    if (XAbs(cross.x) > boxHalfSize.y * XAbs(segment.m_Direction.z) + boxHalfSize.z * XAbs(segment.m_Direction.y))
+    // Test cross product axes (d x Direction)
+    float crossY = segHalfZ * dx - dz * segHalfX;
+    float crossZ = dy * segHalfX - segHalfY * dx;
+    
+    // Cross X = dz * segHalfY - segHalfZ * dy
+    if (XAbs(dz * segHalfY - segHalfZ * dy) > absSegHalfZ * boxHalfY + absSegHalfY * boxHalfZ)
         return FALSE;
-    if (XAbs(cross.y) > boxHalfSize.x * XAbs(segment.m_Direction.z) + boxHalfSize.z * XAbs(segment.m_Direction.x))
+    if (XAbs(crossY) > absSegHalfZ * boxHalfX + absSegHalfX * boxHalfZ)
         return FALSE;
-    if (XAbs(cross.z) > boxHalfSize.x * XAbs(segment.m_Direction.y) + boxHalfSize.y * XAbs(segment.m_Direction.x))
+    if (XAbs(crossZ) > absSegHalfY * boxHalfX + absSegHalfX * boxHalfY)
         return FALSE;
 
     return TRUE;
@@ -236,22 +275,36 @@ int VxIntersect::SegmentBox(const VxRay &segment, const VxBbox &box, VxVector &i
 }
 
 // Intersection Line - Box (simple boolean version)
+// Aligned with binary at 0x2428cf70
 XBOOL VxIntersect::LineBox(const VxRay &line, const VxBbox &box) {
     // Get box center and half-extents
+    float boxHalfX = (box.Max.x - box.Min.x) * 0.5f;
+    float boxHalfY = (box.Max.y - box.Min.y) * 0.5f;
+    float boxHalfZ = (box.Max.z - box.Min.z) * 0.5f;
+    
     VxVector boxCenter = (box.Max + box.Min) * 0.5f;
-    VxVector boxHalfSize = (box.Max - box.Min) * 0.5f;
 
     // Vector from box center to line origin
-    VxVector d = line.m_Origin - boxCenter;
+    float dx = line.m_Origin.x - boxCenter.x;
+    float dy = line.m_Origin.y - boxCenter.y;
+    float dz = line.m_Origin.z - boxCenter.z;
 
-    // Test separating axes from cross products
-    VxVector cross = CrossProduct(d, line.m_Direction);
+    // Test separating axes from cross products (d x Direction)
+    float crossX = dz * line.m_Direction.y - dy * line.m_Direction.z;
+    float crossY = dx * line.m_Direction.z - dz * line.m_Direction.x;
+    float crossZ = dy * line.m_Direction.x - dx * line.m_Direction.y;
 
-    if (XAbs(cross.x) > boxHalfSize.y * XAbs(line.m_Direction.z) + boxHalfSize.z * XAbs(line.m_Direction.y))
+    float absDirY = XAbs(line.m_Direction.y);
+    float absDirZ = XAbs(line.m_Direction.z);
+    
+    if (XAbs(crossX) > absDirZ * boxHalfY + absDirY * boxHalfZ)
         return FALSE;
-    if (XAbs(cross.y) > boxHalfSize.x * XAbs(line.m_Direction.z) + boxHalfSize.z * XAbs(line.m_Direction.x))
+    
+    float absDirX = XAbs(line.m_Direction.x);
+    
+    if (XAbs(crossY) > absDirX * boxHalfZ + absDirZ * boxHalfX)
         return FALSE;
-    if (XAbs(cross.z) > boxHalfSize.x * XAbs(line.m_Direction.y) + boxHalfSize.y * XAbs(line.m_Direction.x))
+    if (XAbs(crossZ) > absDirX * boxHalfY + absDirY * boxHalfX)
         return FALSE;
 
     return TRUE;
@@ -333,172 +386,211 @@ int VxIntersect::LineBox(const VxRay &line, const VxBbox &box, VxVector &inpoint
 }
 
 // Intersection Box - Box
+// Aligned with binary at 0x242877b0
 XBOOL VxIntersect::AABBAABB(const VxBbox &box1, const VxBbox &box2) {
     // Check for separation along all axes
-    if (box1.Min.x > box2.Max.x || box2.Min.x > box1.Max.x) return FALSE;
-    if (box1.Min.y > box2.Max.y || box2.Min.y > box1.Max.y) return FALSE;
-    if (box1.Min.z > box2.Max.z || box2.Min.z > box1.Max.z) return FALSE;
+    // Binary uses: box1.Min.x > box2.Max.x (not >=) for non-intersection
+    if (!(box1.Min.x <= box2.Max.x)) return FALSE;
+    if (!(box1.Min.y <= box2.Max.y)) return FALSE;
+    if (!(box1.Min.z <= box2.Max.z)) return FALSE;
+    if (box1.Max.x < box2.Min.x) return FALSE;
+    if (box1.Max.y < box2.Min.y) return FALSE;
+    if (box1.Max.z < box2.Min.z) return FALSE;
 
     // No separation found, boxes intersect
     return TRUE;
 }
 
 // AABB - OBB intersection
+// Aligned with binary at 0x24287dd0
 XBOOL VxIntersect::AABBOBB(const VxBbox &box1, const VxOBB &box2) {
     // Get AABB center and half-extents
+    float aabbHalfX = (box1.Max.x - box1.Min.x) * 0.5f;
+    float aabbHalfY = (box1.Max.y - box1.Min.y) * 0.5f;
+    float aabbHalfZ = (box1.Max.z - box1.Min.z) * 0.5f;
+    
     VxVector aabbCenter = (box1.Max + box1.Min) * 0.5f;
-    VxVector aabbHalfSize = (box1.Max - box1.Min) * 0.5f;
 
     // Vector from AABB center to OBB center
-    VxVector T = box2.m_Center - aabbCenter;
+    float Tx = box2.m_Center.x - aabbCenter.x;
+    float Ty = box2.m_Center.y - aabbCenter.y;
+    float Tz = box2.m_Center.z - aabbCenter.z;
 
-    // Test AABB axes
-    for (int i = 0; i < 3; i++) {
-        float ra = aabbHalfSize[i];
-        float rb = XAbs(DotProduct(box2.m_Axis[0], VxVector::axis0())) * box2.m_Extents[0] +
-                   XAbs(DotProduct(box2.m_Axis[1], VxVector::axis0())) * box2.m_Extents[1] +
-                   XAbs(DotProduct(box2.m_Axis[2], VxVector::axis0())) * box2.m_Extents[2];
+    // OBB axis components
+    float R00 = box2.m_Axis[0].x, R01 = box2.m_Axis[1].x, R02 = box2.m_Axis[2].x;
+    float R10 = box2.m_Axis[0].y, R11 = box2.m_Axis[1].y, R12 = box2.m_Axis[2].y;
+    float R20 = box2.m_Axis[0].z, R21 = box2.m_Axis[1].z, R22 = box2.m_Axis[2].z;
 
-        if (XAbs(T[i]) > ra + rb) return FALSE;
-    }
+    float absR00 = XAbs(R00), absR01 = XAbs(R01), absR02 = XAbs(R02);
+    float absR10 = XAbs(R10), absR11 = XAbs(R11), absR12 = XAbs(R12);
+    float absR20 = XAbs(R20), absR21 = XAbs(R21), absR22 = XAbs(R22);
 
-    // Test OBB axes
-    for (int i = 0; i < 3; i++) {
-        float ra = aabbHalfSize.x * XAbs(box2.m_Axis[i].x) +
-            aabbHalfSize.y * XAbs(box2.m_Axis[i].y) +
-            aabbHalfSize.z * XAbs(box2.m_Axis[i].z);
-        float rb = box2.m_Extents[i];
+    // Test AABB X axis
+    if (XAbs(Tx) > aabbHalfX + absR00 * box2.m_Extents.x + absR01 * box2.m_Extents.y + absR02 * box2.m_Extents.z)
+        return FALSE;
 
-        float t = DotProduct(T, box2.m_Axis[i]);
+    // Test AABB Y axis
+    if (XAbs(Ty) > aabbHalfY + absR10 * box2.m_Extents.x + absR11 * box2.m_Extents.y + absR12 * box2.m_Extents.z)
+        return FALSE;
 
-        if (XAbs(t) > ra + rb) return FALSE;
-    }
+    // Test AABB Z axis
+    if (XAbs(Tz) > aabbHalfZ + absR20 * box2.m_Extents.x + absR21 * box2.m_Extents.y + absR22 * box2.m_Extents.z)
+        return FALSE;
 
-    // Test cross product axes (9 axes)
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            VxVector axis;
-            axis[i] = (i == 0) ? 1.0f : 0.0f;
-            if (i == 1) axis[i] = 1.0f;
-            if (i == 2) axis[i] = 1.0f;
+    // Test OBB axis 0
+    if (XAbs(Tx * R00 + Ty * R10 + Tz * R20) > box2.m_Extents.x + absR00 * aabbHalfX + absR10 * aabbHalfY + absR20 * aabbHalfZ)
+        return FALSE;
 
-            VxVector crossAxis = CrossProduct(axis, box2.m_Axis[j]);
+    // Test OBB axis 1
+    if (XAbs(Tx * R01 + Ty * R11 + Tz * R21) > box2.m_Extents.y + absR01 * aabbHalfX + absR11 * aabbHalfY + absR21 * aabbHalfZ)
+        return FALSE;
 
-            float ra = 0.0f;
-            for (int k = 0; k < 3; k++) {
-                if (k != i) ra += aabbHalfSize[k] * XAbs(crossAxis[k]);
-            }
+    // Test OBB axis 2
+    if (XAbs(Tx * R02 + Ty * R12 + Tz * R22) > box2.m_Extents.z + absR02 * aabbHalfX + absR12 * aabbHalfY + absR22 * aabbHalfZ)
+        return FALSE;
 
-            float rb = 0.0f;
-            for (int k = 0; k < 3; k++) {
-                if (k != j) rb += box2.m_Extents[k] * XAbs(DotProduct(crossAxis, box2.m_Axis[k]));
-            }
+    // Test cross product axes
+    // AABB X axis x OBB axis 0
+    if (XAbs(Tz * R10 - R20 * Ty) > absR20 * aabbHalfY + absR10 * aabbHalfZ + absR02 * box2.m_Extents.y + absR01 * box2.m_Extents.z)
+        return FALSE;
 
-            if (XAbs(DotProduct(T, crossAxis)) > ra + rb) return FALSE;
-        }
-    }
+    // AABB X axis x OBB axis 1
+    if (XAbs(Tz * R11 - R21 * Ty) > absR21 * aabbHalfY + absR11 * aabbHalfZ + absR00 * box2.m_Extents.z + absR02 * box2.m_Extents.x)
+        return FALSE;
+
+    // AABB X axis x OBB axis 2
+    if (XAbs(Tz * R12 - R22 * Ty) > absR22 * aabbHalfY + absR12 * aabbHalfZ + absR00 * box2.m_Extents.y + absR01 * box2.m_Extents.x)
+        return FALSE;
+
+    // AABB Y axis x OBB axis 0
+    if (XAbs(R20 * Tx - Tz * R00) > absR20 * aabbHalfX + absR00 * aabbHalfZ + absR12 * box2.m_Extents.y + absR11 * box2.m_Extents.z)
+        return FALSE;
+
+    // AABB Y axis x OBB axis 1
+    if (XAbs(R21 * Tx - Tz * R01) > absR10 * box2.m_Extents.z + absR12 * box2.m_Extents.x + absR21 * aabbHalfX + absR01 * aabbHalfZ)
+        return FALSE;
+
+    // AABB Y axis x OBB axis 2
+    if (XAbs(R22 * Tx - Tz * R02) > absR10 * box2.m_Extents.y + absR11 * box2.m_Extents.x + absR22 * aabbHalfX + absR02 * aabbHalfZ)
+        return FALSE;
+
+    // AABB Z axis x OBB axis 0
+    if (XAbs(Ty * R00 - R10 * Tx) > absR10 * aabbHalfX + absR00 * aabbHalfY + absR22 * box2.m_Extents.y + absR21 * box2.m_Extents.z)
+        return FALSE;
+
+    // AABB Z axis x OBB axis 1
+    if (XAbs(Ty * R01 - R11 * Tx) > absR11 * aabbHalfX + absR01 * aabbHalfY + absR20 * box2.m_Extents.z + absR22 * box2.m_Extents.x)
+        return FALSE;
+
+    // AABB Z axis x OBB axis 2
+    if (XAbs(Ty * R02 - R12 * Tx) > absR12 * aabbHalfX + absR02 * aabbHalfY + absR20 * box2.m_Extents.y + absR21 * box2.m_Extents.x)
+        return FALSE;
 
     return TRUE;
 }
 
 // OBB - OBB intersection using SAT (Separating Axis Theorem)
+// Aligned with binary at 0x24287830
 XBOOL VxIntersect::OBBOBB(const VxOBB &box1, const VxOBB &box2) {
     // Translation vector between box centers
-    VxVector T = box2.m_Center - box1.m_Center;
+    float Tx = box2.m_Center.x - box1.m_Center.x;
+    float Ty = box2.m_Center.y - box1.m_Center.y;
+    float Tz = box2.m_Center.z - box1.m_Center.z;
 
-    // Matrix for rotation from box1 to box2
-    float R[3][3];
-    float absR[3][3];
+    // Rotation matrix from box1 to box2 coordinate system
+    // R[i][j] = dot(box1.Axis[i], box2.Axis[j])
+    float R00 = box1.m_Axis[0].x * box2.m_Axis[0].x + box1.m_Axis[0].y * box2.m_Axis[0].y + box1.m_Axis[0].z * box2.m_Axis[0].z;
+    float R01 = box1.m_Axis[0].x * box2.m_Axis[1].x + box1.m_Axis[0].y * box2.m_Axis[1].y + box1.m_Axis[0].z * box2.m_Axis[1].z;
+    float R02 = box1.m_Axis[0].x * box2.m_Axis[2].x + box1.m_Axis[0].y * box2.m_Axis[2].y + box1.m_Axis[0].z * box2.m_Axis[2].z;
 
-    // Compute R and absR (absolute values of R)
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            R[i][j] = DotProduct(box1.m_Axis[i], box2.m_Axis[j]);
-            absR[i][j] = XAbs(R[i][j]);
-        }
-    }
+    // T in box1's coordinate frame for axis A0
+    float T0 = Tx * box1.m_Axis[0].x + Ty * box1.m_Axis[0].y + Tz * box1.m_Axis[0].z;
+    float absR00 = XAbs(R00);
+    float absR01 = XAbs(R01);
+    float absR02 = XAbs(R02);
 
-    // Bring translation vector into box1's coordinate frame
-    VxVector Tbox1;
-    Tbox1.x = DotProduct(T, box1.m_Axis[0]);
-    Tbox1.y = DotProduct(T, box1.m_Axis[1]);
-    Tbox1.z = DotProduct(T, box1.m_Axis[2]);
+    // Test axis A0
+    if (XAbs(T0) > box1.m_Extents.x + absR00 * box2.m_Extents.x + absR01 * box2.m_Extents.y + absR02 * box2.m_Extents.z)
+        return FALSE;
 
-    // Test box1's axes (A0, A1, A2)
-    for (int i = 0; i < 3; i++) {
-        float ra = box1.m_Extents[i];
-        float rb = box2.m_Extents[0] * absR[i][0] +
-            box2.m_Extents[1] * absR[i][1] +
-            box2.m_Extents[2] * absR[i][2];
+    float R10 = box1.m_Axis[1].x * box2.m_Axis[0].x + box1.m_Axis[1].y * box2.m_Axis[0].y + box1.m_Axis[1].z * box2.m_Axis[0].z;
+    float R11 = box1.m_Axis[1].x * box2.m_Axis[1].x + box1.m_Axis[1].y * box2.m_Axis[1].y + box1.m_Axis[1].z * box2.m_Axis[1].z;
+    float R12 = box1.m_Axis[1].x * box2.m_Axis[2].x + box1.m_Axis[1].y * box2.m_Axis[2].y + box1.m_Axis[1].z * box2.m_Axis[2].z;
 
-        if (XAbs(Tbox1[i]) > ra + rb) return FALSE;
-    }
+    // T in box1's coordinate frame for axis A1
+    float T1 = Tx * box1.m_Axis[1].x + Ty * box1.m_Axis[1].y + Tz * box1.m_Axis[1].z;
+    float absR10 = XAbs(R10);
+    float absR11 = XAbs(R11);
+    float absR12 = XAbs(R12);
 
-    // Test box2's axes (B0, B1, B2)
-    for (int i = 0; i < 3; i++) {
-        float ra = box1.m_Extents[0] * absR[0][i] +
-            box1.m_Extents[1] * absR[1][i] +
-            box1.m_Extents[2] * absR[2][i];
-        float rb = box2.m_Extents[i];
+    // Test axis A1
+    if (XAbs(T1) > box1.m_Extents.y + absR10 * box2.m_Extents.x + absR11 * box2.m_Extents.y + absR12 * box2.m_Extents.z)
+        return FALSE;
 
-        float t = DotProduct(T, box2.m_Axis[i]);
+    float R20 = box1.m_Axis[2].x * box2.m_Axis[0].x + box1.m_Axis[2].y * box2.m_Axis[0].y + box1.m_Axis[2].z * box2.m_Axis[0].z;
+    float R21 = box1.m_Axis[2].x * box2.m_Axis[1].x + box1.m_Axis[2].y * box2.m_Axis[1].y + box1.m_Axis[2].z * box2.m_Axis[1].z;
+    float R22 = box1.m_Axis[2].x * box2.m_Axis[2].x + box1.m_Axis[2].y * box2.m_Axis[2].y + box1.m_Axis[2].z * box2.m_Axis[2].z;
 
-        if (XAbs(t) > ra + rb) return FALSE;
-    }
+    // T in box1's coordinate frame for axis A2
+    float T2 = Tx * box1.m_Axis[2].x + Ty * box1.m_Axis[2].y + Tz * box1.m_Axis[2].z;
+    float absR20 = XAbs(R20);
+    float absR21 = XAbs(R21);
+    float absR22 = XAbs(R22);
+
+    // Test axis A2
+    if (XAbs(T2) > box1.m_Extents.z + absR20 * box2.m_Extents.x + absR21 * box2.m_Extents.y + absR22 * box2.m_Extents.z)
+        return FALSE;
+
+    // Test axis B0
+    if (XAbs(Tx * box2.m_Axis[0].x + Ty * box2.m_Axis[0].y + Tz * box2.m_Axis[0].z) >
+        box2.m_Extents.x + absR00 * box1.m_Extents.x + absR10 * box1.m_Extents.y + absR20 * box1.m_Extents.z)
+        return FALSE;
+
+    // Test axis B1
+    if (XAbs(Tx * box2.m_Axis[1].x + Ty * box2.m_Axis[1].y + Tz * box2.m_Axis[1].z) >
+        box2.m_Extents.y + absR01 * box1.m_Extents.x + absR11 * box1.m_Extents.y + absR21 * box1.m_Extents.z)
+        return FALSE;
+
+    // Test axis B2
+    if (XAbs(Tx * box2.m_Axis[2].x + Ty * box2.m_Axis[2].y + Tz * box2.m_Axis[2].z) >
+        box2.m_Extents.z + absR02 * box1.m_Extents.x + absR12 * box1.m_Extents.y + absR22 * box1.m_Extents.z)
+        return FALSE;
 
     // Test axis A0 x B0
-    float ra = box1.m_Extents[1] * absR[2][0] + box1.m_Extents[2] * absR[1][0];
-    float rb = box2.m_Extents[1] * absR[0][2] + box2.m_Extents[2] * absR[0][1];
-    float t = Tbox1.z * R[1][0] - Tbox1.y * R[2][0];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(T2 * R10 - R20 * T1) > absR20 * box1.m_Extents.y + absR10 * box1.m_Extents.z + absR02 * box2.m_Extents.y + absR01 * box2.m_Extents.z)
+        return FALSE;
 
     // Test axis A0 x B1
-    ra = box1.m_Extents[1] * absR[2][1] + box1.m_Extents[2] * absR[1][1];
-    rb = box2.m_Extents[0] * absR[0][2] + box2.m_Extents[2] * absR[0][0];
-    t = Tbox1.z * R[1][1] - Tbox1.y * R[2][1];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(T2 * R11 - R21 * T1) > absR21 * box1.m_Extents.y + absR11 * box1.m_Extents.z + absR02 * box2.m_Extents.x + absR00 * box2.m_Extents.z)
+        return FALSE;
 
     // Test axis A0 x B2
-    ra = box1.m_Extents[1] * absR[2][2] + box1.m_Extents[2] * absR[1][2];
-    rb = box2.m_Extents[0] * absR[0][1] + box2.m_Extents[1] * absR[0][0];
-    t = Tbox1.z * R[1][2] - Tbox1.y * R[2][2];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(T2 * R12 - R22 * T1) > absR22 * box1.m_Extents.y + absR12 * box1.m_Extents.z + absR01 * box2.m_Extents.x + absR00 * box2.m_Extents.y)
+        return FALSE;
 
     // Test axis A1 x B0
-    ra = box1.m_Extents[0] * absR[2][0] + box1.m_Extents[2] * absR[0][0];
-    rb = box2.m_Extents[1] * absR[1][2] + box2.m_Extents[2] * absR[1][1];
-    t = Tbox1.x * R[2][0] - Tbox1.z * R[0][0];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(R20 * T0 - T2 * R00) > absR20 * box1.m_Extents.x + absR00 * box1.m_Extents.z + absR12 * box2.m_Extents.y + absR11 * box2.m_Extents.z)
+        return FALSE;
 
     // Test axis A1 x B1
-    ra = box1.m_Extents[0] * absR[2][1] + box1.m_Extents[2] * absR[0][1];
-    rb = box2.m_Extents[0] * absR[1][2] + box2.m_Extents[2] * absR[1][0];
-    t = Tbox1.x * R[2][1] - Tbox1.z * R[0][1];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(R21 * T0 - T2 * R01) > absR21 * box1.m_Extents.x + absR01 * box1.m_Extents.z + absR12 * box2.m_Extents.x + absR10 * box2.m_Extents.z)
+        return FALSE;
 
     // Test axis A1 x B2
-    ra = box1.m_Extents[0] * absR[2][2] + box1.m_Extents[2] * absR[0][2];
-    rb = box2.m_Extents[0] * absR[1][1] + box2.m_Extents[1] * absR[1][0];
-    t = Tbox1.x * R[2][2] - Tbox1.z * R[0][2];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(R22 * T0 - T2 * R02) > absR22 * box1.m_Extents.x + absR02 * box1.m_Extents.z + absR11 * box2.m_Extents.x + absR10 * box2.m_Extents.y)
+        return FALSE;
 
     // Test axis A2 x B0
-    ra = box1.m_Extents[0] * absR[1][0] + box1.m_Extents[1] * absR[0][0];
-    rb = box2.m_Extents[1] * absR[2][2] + box2.m_Extents[2] * absR[2][1];
-    t = Tbox1.y * R[0][0] - Tbox1.x * R[1][0];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(T1 * R00 - R10 * T0) > absR10 * box1.m_Extents.x + absR00 * box1.m_Extents.y + absR22 * box2.m_Extents.y + absR21 * box2.m_Extents.z)
+        return FALSE;
 
     // Test axis A2 x B1
-    ra = box1.m_Extents[0] * absR[1][1] + box1.m_Extents[1] * absR[0][1];
-    rb = box2.m_Extents[0] * absR[2][2] + box2.m_Extents[2] * absR[2][0];
-    t = Tbox1.y * R[0][1] - Tbox1.x * R[1][1];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(T1 * R01 - R11 * T0) > absR11 * box1.m_Extents.x + absR01 * box1.m_Extents.y + absR22 * box2.m_Extents.x + absR20 * box2.m_Extents.z)
+        return FALSE;
 
     // Test axis A2 x B2
-    ra = box1.m_Extents[0] * absR[1][2] + box1.m_Extents[1] * absR[0][2];
-    rb = box2.m_Extents[0] * absR[2][1] + box2.m_Extents[1] * absR[2][0];
-    t = Tbox1.y * R[0][2] - Tbox1.x * R[1][2];
-    if (XAbs(t) > ra + rb) return FALSE;
+    if (XAbs(T1 * R02 - R12 * T0) > absR12 * box1.m_Extents.x + absR02 * box1.m_Extents.y + absR21 * box2.m_Extents.x + absR20 * box2.m_Extents.y)
+        return FALSE;
 
     // No separating axis found, boxes must intersect
     return TRUE;
