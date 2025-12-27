@@ -7,3 +7,6 @@
 [submodule "deps/stb"]
 	path = deps/stb
 	url = https://github.com/nothings/stb.git
+[submodule "deps/simde"]
+	path = deps/simde
+	url = https://github.com/simd-everywhere/simde.git
