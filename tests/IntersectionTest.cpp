@@ -8,19 +8,16 @@
 #include "VxIntersect.h"
 #include "VxDistance.h"
 
-// Tolerance for SIMD operations - SIMD can have slightly different rounding than scalar operations
-constexpr float SIMD_EPSILON = 5e-07f;
-
 class IntersectionTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        epsilon = SIMD_EPSILON;
+        epsilon = EPSILON;
     }
 
     float epsilon;
 
     // Helper function to compare vectors with tolerance
-    bool VectorsApproxEqual(const VxVector& v1, const VxVector& v2, float tol = SIMD_EPSILON) {
+    bool VectorsApproxEqual(const VxVector& v1, const VxVector& v2, float tol = EPSILON) {
         return std::abs(v1.x - v2.x) < tol &&
                std::abs(v1.y - v2.y) < tol &&
                std::abs(v1.z - v2.z) < tol;
@@ -52,6 +49,9 @@ TEST_F(IntersectionTest, RaySphereIntersection) {
     EXPECT_EQ(miss_hit_count, 0);
 
     // Test ray originating inside sphere
+    // Note: Original binary returns intersection points in order of parametric t values
+    // When ray starts inside sphere: t1 = projection - sqrt(discriminant) is negative
+    // So inter1 is behind the ray origin, inter2 is in front
     VxRay inside_ray;
     inside_ray.m_Origin = VxVector(0.0f, 0.0f, 0.0f);
     inside_ray.m_Direction = VxVector(1.0f, 0.0f, 0.0f);
@@ -59,8 +59,10 @@ TEST_F(IntersectionTest, RaySphereIntersection) {
 
     VxVector inside_inter1, inside_inter2;
     int inside_hit_count = VxIntersect::RaySphere(inside_ray, sphere, &inside_inter1, &inside_inter2);
-    EXPECT_GT(inside_hit_count, 0);
-    EXPECT_TRUE(VectorsApproxEqual(inside_inter1, VxVector(2.0f, 0.0f, 0.0f), SIMD_EPSILON * 4.0f));
+    EXPECT_EQ(inside_hit_count, 2);
+    // inter1 is behind (negative t), inter2 is in front (positive t)
+    EXPECT_TRUE(VectorsApproxEqual(inside_inter1, VxVector(-2.0f, 0.0f, 0.0f), epsilon * 4.0f));
+    EXPECT_TRUE(VectorsApproxEqual(inside_inter2, VxVector(2.0f, 0.0f, 0.0f), epsilon * 4.0f));
 }
 
 TEST_F(IntersectionTest, RayPlaneIntersection) {
