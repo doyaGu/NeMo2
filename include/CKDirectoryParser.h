@@ -63,7 +63,7 @@ protected:
     void Clean();
 
     void *m_FindData;               ///< Stores find data from the operating system.
-    int m_hFile;                    ///< Handle for the directory search.
+    intptr_t m_hFile;               ///< Handle for the directory search (_findfirst/_findnext).
     char *m_FullFileName;           ///< Buffer for the full path of the currently found file.
     char *m_StartDir;               ///< The starting directory for the parse operation.
     char *m_FileMask;               ///< The file mask for filtering files.
