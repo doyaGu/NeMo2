@@ -78,7 +78,8 @@ TEST_F(VxPlaneTest, ClassifyBox) {
 
     // Test a case where the normal has negative components
     VxPlane plane_neg_normal(VxVector(0, -1, 0), 1.0f); // Plane -y + 1 = 0 => y = 1
-    EXPECT_GT(plane_neg_normal.Classify(box_in_front), 0.0f);
+    // With a negative normal, points with y > 1 are behind the plane (negative distance).
+    EXPECT_LT(plane_neg_normal.Classify(box_in_front), 0.0f);
 }
 
 // Test OBB (Oriented Bounding Box) classification
