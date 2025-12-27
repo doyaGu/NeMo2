@@ -76,8 +76,8 @@ set(VXMATH_SOURCES
         VxDistance.cpp
         VxFrustum.cpp
         VxTimeProfilerWin32.cpp
-        VxMutex.cpp
-        VxThread.cpp
+        VxMutexWin32.cpp
+        VxThreadWin32.cpp
         VxMemory.cpp
         XString.cpp
         EscapeURL.cpp
