@@ -6,197 +6,192 @@
 // VxEigenMatrix class for computing eigenvalues/eigenvectors
 class VxEigenMatrix : public VxMatrix {
 public:
-    // Compute covariance matrix from 3D points
-    XBOOL Covariance(const float *points, XULONG stride, int count) {
-        if (!points || count <= 0 || stride < sizeof(float) * 3) {
-            return FALSE;
+    VxEigenMatrix() = default;
+
+    void Covariance(const float *points, XULONG stride, int count) {
+        VxVector sum(0.0f);
+
+        float sumXX = 0.0f;
+        float sumYY = 0.0f;
+        float sumZZ = 0.0f;
+
+        float sumXY = 0.0f;
+        float sumXZ = 0.0f;
+        float sumYZ = 0.0f;
+
+        const unsigned char *cursor = (const unsigned char *) points;
+        for (int i = 0; i < count; ++i) {
+            const VxVector &pt = *(const VxVector *) cursor;
+            cursor += stride;
+
+            sum += pt;
+
+            sumXX += pt.x * pt.x;
+            sumYY += pt.y * pt.y;
+            sumZZ += pt.z * pt.z;
+
+            sumXY += pt.x * pt.y;
+            sumXZ += pt.x * pt.z;
+            sumYZ += pt.y * pt.z;
         }
 
-        // Initialize sums
-        double sumX = 0.0, sumY = 0.0, sumZ = 0.0;
-        double sumXX = 0.0, sumYY = 0.0, sumZZ = 0.0;
-        double sumXY = 0.0, sumXZ = 0.0, sumYZ = 0.0;
+        const float invCount = 1.0f / (float) count;
+        const VxVector mean = sum * invCount;
 
-        // Accumulate sums using double precision for better numerical stability
-        for (int i = 0; i < count; i++) {
-            const float *pt = (const float *)((const XBYTE *)points + i * stride);
-            double x = pt[0];
-            double y = pt[1];
-            double z = pt[2];
+        const float avgXX = sumXX * invCount;
+        const float avgYY = sumYY * invCount;
+        const float avgZZ = sumZZ * invCount;
 
-            sumX += x;
-            sumY += y;
-            sumZ += z;
+        const float avgXY = sumXY * invCount;
+        const float avgXZ = sumXZ * invCount;
+        const float avgYZ = sumYZ * invCount;
 
-            sumXX += x * x;
-            sumYY += y * y;
-            sumZZ += z * z;
+        // Symmetric 3x3 (upper-left)
+        const float cxy = avgXY - mean.y * mean.x;
+        const float cxz = avgXZ - mean.z * mean.x;
+        const float cyz = avgYZ - mean.z * mean.y;
 
-            sumXY += x * y;
-            sumXZ += x * z;
-            sumYZ += y * z;
-        }
+        VxVector4 &row0 = (*this)[0];
+        VxVector4 &row1 = (*this)[1];
+        VxVector4 &row2 = (*this)[2];
 
-        // Calculate means
-        double invCount = 1.0 / (double)count;
-        double meanX = sumX * invCount;
-        double meanY = sumY * invCount;
-        double meanZ = sumZ * invCount;
+        row0[0] = avgXX - mean.x * mean.x;
+        row1[1] = avgYY - mean.y * mean.y;
+        row2[2] = avgZZ - mean.z * mean.z;
 
-        // Calculate covariance matrix entries
-        m_Data[0][0] = (float)(sumXX * invCount - meanX * meanX); // Cxx
-        m_Data[1][1] = (float)(sumYY * invCount - meanY * meanY); // Cyy
-        m_Data[2][2] = (float)(sumZZ * invCount - meanZ * meanZ); // Czz
+        row0[1] = cxy;
+        row1[0] = cxy;
+        row0[2] = cxz;
+        row2[0] = cxz;
+        row1[2] = cyz;
+        row2[1] = cyz;
 
-        // Symmetric off-diagonal elements
-        m_Data[0][1] = m_Data[1][0] = (float)(sumXY * invCount - meanX * meanY); // Cxy = Cyx
-        m_Data[0][2] = m_Data[2][0] = (float)(sumXZ * invCount - meanX * meanZ); // Cxz = Czx
-        m_Data[1][2] = m_Data[2][1] = (float)(sumYZ * invCount - meanY * meanZ); // Cyz = Czy
-
-        return TRUE;
+        row0[3] = 0.0f;
+        row1[3] = 0.0f;
+        row2[3] = 0.0f;
     }
 
-    // Householder tridiagonalization for symmetric 3x3 matrix
-    // Stores eigenvectors in the matrix itself
-    void Tridiagonal(float *diagonal, float *offDiagonal) {
-        // Set diagonal elements
+    void Tridiagonal(float *const diagonal, float *const offDiagonal) {
+        const VxVector4 &r0 = (*this)[0];
+        const VxVector4 &r1 = (*this)[1];
+        const VxVector4 &r2 = (*this)[2];
+
+        const float a01 = r0[1];
+        const float a02 = r0[2];
+        const float a11 = r1[1];
+        const float a12 = r1[2];
+        const float a22 = r2[2];
+
         diagonal[0] = m_Data[0][0];
-        diagonal[1] = m_Data[1][1];
-        diagonal[2] = m_Data[2][2];
+        offDiagonal[2] = 0.0f;
 
-        // For 3x3 matrix, we only need one Householder reflection
-        float a01 = m_Data[0][1];
-        float a02 = m_Data[0][2];
-        float a12 = m_Data[1][2];
-
-        // Check if matrix is already tridiagonal
-        if (fabsf(a02) <= EPSILON) {
-            // Already tridiagonal
+        if (fabs(a02) < EPSILON) {
+            diagonal[1] = a11;
+            diagonal[2] = a22;
             offDiagonal[0] = a01;
             offDiagonal[1] = a12;
-            offDiagonal[2] = 0.0f;
 
-            // Set eigenvectors to identity
-            m_Data[0][0] = 1.0f; m_Data[0][1] = 0.0f; m_Data[0][2] = 0.0f;
-            m_Data[1][0] = 0.0f; m_Data[1][1] = 1.0f; m_Data[1][2] = 0.0f;
-            m_Data[2][0] = 0.0f; m_Data[2][1] = 0.0f; m_Data[2][2] = 1.0f;
-        } else {
-            // Need Householder reflection
-            float length = sqrtf(a01 * a01 + a02 * a02);
-
-            if (length > EPSILON) {
-                // Compute Householder vector
-                float invLength = 1.0f / length;
-                float u1 = a01 * invLength;
-                float u2 = a02 * invLength;
-
-                // Apply Householder transformation
-                float q11 = diagonal[1];
-                float q12 = a12;
-                float q22 = diagonal[2];
-
-                float tmp = u1 * q12 + u2 * q22;
-
-                diagonal[1] = q11 - 2.0f * u1 * (u1 * q11 + u2 * q12);
-                diagonal[2] = q22 - 2.0f * u2 * (u1 * q12 + u2 * q22);
-
-                offDiagonal[0] = length;
-                offDiagonal[1] = q12 - 2.0f * u2 * tmp;
-                offDiagonal[2] = 0.0f;
-
-                // Update eigenvector matrix
-                m_Data[0][0] = 1.0f; m_Data[0][1] = 0.0f; m_Data[0][2] = 0.0f;
-                m_Data[1][0] = 0.0f; m_Data[1][1] = u1;   m_Data[1][2] = u2;
-                m_Data[2][0] = 0.0f; m_Data[2][1] = u2;   m_Data[2][2] = -u1;
-            }
+            // Identity
+            SetIdentity();
+            return;
         }
+
+        const float length = sqrtf(a02 * a02 + a01 * a01);
+        const float invLength = 1.0f / length;
+
+        const float u1 = a01 * invLength;
+        const float u2 = a02 * invLength;
+
+        // v14 in the binary
+        const float tmp = (a22 - a11) * u2 + 2.0f * a12 * u1;
+
+        diagonal[1] = a11 + tmp * u2;
+        diagonal[2] = a22 - tmp * u2;
+        offDiagonal[0] = length;
+        offDiagonal[1] = a12 - tmp * u1;
+
+        // Householder eigenvector matrix as built by the binary
+        VxVector4 &row0 = (*this)[0];
+        VxVector4 &row1 = (*this)[1];
+        VxVector4 &row2 = (*this)[2];
+
+        row0.Set(1.0f, 0.0f, 0.0f, 0.0f);
+        row1.Set(0.0f, u1, u2, 0.0f);
+        row2.Set(0.0f, u2, -u1, 0.0f);
     }
 
-    // QL Algorithm with implicit shifts for eigenvalue decomposition
-    // Returns TRUE on success, FALSE on convergence failure
-    XBOOL QLAlgorithm(float *diagonal, float *offDiagonal) {
-        const int MAX_ITERATIONS = 32;
-
-        // For each diagonal element
-        for (int i = 0; i < 2; i++) { // Only need to process first 2 elements for 3x3
-            int iterations = 0;
-
-            while (iterations < MAX_ITERATIONS) {
-                // Check for convergence
+    XBOOL QLAlgorithm(float *const diagonal, float *const offDiagonal) {
+        // Only i=0..1 are processed for 3x3
+        for (int i = 0; i <= 1; ++i) {
+            int iter = 0;
+            for (; iter < 32; ++iter) {
                 int m = i;
-                while (m < 2) {
-                    float sum = fabsf(diagonal[m]) + fabsf(diagonal[m + 1]);
-                    if (fabsf(offDiagonal[m]) <= EPSILON * sum) {
+                while (m <= 1) {
+                    const double s = fabs(diagonal[m]) + fabs(diagonal[m + 1]);
+                    if (fabs(offDiagonal[m]) + s == s) {
                         break;
                     }
-                    m++;
+                    ++m;
                 }
 
-                // If converged, move to next eigenvalue
                 if (m == i) {
                     break;
                 }
 
-                // Compute implicit shift (Wilkinson shift)
-                float g = (diagonal[i + 1] - diagonal[i]) / (2.0f * offDiagonal[i]);
-                float r = sqrtf(g * g + 1.0f);
-
-                // Choose sign to avoid cancellation
-                if (g >= 0.0f) {
-                    g = diagonal[m] - diagonal[i] + offDiagonal[i] / (g + r);
+                // Implicit shift
+                const float g0 = (diagonal[i + 1] - diagonal[i]) / (offDiagonal[i] + offDiagonal[i]);
+                const float r0 = sqrtf(g0 * g0 + 1.0);
+                float g;
+                if (g0 >= 0.0f) {
+                    g = offDiagonal[i] / (g0 + r0) + diagonal[m] - diagonal[i];
                 } else {
-                    g = diagonal[m] - diagonal[i] + offDiagonal[i] / (g - r);
+                    g = offDiagonal[i] / (g0 - r0) + diagonal[m] - diagonal[i];
                 }
 
-                // Apply plane rotations
                 float c = 1.0f;
                 float s = 1.0f;
                 float p = 0.0f;
 
-                for (int j = m - 1; j >= i; j--) {
-                    float f = s * offDiagonal[j];
-                    float b = c * offDiagonal[j];
+                for (int j = m - 1; j >= i; --j) {
+                    const float f = c * offDiagonal[j];
+                    const float b = s * offDiagonal[j];
 
-                    // Compute rotation parameters
-                    if (fabsf(f) >= fabsf(g)) {
-                        c = g / f;
-                        r = sqrtf(c * c + 1.0f);
-                        offDiagonal[j + 1] = f * r;
+                    if (fabs(g) > fabs(f)) {
+                        const float t = f / g;
+                        const float r = sqrtf(t * t + 1.0);
+                        offDiagonal[j + 1] = r * g;
                         s = 1.0f / r;
-                        c *= s;
+                        c = t * s;
                     } else {
-                        s = f / g;
-                        r = sqrtf(s * s + 1.0f);
-                        offDiagonal[j + 1] = g * r;
+                        const float t = g / f;
+                        const float r = sqrtf(t * t + 1.0);
+                        offDiagonal[j + 1] = f * r;
                         c = 1.0f / r;
-                        s *= c;
+                        s = t * c;
                     }
 
-                    // Update diagonal and off-diagonal elements
-                    g = diagonal[j + 1] - p;
-                    r = (diagonal[j] - g) * s + 2.0f * c * b;
-                    p = s * r;
-                    diagonal[j + 1] = g + p;
-                    g = c * r - b;
+                    const float g2 = diagonal[j + 1] - p;
+                    const float r2 = (diagonal[j] - g2) * c + 2.0f * b * s;
+                    p = c * r2;
+                    diagonal[j + 1] = g2 + p;
+                    g = s * r2 - b;
 
-                    // Update eigenvectors
-                    for (int k = 0; k < 3; k++) {
-                        float t = m_Data[k][j + 1];
-                        float u = m_Data[k][j];
-                        m_Data[k][j + 1] = s * u + c * t;
-                        m_Data[k][j] = c * u - s * t;
+                    // Update eigenvectors (exact order from the binary)
+                    for (int row = 0; row < 3; ++row) {
+                        VxVector4 &rowVec = (*this)[row];
+                        const float t = rowVec[j + 1];
+                        const float u = rowVec[j];
+                        rowVec[j + 1] = s * t + c * u;
+                        rowVec[j] = s * u - c * t;
                     }
                 }
 
                 diagonal[i] -= p;
                 offDiagonal[i] = g;
                 offDiagonal[m] = 0.0f;
-
-                iterations++;
             }
 
-            // Check for convergence failure
-            if (iterations >= MAX_ITERATIONS) {
+            if (iter == 32) {
                 return FALSE;
             }
         }
@@ -204,73 +199,10 @@ public:
         return TRUE;
     }
 
-    // Sort eigenvalues and eigenvectors in descending order
-    void SortEigenvalues(float *eigenvalues) {
-        for (int i = 0; i < 2; i++) {
-            int maxIndex = i;
-
-            // Find the largest remaining eigenvalue
-            for (int j = i + 1; j < 3; j++) {
-                if (eigenvalues[j] > eigenvalues[maxIndex]) {
-                    maxIndex = j;
-                }
-            }
-
-            // Swap eigenvalues and eigenvectors
-            if (maxIndex != i) {
-                // Swap eigenvalues
-                float temp = eigenvalues[i];
-                eigenvalues[i] = eigenvalues[maxIndex];
-                eigenvalues[maxIndex] = temp;
-
-                // Swap eigenvectors (columns)
-                for (int k = 0; k < 3; k++) {
-                    temp = m_Data[k][i];
-                    m_Data[k][i] = m_Data[k][maxIndex];
-                    m_Data[k][maxIndex] = temp;
-                }
-            }
-        }
-    }
-
-    // Main method: Compute eigenvalues and eigenvectors of the 3x3 matrix
-    XBOOL EigenDecomposition(float *eigenvalues, float eigenvectors[3][3]) {
-        if (!eigenvalues || !eigenvectors) {
-            return FALSE;
-        }
-
-        float offDiagonal[3];
-
-        // Step 1: Reduce to tridiagonal form
-        Tridiagonal(eigenvalues, offDiagonal);
-
-        // Step 2: Apply QL algorithm
-        if (!QLAlgorithm(eigenvalues, offDiagonal)) {
-            return FALSE;
-        }
-
-        // Step 3: Sort eigenvalues in descending order
-        SortEigenvalues(eigenvalues);
-
-        // Copy eigenvectors
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                eigenvectors[i][j] = m_Data[i][j];
-            }
-        }
-
-        return TRUE;
-    }
-
-    // Simplified method based on decompiled code
     void EigenStuff3() {
         float diagonal[3];
         float offDiagonal[3];
-
-        // Reduce to tridiagonal form and compute eigenvectors
         Tridiagonal(diagonal, offDiagonal);
-
-        // Apply QL algorithm to find eigenvalues
         QLAlgorithm(diagonal, offDiagonal);
     }
 };
