@@ -171,7 +171,7 @@ private:
     static XHashTable<VxThread *, GENERIC_HANDLE> &GetHashThread();
 
     /// @brief The internal static function that the OS calls to start the thread.
-    static XULONG __stdcall ThreadFunc(void *args);
+    static XULONG VX_STDCALL ThreadFunc(void *args);
 
     GENERIC_HANDLE m_Thread;     ///< The native thread handle.
     unsigned int m_ThreadID;     ///< The unique thread identifier.
