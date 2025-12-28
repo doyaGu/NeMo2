@@ -7,7 +7,6 @@
 //---------- Faces
 
 // Is a point inside the boundary of a face
-// Aligned with binary at 0x2428d0b0
 XBOOL VxIntersect::PointInFace(const VxVector &point, const VxVector &pt0, const VxVector &pt1, const VxVector &pt2,
                                const VxVector &norm, int &i1, int &i2) {
     // Find dominant axis of normal to determine projection plane
@@ -217,146 +216,154 @@ int coplanar_tri_tri(const VxVector &N, const VxVector &V0, const VxVector &V1, 
 // Intersection Face - Face
 XBOOL VxIntersect::FaceFace(const VxVector &A0, const VxVector &A1, const VxVector &A2, const VxVector &N0,
                             const VxVector &B0, const VxVector &B1, const VxVector &B2, const VxVector &N1) {
-    // Compute signed distances of triangle B vertices to plane of triangle A
-    float d_A = -(DotProduct(N0, A0));
-    float dB0 = DotProduct(N0, B0) + d_A;
-    float dB1 = DotProduct(N0, B1) + d_A;
-    float dB2 = DotProduct(N0, B2) + d_A;
+    // Signed distances of B vertices to plane of A
+    const float planeA_d = -DotProduct(N0, A0);
+    float distB[3] = {
+        DotProduct(N0, B0) + planeA_d,
+        DotProduct(N0, B1) + planeA_d,
+        DotProduct(N0, B2) + planeA_d,
+    };
+    if (XAbs(distB[0]) < EPSILON) distB[0] = 0.0f;
+    if (XAbs(distB[1]) < EPSILON) distB[1] = 0.0f;
+    if (XAbs(distB[2]) < EPSILON) distB[2] = 0.0f;
+    if (distB[0] * distB[1] > 0.0f && distB[0] * distB[2] > 0.0f) return FALSE;
 
-    // Apply epsilon tolerance
-    if (XAbs(dB0) < EPSILON) dB0 = 0.0f;
-    if (XAbs(dB1) < EPSILON) dB1 = 0.0f;
-    if (XAbs(dB2) < EPSILON) dB2 = 0.0f;
+    // Signed distances of A vertices to plane of B
+    const float planeB_d = -DotProduct(N1, B0);
+    float distA[3] = {
+        DotProduct(N1, A0) + planeB_d,
+        DotProduct(N1, A1) + planeB_d,
+        DotProduct(N1, A2) + planeB_d,
+    };
+    if (XAbs(distA[0]) < EPSILON) distA[0] = 0.0f;
+    if (XAbs(distA[1]) < EPSILON) distA[1] = 0.0f;
+    if (XAbs(distA[2]) < EPSILON) distA[2] = 0.0f;
+    const float distA01 = distA[0] * distA[1];
+    const float distA02 = distA[0] * distA[2];
+    if (distA01 > 0.0f && distA02 > 0.0f) return FALSE;
 
-    // Check if all vertices of triangle B are on same side of plane A
-    float dB0_dB1 = dB0 * dB1;
-    float dB0_dB2 = dB0 * dB2;
-    if (dB0_dB1 > 0.0f && dB0_dB2 > 0.0f) {
-        return FALSE; // Triangle B is completely on one side of plane A
-    }
-
-    // Compute signed distances of triangle A vertices to plane of triangle B
-    float d_B = -(DotProduct(N1, B0));
-    float dA0 = DotProduct(N1, A0) + d_B;
-    float dA1 = DotProduct(N1, A1) + d_B;
-    float dA2 = DotProduct(N1, A2) + d_B;
-
-    // Apply epsilon tolerance
-    if (XAbs(dA0) < EPSILON) dA0 = 0.0f;
-    if (XAbs(dA1) < EPSILON) dA1 = 0.0f;
-    if (XAbs(dA2) < EPSILON) dA2 = 0.0f;
-
-    // Check if all vertices of triangle A are on same side of plane B
-    float dA0_dA1 = dA0 * dA1;
-    float dA0_dA2 = dA0 * dA2;
-    if (dA0_dA1 > 0.0f && dA0_dA2 > 0.0f) {
-        return FALSE; // Triangle A is completely on one side of plane B
-    }
-
-    // Compute direction of intersection line
-    VxVector D = CrossProduct(N0, N1);
-
-    // Find the largest component of D to choose projection axis
-    float ax = XAbs(D.x);
-    float ay = XAbs(D.y);
-    float az = XAbs(D.z);
+    // Direction of intersection line between the two planes
+    const VxVector D = CrossProduct(N0, N1);
+    const VxVector absD = Absolute(D);
 
     int maxc = 0;
-    if (ay > ax) {
+    float maxAbs = absD[0];
+    if (absD[1] >= maxAbs) {
         maxc = 1;
-        ax = ay;
+        maxAbs = absD[1];
     }
-    if (az > ax) {
+    if (absD[2] >= maxAbs) {
         maxc = 2;
     }
 
-    // Project triangles onto coordinate plane where intersection line has largest component
-    float vp0 = 0.0f, vp1 = 0.0f, vp2 = 0.0f, up0 = 0.0f, up1 = 0.0f, up2 = 0.0f;
-    switch (maxc) {
-        case 0: // Project onto YZ plane
-            vp0 = A0.y; vp1 = A1.y; vp2 = A2.y;
-            up0 = B0.y; up1 = B1.y; up2 = B2.y;
-            break;
-        case 1: // Project onto XZ plane
-            vp0 = A0.x; vp1 = A1.x; vp2 = A2.x;
-            up0 = B0.x; up1 = B1.x; up2 = B2.x;
-            break;
-        case 2: // Project onto XY plane
-            vp0 = A0.x; vp1 = A1.x; vp2 = A2.x;
-            up0 = B0.x; up1 = B1.x; up2 = B2.x;
-            break;
+    // Project vertices on the dominant axis of the intersection direction
+    const float vA[3] = {A0[maxc], A1[maxc], A2[maxc]};
+    const float vB[3] = {B0[maxc], B1[maxc], B2[maxc]};
+
+    // Compute the interval of intersection on the line for each triangle.
+    // This matches the original Möller-style branch structure, but keeps it readable.
+    float aBase;
+    float aNum0;
+    float aNum1;
+    float aDen0;
+    float aDen1;
+    if (distA01 > 0.0f) {
+        aBase = vA[2];
+        aNum0 = (vA[0] - vA[2]) * distA[2];
+        aNum1 = (vA[1] - vA[2]) * distA[2];
+        aDen0 = distA[2] - distA[0];
+        aDen1 = distA[2] - distA[1];
+    } else if (distA02 > 0.0f) {
+        aBase = vA[1];
+        aNum0 = (vA[0] - vA[1]) * distA[1];
+        aNum1 = (vA[2] - vA[1]) * distA[1];
+        aDen0 = distA[1] - distA[0];
+        aDen1 = distA[1] - distA[2];
+    } else if (distA[1] * distA[2] > 0.0f || distA[0] != 0.0f) {
+        aBase = vA[0];
+        aNum0 = (vA[1] - vA[0]) * distA[0];
+        aNum1 = (vA[2] - vA[0]) * distA[0];
+        aDen0 = distA[0] - distA[1];
+        aDen1 = distA[0] - distA[2];
+    } else if (distA[1] != 0.0f) {
+        aBase = vA[1];
+        aNum0 = (vA[0] - vA[1]) * distA[1];
+        aNum1 = (vA[2] - vA[1]) * distA[1];
+        aDen0 = distA[1] - distA[0];
+        aDen1 = distA[1] - distA[2];
+    } else if (distA[2] == 0.0f) {
+        return coplanar_tri_tri(N0, A0, A1, A2, B0, B1, B2);
+    } else {
+        aBase = vA[2];
+        aNum0 = (vA[0] - vA[2]) * distA[2];
+        aNum1 = (vA[1] - vA[2]) * distA[2];
+        aDen0 = distA[2] - distA[0];
+        aDen1 = distA[2] - distA[1];
     }
 
-    // Compute intervals for triangle A
-    float isect1[2], isect2[2];
-
-    // Handle triangle A projection
-    if (dA0_dA1 > 0.0f) {
-        // dA0 and dA1 have same sign, dA2 is different
-        isect1[0] = vp2 + (vp0 - vp2) * dA2 / (dA2 - dA0);
-        isect1[1] = vp2 + (vp1 - vp2) * dA2 / (dA2 - dA1);
-    } else if (dA0_dA2 > 0.0f) {
-        // dA0 and dA2 have same sign, dA1 is different
-        isect1[0] = vp1 + (vp0 - vp1) * dA1 / (dA1 - dA0);
-        isect1[1] = vp1 + (vp2 - vp1) * dA1 / (dA1 - dA2);
-    } else if (dA1 * dA2 > 0.0f || dA0 != 0.0f) {
-        // dA1 and dA2 have same sign, dA0 is different
-        isect1[0] = vp0 + (vp1 - vp0) * dA0 / (dA0 - dA1);
-        isect1[1] = vp0 + (vp2 - vp0) * dA0 / (dA0 - dA2);
-    } else if (dA1 != 0.0f) {
-        // dA0 == 0, use dA1
-        isect1[0] = vp1 + (vp0 - vp1) * dA1 / (dA1 - dA0);
-        isect1[1] = vp1 + (vp2 - vp1) * dA1 / (dA1 - dA2);
-    } else if (dA2 != 0.0f) {
-        // dA0 == dA1 == 0, use dA2
-        isect1[0] = vp2 + (vp0 - vp2) * dA2 / (dA2 - dA0);
-        isect1[1] = vp2 + (vp1 - vp2) * dA2 / (dA2 - dA1);
+    const float distB01 = distB[0] * distB[1];
+    const float distB02 = distB[0] * distB[2];
+    float bBase;
+    float bNum0;
+    float bNum1;
+    float bDen0;
+    float bDen1;
+    if (distB01 > 0.0f) {
+        bBase = vB[2];
+        bNum0 = (vB[0] - vB[2]) * distB[2];
+        bNum1 = (vB[1] - vB[2]) * distB[2];
+        bDen0 = distB[2] - distB[0];
+        bDen1 = distB[2] - distB[1];
+    } else if (distB02 > 0.0f) {
+        bBase = vB[1];
+        bNum0 = (vB[0] - vB[1]) * distB[1];
+        bNum1 = (vB[2] - vB[1]) * distB[1];
+        bDen0 = distB[1] - distB[0];
+        bDen1 = distB[1] - distB[2];
+    } else if (distB[1] * distB[2] > 0.0f || distB[0] != 0.0f) {
+        bBase = vB[0];
+        bNum0 = (vB[1] - vB[0]) * distB[0];
+        bNum1 = (vB[2] - vB[0]) * distB[0];
+        bDen0 = distB[0] - distB[1];
+        bDen1 = distB[0] - distB[2];
+    } else if (distB[1] != 0.0f) {
+        bBase = vB[1];
+        bNum0 = (vB[0] - vB[1]) * distB[1];
+        bNum1 = (vB[2] - vB[1]) * distB[1];
+        bDen0 = distB[1] - distB[0];
+        bDen1 = distB[1] - distB[2];
+    } else if (distB[2] != 0.0f) {
+        bBase = vB[2];
+        bNum0 = (vB[0] - vB[2]) * distB[2];
+        bNum1 = (vB[1] - vB[2]) * distB[2];
+        bDen0 = distB[2] - distB[0];
+        bDen1 = distB[2] - distB[1];
     } else {
-        // Coplanar case
         return coplanar_tri_tri(N0, A0, A1, A2, B0, B1, B2);
     }
 
-    // Handle triangle B projection
-    if (dB0_dB1 > 0.0f) {
-        // dB0 and dB1 have same sign, dB2 is different
-        isect2[0] = up2 + (up0 - up2) * dB2 / (dB2 - dB0);
-        isect2[1] = up2 + (up1 - up2) * dB2 / (dB2 - dB1);
-    } else if (dB0_dB2 > 0.0f) {
-        // dB0 and dB2 have same sign, dB1 is different
-        isect2[0] = up1 + (up0 - up1) * dB1 / (dB1 - dB0);
-        isect2[1] = up1 + (up2 - up1) * dB1 / (dB1 - dB2);
-    } else if (dB1 * dB2 > 0.0f || dB0 != 0.0f) {
-        // dB1 and dB2 have same sign, dB0 is different
-        isect2[0] = up0 + (up1 - up0) * dB0 / (dB0 - dB1);
-        isect2[1] = up0 + (up2 - up0) * dB0 / (dB0 - dB2);
-    } else if (dB1 != 0.0f) {
-        // dB0 == 0, use dB1
-        isect2[0] = up1 + (up0 - up1) * dB1 / (dB1 - dB0);
-        isect2[1] = up1 + (up2 - up1) * dB1 / (dB1 - dB2);
-    } else if (dB2 != 0.0f) {
-        // dB0 == dB1 == 0, use dB2
-        isect2[0] = up2 + (up0 - up2) * dB2 / (dB2 - dB0);
-        isect2[1] = up2 + (up1 - up2) * dB2 / (dB2 - dB1);
-    } else {
-        // Coplanar case
-        return coplanar_tri_tri(N0, A0, A1, A2, B0, B1, B2);
+    // Avoid divisions: compare intervals after multiplying by common denominator products.
+    const float aDenProd = aDen0 * aDen1;
+    const float bDenProd = bDen0 * bDen1;
+    const float denProd = aDenProd * bDenProd;
+
+    float isectA0 = bDenProd * (aDen1 * aNum0) + aBase * denProd;
+    float isectA1 = bDenProd * (aDen0 * aNum1) + aBase * denProd;
+    float isectB0 = aDenProd * (bDen1 * bNum0) + bBase * denProd;
+    float isectB1 = aDenProd * (bDen0 * bNum1) + bBase * denProd;
+
+    if (isectA0 > isectA1) {
+        const float tmp = isectA0;
+        isectA0 = isectA1;
+        isectA1 = tmp;
+    }
+    if (isectB0 > isectB1) {
+        const float tmp = isectB0;
+        isectB0 = isectB1;
+        isectB1 = tmp;
     }
 
-    // Sort intervals
-    if (isect1[0] > isect1[1]) {
-        float tmp = isect1[0];
-        isect1[0] = isect1[1];
-        isect1[1] = tmp;
-    }
-
-    if (isect2[0] > isect2[1]) {
-        float tmp = isect2[0];
-        isect2[0] = isect2[1];
-        isect2[1] = tmp;
-    }
-
-    // Check for interval overlap
-    return (isect1[1] >= isect2[0] && isect2[1] >= isect1[0]);
+    return (isectA1 >= isectB0 && isectB1 >= isectA0);
 }
 
 /* this edge to edge test is based on Franlin Antonio's gem:
@@ -426,9 +433,9 @@ int coplanar_tri_tri(const VxVector &N, const VxVector &V0, const VxVector &V1, 
     short i0, i1;
     /* first project onto an axis-aligned plane, that maximizes the area */
     /* of the triangles, compute indices: i0,i1. */
-    A[0] = fabs(N[0]);
-    A[1] = fabs(N[1]);
-    A[2] = fabs(N[2]);
+    A[0] = fabsf(N[0]);
+    A[1] = fabsf(N[1]);
+    A[2] = fabsf(N[2]);
     if (A[0] > A[1]) {
         if (A[0] > A[2]) {
             i0 = 1; /* A[0] is greatest */

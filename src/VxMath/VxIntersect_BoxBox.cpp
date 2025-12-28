@@ -1,17 +1,54 @@
 #include "VxIntersect.h"
 
-#include <float.h>
-
 #include "VxVector.h"
 #include "VxMatrix.h"
 #include "VxRay.h"
 #include "VxOBB.h"
-#include "VxPlane.h"
+
+constexpr float kHugeT = 1.0e30f;
+constexpr float kSegmentMaxT = 1.0f;
+
+static inline XBOOL SlabContainsParallel(float origin, float minV, float maxV) {
+    // Ground-truth treats slab bounds as inclusive when direction is ~0.
+    return origin >= minV && origin <= maxV;
+}
+
+static inline float OppositeDirSign(float dir) {
+    // Stores normals opposite to ray/segment direction sign
+    return (dir >= 0.0f) ? -1.0f : 1.0f;
+}
+
+static inline XBOOL PointInAABB_OutCode(const VxBbox &box, const VxVector &p, unsigned int &outCode) {
+    // Encodes outside-ness:
+    // X: <Min -> 0x02, >=Max -> 0x01
+    // Y: <Min -> 0x08, >=Max -> 0x04
+    // Z: <Min -> 0x10, >=Max -> 0x20
+    unsigned int code = 0;
+    if (p.x < box.Min.x) {
+        code |= 0x02;
+    } else if (!(p.x < box.Max.x)) {
+        code |= 0x01;
+    }
+
+    if (p.y < box.Min.y) {
+        code |= 0x08;
+    } else if (!(p.y < box.Max.y)) {
+        code |= 0x04;
+    }
+
+    if (p.z < box.Min.z) {
+        code |= 0x10;
+    } else if (!(p.z < box.Max.z)) {
+        code |= 0x20;
+    }
+
+    outCode = code;
+    return code == 0;
+}
 
 //----------- Boxes
 
 // Intersection Ray - Box (simple boolean version)
-// Aligned with binary at 0x2428c650
 XBOOL VxIntersect::RayBox(const VxRay &ray, const VxBbox &box) {
     // Get box center and half-extents
     float boxHalfX = (box.Max.x - box.Min.x) * 0.5f;
@@ -56,84 +93,69 @@ XBOOL VxIntersect::RayBox(const VxRay &ray, const VxBbox &box) {
 
 // Intersection Ray - Box (detailed version with intersection points and normals)
 int VxIntersect::RayBox(const VxRay &ray, const VxBbox &box, VxVector &inpoint, VxVector *outpoint, VxVector *innormal, VxVector *outnormal) {
-    float tNear = -FLT_MAX;
-    float tFar = FLT_MAX;
-    int nearAxis = -1;
-    float nearSign = 0.0f;
-    int farAxis = -1;
-    float farSign = 0.0f;
+    float tNear = -kHugeT;
+    float tFar = kHugeT;
+    int nearAxis = 0;
+    float nearSign = -1.0f;
+    int farAxis = 0;
+    float farSign = 1.0f;
 
-    // Test each axis
-    for (int i = 0; i < 3; i++) {
-        float rayDir = ray.m_Direction[i];
-        float rayOrigin = ray.m_Origin[i];
-        float boxMin = box.Min[i];
-        float boxMax = box.Max[i];
+    for (int i = 0; i < 3; ++i) {
+        const float rayDir = ray.m_Direction[i];
+        const float rayOrigin = ray.m_Origin[i];
+        const float boxMin = box.Min[i];
+        const float boxMax = box.Max[i];
 
-        if (XAbs(rayDir) < EPSILON) {
-            // Ray is parallel to the slab
-            if (rayOrigin < boxMin || rayOrigin > boxMax)
+        if (fabsf(rayDir) < EPSILON) {
+            if (!SlabContainsParallel(rayOrigin, boxMin, boxMax))
                 return 0;
-        } else {
-            float invDir = 1.0f / rayDir;
-            float t1 = (boxMin - rayOrigin) * invDir;
-            float t2 = (boxMax - rayOrigin) * invDir;
-
-            float sign1 = -1.0f;
-            float sign2 = 1.0f;
-
-            if (t1 > t2) {
-                // Swap t1 and t2
-                float temp = t1;
-                t1 = t2;
-                t2 = temp;
-                sign1 = 1.0f;
-                sign2 = -1.0f;
-            }
-
-            if (t1 > tNear) {
-                tNear = t1;
-                nearAxis = i;
-                nearSign = sign1;
-            }
-
-            if (t2 < tFar) {
-                tFar = t2;
-                farAxis = i;
-                farSign = sign2;
-            }
-
-            if (tNear > tFar || tFar < EPSILON)
-                return 0;
+            continue;
         }
+
+        const float invDir = 1.0f / rayDir;
+        float t1 = (boxMin - rayOrigin) * invDir;
+        float t2 = (boxMax - rayOrigin) * invDir;
+
+        if (t1 > t2) {
+            const float tmp = t1;
+            t1 = t2;
+            t2 = tmp;
+        }
+
+        if (t1 > tNear) {
+            tNear = t1;
+            nearAxis = i;
+            nearSign = OppositeDirSign(rayDir);
+        }
+
+        if (t2 < tFar) {
+            tFar = t2;
+            farAxis = i;
+            farSign = OppositeDirSign(rayDir);
+        }
+
+        if (tNear > tFar || tFar < EPSILON)
+            return 0;
     }
 
-    // Calculate intersection points
     inpoint = ray.m_Origin + ray.m_Direction * tNear;
     if (outpoint)
         *outpoint = ray.m_Origin + ray.m_Direction * tFar;
 
-    // Calculate normals
     if (innormal) {
         *innormal = VxVector::axis0();
-        if (nearAxis >= 0)
-            (*innormal)[nearAxis] = nearSign;
+        (*innormal)[nearAxis] = nearSign;
     }
 
     if (outnormal) {
         *outnormal = VxVector::axis0();
-        if (farAxis >= 0)
-            (*outnormal)[farAxis] = farSign;
+        (*outnormal)[farAxis] = farSign;
     }
 
-    if (tNear < EPSILON)
-        return -1; // Ray starts inside box
-    else
-        return 1; // Normal intersection
+    return (tNear <= EPSILON) ? -1 : 1;
 }
 
 // Intersection Segment - Box (simple boolean version)
-// Aligned with binary at 0x2428cae0
 XBOOL VxIntersect::SegmentBox(const VxRay &segment, const VxBbox &box) {
     // Get box center and half-extents
     float boxHalfX = (box.Max.x - box.Min.x) * 0.5f;
@@ -184,98 +206,75 @@ XBOOL VxIntersect::SegmentBox(const VxRay &segment, const VxBbox &box) {
 
 // Intersection Segment - Box (detailed version)
 int VxIntersect::SegmentBox(const VxRay &segment, const VxBbox &box, VxVector &inpoint, VxVector *outpoint, VxVector *innormal, VxVector *outnormal) {
-    float tNear = 0.0f; // Segment starts at t=0
-    float tFar = 1.0f;  // Segment ends at t=1
-    int nearAxis = -1;
-    float nearSign = 0.0f;
-    int farAxis = -1;
-    float farSign = 0.0f;
+    float tNear = -kHugeT;
+    float tFar = kHugeT;
+    int nearAxis = 0;
+    float nearSign = -1.0f;
+    int farAxis = 0;
+    float farSign = 1.0f;
 
-    // Test each axis
-    for (int i = 0; i < 3; i++) {
-        float rayDir = segment.m_Direction[i];
-        float rayOrigin = segment.m_Origin[i];
-        float boxMin = box.Min[i];
-        float boxMax = box.Max[i];
+    for (int i = 0; i < 3; ++i) {
+        const float segDir = segment.m_Direction[i];
+        const float segOrigin = segment.m_Origin[i];
+        const float boxMin = box.Min[i];
+        const float boxMax = box.Max[i];
 
-        if (XAbs(rayDir) < EPSILON) {
-            // Segment is parallel to the slab
-            if (rayOrigin < boxMin || rayOrigin > boxMax)
+        if (fabsf(segDir) < EPSILON) {
+            if (!SlabContainsParallel(segOrigin, boxMin, boxMax))
                 return 0;
-        } else {
-            float invDir = 1.0f / rayDir;
-            float t1 = (boxMin - rayOrigin) * invDir;
-            float t2 = (boxMax - rayOrigin) * invDir;
-
-            float sign1 = -1.0f;
-            float sign2 = 1.0f;
-
-            if (t1 > t2) {
-                // Swap t1 and t2
-                float temp = t1;
-                t1 = t2;
-                t2 = temp;
-                sign1 = 1.0f;
-                sign2 = -1.0f;
-            }
-
-            if (t1 > tNear) {
-                tNear = t1;
-                nearAxis = i;
-                nearSign = sign1;
-            }
-
-            if (t2 < tFar) {
-                tFar = t2;
-                farAxis = i;
-                farSign = sign2;
-            }
-
-            if (tNear > tFar)
-                return 0;
+            continue;
         }
+
+        const float invDir = 1.0f / segDir;
+        float t1 = (boxMin - segOrigin) * invDir;
+        float t2 = (boxMax - segOrigin) * invDir;
+
+        if (t1 > t2) {
+            const float tmp = t1;
+            t1 = t2;
+            t2 = tmp;
+        }
+
+        if (t1 > tNear) {
+            tNear = t1;
+            nearAxis = i;
+            nearSign = OppositeDirSign(segDir);
+        }
+
+        if (t2 < tFar) {
+            tFar = t2;
+            farAxis = i;
+            farSign = OppositeDirSign(segDir);
+        }
+
+        if (tNear > tFar || tFar < EPSILON)
+            return 0;
     }
 
-    // Check if segment intersects box (must have overlap with [0,1])
-    if (tNear > 1.0f + EPSILON || tFar < -EPSILON)
+    // Segment parameter range is [0, 1].
+    if (tNear > kSegmentMaxT)
+        return 0;
+    if (tNear < EPSILON && tFar > kSegmentMaxT)
         return 0;
 
-    // Clamp to segment range
-    if (tNear < EPSILON) {
-        tNear = 0.0f;
-        nearAxis = -1; // Mark as starting inside
-    }
-    if (tFar > 1.0f - EPSILON) {
-        tFar = 1.0f;
-        farAxis = -1; // Mark as ending inside
-    }
-
-    // Calculate intersection points
     inpoint = segment.m_Origin + segment.m_Direction * tNear;
     if (outpoint)
         *outpoint = segment.m_Origin + segment.m_Direction * tFar;
 
-    // Calculate normals
     if (innormal) {
         *innormal = VxVector::axis0();
-        if (nearAxis >= 0)
-            (*innormal)[nearAxis] = nearSign;
+        (*innormal)[nearAxis] = nearSign;
     }
 
     if (outnormal) {
         *outnormal = VxVector::axis0();
-        if (farAxis >= 0)
-            (*outnormal)[farAxis] = farSign;
+        (*outnormal)[farAxis] = farSign;
     }
 
-    if (tNear < EPSILON)
-        return -1; // Segment starts inside box
-    else
-        return 1; // Normal intersection
+    return (tNear <= EPSILON) ? -1 : 1;
 }
 
 // Intersection Line - Box (simple boolean version)
-// Aligned with binary at 0x2428cf70
 XBOOL VxIntersect::LineBox(const VxRay &line, const VxBbox &box) {
     // Get box center and half-extents
     float boxHalfX = (box.Max.x - box.Min.x) * 0.5f;
@@ -312,97 +311,77 @@ XBOOL VxIntersect::LineBox(const VxRay &line, const VxBbox &box) {
 
 // Intersection Line - Box (detailed version)
 int VxIntersect::LineBox(const VxRay &line, const VxBbox &box, VxVector &inpoint, VxVector *outpoint, VxVector *innormal, VxVector *outnormal) {
-    float tNear = -FLT_MAX;
-    float tFar = FLT_MAX;
-    int nearAxis = -1;
-    float nearSign = 0.0f;
-    int farAxis = -1;
-    float farSign = 0.0f;
+    float tNear = -kHugeT;
+    float tFar = kHugeT;
+    int nearAxis = 0;
+    float nearSign = -1.0f;
+    int farAxis = 0;
+    float farSign = 1.0f;
 
-    // Test each axis
-    for (int i = 0; i < 3; i++) {
-        float rayDir = line.m_Direction[i];
-        float rayOrigin = line.m_Origin[i];
-        float boxMin = box.Min[i];
-        float boxMax = box.Max[i];
+    for (int i = 0; i < 3; ++i) {
+        const float dir = line.m_Direction[i];
+        const float origin = line.m_Origin[i];
+        const float boxMin = box.Min[i];
+        const float boxMax = box.Max[i];
 
-        if (XAbs(rayDir) < EPSILON) {
-            // Line is parallel to the slab
-            if (rayOrigin < boxMin || rayOrigin > boxMax)
+        if (fabsf(dir) < EPSILON) {
+            if (!SlabContainsParallel(origin, boxMin, boxMax))
                 return 0;
-        } else {
-            float invDir = 1.0f / rayDir;
-            float t1 = (boxMin - rayOrigin) * invDir;
-            float t2 = (boxMax - rayOrigin) * invDir;
-
-            float sign1 = -1.0f;
-            float sign2 = 1.0f;
-
-            if (XAbs(t2) < XAbs(t1)) {
-                // Swap t1 and t2
-                float temp = t1;
-                t1 = t2;
-                t2 = temp;
-                sign1 = 1.0f;
-                sign2 = -1.0f;
-            }
-
-            if (XAbs(tNear) < XAbs(t1)) {
-                tNear = t1;
-                nearAxis = i;
-                nearSign = sign1;
-            }
-
-            if (XAbs(t2) < XAbs(tFar)) {
-                tFar = t2;
-                farAxis = i;
-                farSign = sign2;
-            }
-
-            if (XAbs(tFar) < XAbs(tNear))
-                return 0;
+            continue;
         }
+
+        const float invDir = 1.0f / dir;
+        float t1 = (boxMin - origin) * invDir;
+        float t2 = (boxMax - origin) * invDir;
+
+        // Orders the slab parameters by absolute value for lines.
+        if (fabsf(t2) < fabsf(t1)) {
+            const float tmp = t1;
+            t1 = t2;
+            t2 = tmp;
+        }
+
+        if (fabsf(t1) < fabsf(tNear)) {
+            tNear = t1;
+            nearAxis = i;
+            nearSign = OppositeDirSign(dir);
+        }
+
+        if (fabsf(t2) < fabsf(tFar)) {
+            tFar = t2;
+            farAxis = i;
+            farSign = OppositeDirSign(dir);
+        }
+
+        if (fabsf(tFar) < fabsf(tNear))
+            return 0;
     }
 
-    // Calculate intersection points
     inpoint = line.m_Origin + line.m_Direction * tNear;
     if (outpoint)
         *outpoint = line.m_Origin + line.m_Direction * tFar;
 
-    // Calculate normals
     if (innormal) {
         *innormal = VxVector::axis0();
-        if (nearAxis >= 0)
-            (*innormal)[nearAxis] = nearSign;
+        (*innormal)[nearAxis] = nearSign;
     }
 
     if (outnormal) {
         *outnormal = VxVector::axis0();
-        if (farAxis >= 0)
-            (*outnormal)[farAxis] = farSign;
+        (*outnormal)[farAxis] = farSign;
     }
 
     return 1;
 }
 
 // Intersection Box - Box
-// Aligned with binary at 0x242877b0
 XBOOL VxIntersect::AABBAABB(const VxBbox &box1, const VxBbox &box2) {
-    // Check for separation along all axes
-    // Binary uses: box1.Min.x > box2.Max.x (not >=) for non-intersection
-    if (!(box1.Min.x <= box2.Max.x)) return FALSE;
-    if (!(box1.Min.y <= box2.Max.y)) return FALSE;
-    if (!(box1.Min.z <= box2.Max.z)) return FALSE;
-    if (box1.Max.x < box2.Min.x) return FALSE;
-    if (box1.Max.y < box2.Min.y) return FALSE;
-    if (box1.Max.z < box2.Min.z) return FALSE;
-
-    // No separation found, boxes intersect
-    return TRUE;
+    return (box1.Min.x <= box2.Max.x) && (box1.Max.x >= box2.Min.x) &&
+           (box1.Min.y <= box2.Max.y) && (box1.Max.y >= box2.Min.y) &&
+           (box1.Min.z <= box2.Max.z) && (box1.Max.z >= box2.Min.z);
 }
 
 // AABB - OBB intersection
-// Aligned with binary at 0x24287dd0
 XBOOL VxIntersect::AABBOBB(const VxBbox &box1, const VxOBB &box2) {
     // Get AABB center and half-extents
     float aabbHalfX = (box1.Max.x - box1.Min.x) * 0.5f;
@@ -490,7 +469,6 @@ XBOOL VxIntersect::AABBOBB(const VxBbox &box1, const VxOBB &box2) {
 }
 
 // OBB - OBB intersection using SAT (Separating Axis Theorem)
-// Aligned with binary at 0x24287830
 XBOOL VxIntersect::OBBOBB(const VxOBB &box1, const VxOBB &box2) {
     // Translation vector between box centers
     float Tx = box2.m_Center.x - box1.m_Center.x;
@@ -598,75 +576,90 @@ XBOOL VxIntersect::OBBOBB(const VxOBB &box1, const VxOBB &box2) {
 
 // AABB - Face (triangle) intersection
 XBOOL VxIntersect::AABBFace(const VxBbox &box, const VxVector &A0, const VxVector &A1, const VxVector &A2, const VxVector &N) {
-    // 1. Check if any vertex of the triangle is inside the box
-    if (box.VectorIn(A0) || box.VectorIn(A1) || box.VectorIn(A2))
+    // Implements a hybrid of trivial rejection + triangle-edge vs box
+    // tests, and finally tests the most "planar" box diagonal vs the triangle.
+
+    unsigned int code0 = 0, code1 = 0, code2 = 0;
+    if (PointInAABB_OutCode(box, A0, code0))
+        return TRUE;
+    if (PointInAABB_OutCode(box, A1, code1))
+        return TRUE;
+    if (PointInAABB_OutCode(box, A2, code2))
         return TRUE;
 
-    // 2. Check if the box intersects the plane of the triangle
-    VxPlane plane(N, A0);
-
-    // Test all 8 corners of the box against the plane
-    float minDist = FLT_MAX;
-    float maxDist = -FLT_MAX;
-
-    VxVector corners[8] = {
-        VxVector(box.Min.x, box.Min.y, box.Min.z),
-        VxVector(box.Max.x, box.Min.y, box.Min.z),
-        VxVector(box.Min.x, box.Max.y, box.Min.z),
-        VxVector(box.Max.x, box.Max.y, box.Min.z),
-        VxVector(box.Min.x, box.Min.y, box.Max.z),
-        VxVector(box.Max.x, box.Min.y, box.Max.z),
-        VxVector(box.Min.x, box.Max.y, box.Max.z),
-        VxVector(box.Max.x, box.Max.y, box.Max.z)
-    };
-
-    for (int i = 0; i < 8; i++) {
-        float dist = plane.Classify(corners[i]);
-        if (dist < minDist) minDist = dist;
-        if (dist > maxDist) maxDist = dist;
-    }
-
-    // If all corners are on the same side of the plane, no intersection
-    if (minDist > 0.0f || maxDist < 0.0f)
+    // Trivial reject: all vertices outside the same slab half-space.
+    if ((code0 & code1 & code2) != 0)
         return FALSE;
 
-    // 3. Check if any edge of the triangle intersects the box
+    // Test triangle edges against box.
     VxRay edge;
-
-    // Edge A0A1
     edge.m_Origin = A0;
     edge.m_Direction = A1 - A0;
     if (SegmentBox(edge, box))
         return TRUE;
 
-    // Edge A1A2
     edge.m_Origin = A1;
     edge.m_Direction = A2 - A1;
     if (SegmentBox(edge, box))
         return TRUE;
 
-    // Edge A2A0
-    edge.m_Origin = A2;
-    edge.m_Direction = A0 - A2;
+    edge.m_Origin = A0;
+    edge.m_Direction = A2 - A0;
     if (SegmentBox(edge, box))
         return TRUE;
 
-    // 4. Check if any edge of the box intersects the triangle
-    // Test 12 edges of the box against the triangle
-    static const int edgeIndices[12][2] = {
-        {0, 1}, {0, 2}, {0, 4}, {1, 3}, {1, 5}, {2, 3},
-        {2, 6}, {3, 7}, {4, 5}, {4, 6}, {5, 7}, {6, 7}
+    // Build box corners in the same order as the original.
+    const VxVector corners[8] = {
+        VxVector(box.Min.x, box.Min.y, box.Min.z), // 0
+        VxVector(box.Min.x, box.Min.y, box.Max.z), // 1
+        VxVector(box.Min.x, box.Max.y, box.Min.z), // 2
+        VxVector(box.Min.x, box.Max.y, box.Max.z), // 3
+        VxVector(box.Max.x, box.Min.y, box.Min.z), // 4
+        VxVector(box.Max.x, box.Min.y, box.Max.z), // 5
+        VxVector(box.Max.x, box.Max.y, box.Min.z), // 6
+        VxVector(box.Max.x, box.Max.y, box.Max.z)  // 7
     };
 
-    VxVector point;
-    float dist;
+    // Choose among the 4 body diagonals the one whose direction is most
+    // orthogonal to the triangle normal (min |dot(diagonal, N)|).
+    int bestA = 0;
+    int bestB = 7;
+    float bestScore = fabsf(DotProduct(corners[bestA] - corners[bestB], N));
 
-    for (int i = 0; i < 12; i++) {
-        edge.m_Origin = corners[edgeIndices[i][0]];
-        edge.m_Direction = corners[edgeIndices[i][1]] - corners[edgeIndices[i][0]];
-        if (SegmentFace(edge, A0, A1, A2, N, point, dist))
-            return TRUE;
+    {
+        const int a = 1, b = 6;
+        const float s = fabsf(DotProduct(corners[a] - corners[b], N));
+        if (s < bestScore) {
+            bestScore = s;
+            bestA = a;
+            bestB = b;
+        }
+    }
+    {
+        const int a = 2, b = 5;
+        const float s = fabsf(DotProduct(corners[a] - corners[b], N));
+        if (s < bestScore) {
+            bestScore = s;
+            bestA = a;
+            bestB = b;
+        }
+    }
+    {
+        const int a = 3, b = 4;
+        const float s = fabsf(DotProduct(corners[a] - corners[b], N));
+        if (s < bestScore) {
+            bestScore = s;
+            bestA = a;
+            bestB = b;
+        }
     }
 
-    return FALSE;
+    // Test the chosen diagonal against the triangle.
+    VxRay diag;
+    diag.m_Origin = corners[bestA];
+    diag.m_Direction = corners[bestB] - corners[bestA];
+    VxVector hit;
+    hit.z = 0.0f;
+    float dist = bestScore;
+    return SegmentFace(diag, A0, A1, A2, N, hit, dist) ? TRUE : FALSE;
 }

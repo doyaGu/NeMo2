@@ -4,6 +4,9 @@
 #include "VxRay.h"
 #include "VxPlane.h"
 
+constexpr float kPlaneParallelEps = EPSILON;
+constexpr float kSegmentMaxT = 1.0f + EPSILON;
+
 //---------- Planes
 
 // Intersection Ray - Plane
@@ -12,14 +15,14 @@ XBOOL VxIntersect::RayPlane(const VxRay &ray, const VxPlane &plane, VxVector &po
     float denom = DotProduct(plane.m_Normal, ray.m_Direction);
 
     // Check if ray is parallel to plane (or nearly parallel)
-    if (XAbs(denom) < EPSILON)
+    if (XAbs(denom) < kPlaneParallelEps)
         return FALSE;
 
     // Calculate distance along ray
     dist = -(DotProduct(plane.m_Normal, ray.m_Origin) + plane.m_D) / denom;
 
     // For a ray, intersection must be in positive direction (with epsilon tolerance)
-    if (dist < -EPSILON)
+    if (dist < -kPlaneParallelEps)
         return FALSE;
 
     // Calculate intersection point
@@ -32,15 +35,15 @@ XBOOL VxIntersect::RayPlaneCulled(const VxRay &ray, const VxPlane &plane, VxVect
     // Calculate the denominator: dot(ray.Dir, plane.Normal)
     float denom = DotProduct(plane.m_Normal, ray.m_Direction);
 
-    // Ensure ray is coming from the front of the plane (denom < -epsilon)
-    if (denom >= -EPSILON)
+    // Ensure ray is coming from the front of the plane (denom <= -epsilon)
+    if (denom > -kPlaneParallelEps)
         return FALSE;
 
     // Calculate distance along ray
     dist = -(DotProduct(plane.m_Normal, ray.m_Origin) + plane.m_D) / denom;
 
     // For a ray, intersection must be in positive direction (with epsilon tolerance)
-    if (dist < -EPSILON)
+    if (dist < -kPlaneParallelEps)
         return FALSE;
 
     // Calculate intersection point
@@ -54,16 +57,16 @@ XBOOL VxIntersect::SegmentPlane(const VxRay &ray, const VxPlane &plane, VxVector
     float denom = DotProduct(plane.m_Normal, ray.m_Direction);
 
     // Check if segment is parallel to plane (or nearly parallel)
-    if (XAbs(denom) < EPSILON)
+    if (XAbs(denom) < kPlaneParallelEps)
         return FALSE;
 
     // Calculate distance along ray
     dist = -(DotProduct(plane.m_Normal, ray.m_Origin) + plane.m_D) / denom;
 
     // For a segment, intersection must be between -epsilon and 1+epsilon
-    if (dist < -EPSILON)
+    if (dist < -kPlaneParallelEps)
         return FALSE;
-    if (dist > 1.0000001f)
+    if (dist > kSegmentMaxT)
         return FALSE;
 
     // Calculate intersection point
@@ -76,17 +79,17 @@ XBOOL VxIntersect::SegmentPlaneCulled(const VxRay &ray, const VxPlane &plane, Vx
     // Calculate the denominator: dot(ray.Dir, plane.Normal)
     float denom = DotProduct(plane.m_Normal, ray.m_Direction);
 
-    // Ensure segment is coming from the front of the plane (denom < -epsilon)
-    if (denom >= -EPSILON)
+    // Ensure segment is coming from the front of the plane (denom <= -epsilon)
+    if (denom > -kPlaneParallelEps)
         return FALSE;
 
     // Calculate distance along ray
     dist = -(DotProduct(plane.m_Normal, ray.m_Origin) + plane.m_D) / denom;
 
     // For a segment, intersection must be between -epsilon and 1+epsilon
-    if (dist < -EPSILON)
+    if (dist < -kPlaneParallelEps)
         return FALSE;
-    if (dist > 1.0000001f)
+    if (dist > kSegmentMaxT)
         return FALSE;
 
     // Calculate intersection point
@@ -100,7 +103,7 @@ XBOOL VxIntersect::LinePlane(const VxRay &ray, const VxPlane &plane, VxVector &p
     float denom = DotProduct(plane.m_Normal, ray.m_Direction);
 
     // Check if line is parallel to plane (or nearly parallel)
-    if (XAbs(denom) < EPSILON)
+    if (XAbs(denom) < kPlaneParallelEps)
         return FALSE;
 
     // Calculate distance along ray
@@ -136,49 +139,36 @@ XBOOL VxIntersect::BoxPlane(const VxBbox &box, const VxPlane &plane) {
 
 // Intersection Box - Plane with transformation
 XBOOL VxIntersect::BoxPlane(const VxBbox &box, const VxMatrix &mat, const VxPlane &plane) {
-    // Calculate half-size vector
-    VxVector halfSize = (box.Max - box.Min) * 0.5f;
-    
-    // Calculate the three transformed half-extent vectors
-    VxVector axis0 = VxVector(mat[0][0], mat[0][1], mat[0][2]) * halfSize.x;
-    VxVector axis1 = VxVector(mat[1][0], mat[1][1], mat[1][2]) * halfSize.y;
-    VxVector axis2 = VxVector(mat[2][0], mat[2][1], mat[2][2]) * halfSize.z;
+    VxVector halfSize = box.GetHalfSize();
 
-    // Calculate the projection radius of box onto plane normal
-    float radius = XAbs(DotProduct(plane.m_Normal, axis0)) +
-                   XAbs(DotProduct(plane.m_Normal, axis1)) +
-                   XAbs(DotProduct(plane.m_Normal, axis2));
+    // Project the oriented box half-extents onto the plane normal.
+    // abs(dot(n, row0*hx)) + abs(dot(n, row1*hy)) + abs(dot(n, row2*hz)))
+    float radius = XAbs(DotProduct(plane.m_Normal, mat[0] * halfSize.x)) +
+                   XAbs(DotProduct(plane.m_Normal, mat[1] * halfSize.y)) +
+                   XAbs(DotProduct(plane.m_Normal, mat[2] * halfSize.z));
 
-    // Calculate box center and transform it
-    VxVector center = (box.Min + box.Max) * 0.5f;
+    VxVector center = box.GetCenter();
     VxVector transformedCenter;
     Vx3DMultiplyMatrixVector(&transformedCenter, mat, &center);
 
-    // Calculate distance from box center to plane
     float dist = DotProduct(plane.m_Normal, transformedCenter) + plane.m_D;
-
-    // Box intersects plane if |distance| <= radius
-    if (XAbs(dist) <= radius) {
-        return TRUE;
-    }
-    
-    return dist == 0.0f;
+    return XAbs(dist) <= radius;
 }
 
 // Intersection Face - Plane
-XBOOL VxIntersect::FacePlane(const VxVector &A0, const VxVector &A1, const VxVector &A2, const VxPlane &plane) {
-    // Get signed distances from vertices to plane
-    float d0 = plane.Classify(A0);
-    float d1 = plane.Classify(A1);
-    float d2 = plane.Classify(A2);
+// XBOOL VxIntersect::FacePlane(const VxVector &A0, const VxVector &A1, const VxVector &A2, const VxPlane &plane) {
+//     // Get signed distances from vertices to plane
+//     float d0 = plane.Classify(A0);
+//     float d1 = plane.Classify(A1);
+//     float d2 = plane.Classify(A2);
 
-    // Face intersects plane if vertices are on different sides
-    // or at least one vertex is on the plane
-    if ((d0 * d1 <= 0.0f) || (d1 * d2 <= 0.0f) || (d2 * d0 <= 0.0f))
-        return TRUE;
+//     // Face intersects plane if vertices are on different sides
+//     // or at least one vertex is on the plane
+//     if ((d0 * d1 <= 0.0f) || (d1 * d2 <= 0.0f) || (d2 * d0 <= 0.0f))
+//         return TRUE;
 
-    return FALSE;
-}
+//     return FALSE;
+// }
 
 // Intersection of 3 planes using Cramer's rule
 XBOOL VxIntersect::Planes(const VxPlane &plane1, const VxPlane &plane2, const VxPlane &plane3, VxVector &p) {
