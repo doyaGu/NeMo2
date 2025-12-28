@@ -184,9 +184,19 @@ static void DetectInstructionSets() {
         g_InstructionSetExtensions |= ISEX_SSE3;
     }
 
+    // PCLMULQDQ support (bit 1 in ECX)
+    if (regs1.ecx & (1 << 1)) {
+        g_InstructionSetExtensions |= ISEX_PCLMULQDQ;
+    }
+
     // SSSE3 support (bit 9 in ECX)
     if (regs1.ecx & (1 << 9)) {
         g_InstructionSetExtensions |= ISEX_SSSE3;
+    }
+
+    // FMA3 support (bit 12 in ECX)
+    if (regs1.ecx & (1 << 12)) {
+        g_InstructionSetExtensions |= ISEX_FMA3;
     }
 
     // SSE4.1 support (bit 19 in ECX)
@@ -199,9 +209,34 @@ static void DetectInstructionSets() {
         g_InstructionSetExtensions |= ISEX_SSE42;
     }
 
+    // MOVBE support (bit 22 in ECX)
+    if (regs1.ecx & (1 << 22)) {
+        g_InstructionSetExtensions |= ISEX_MOVBE;
+    }
+
+    // POPCNT support (bit 23 in ECX)
+    if (regs1.ecx & (1 << 23)) {
+        g_InstructionSetExtensions |= ISEX_POPCNT;
+    }
+
+    // AES-NI support (bit 25 in ECX)
+    if (regs1.ecx & (1 << 25)) {
+        g_InstructionSetExtensions |= ISEX_AES;
+    }
+
     // AVX support (bit 28 in ECX)
     if (regs1.ecx & (1 << 28)) {
         g_InstructionSetExtensions |= ISEX_AVX;
+    }
+
+    // F16C support (bit 29 in ECX)
+    if (regs1.ecx & (1 << 29)) {
+        g_InstructionSetExtensions |= ISEX_F16C;
+    }
+
+    // RDRAND support (bit 30 in ECX)
+    if (regs1.ecx & (1 << 30)) {
+        g_InstructionSetExtensions |= ISEX_RDRAND;
     }
 
     // Check extended features from CPUID function 7
@@ -209,20 +244,14 @@ static void DetectInstructionSets() {
     if (regs0.eax >= 7) {
         CpuIdRegs regs7 = cpuidex(7, 0);
 
-        // AVX2 support (bit 5 in EBX)
-        if (regs7.ebx & (1 << 5)) {
-            g_InstructionSetExtensions |= ISEX_AVX2;
-        }
-
-        // Additional newer instruction sets can be added here
-        // FMA3 support (bit 12 in ECX from CPUID 1)
-        if (regs1.ecx & (1 << 12)) {
-            g_InstructionSetExtensions |= ISEX_FMA3;
-        }
-
         // BMI1 support (bit 3 in EBX)
         if (regs7.ebx & (1 << 3)) {
             g_InstructionSetExtensions |= ISEX_BMI1;
+        }
+
+        // AVX2 support (bit 5 in EBX)
+        if (regs7.ebx & (1 << 5)) {
+            g_InstructionSetExtensions |= ISEX_AVX2;
         }
 
         // BMI2 support (bit 8 in EBX)
@@ -238,6 +267,21 @@ static void DetectInstructionSets() {
         // AVX-512DQ support (bit 17 in EBX)
         if (regs7.ebx & (1 << 17)) {
             g_InstructionSetExtensions |= ISEX_AVX512DQ;
+        }
+
+        // RDSEED support (bit 18 in EBX)
+        if (regs7.ebx & (1 << 18)) {
+            g_InstructionSetExtensions |= ISEX_RDSEED;
+        }
+
+        // AVX-512CD support (bit 28 in EBX)
+        if (regs7.ebx & (1 << 28)) {
+            g_InstructionSetExtensions |= ISEX_AVX512CD;
+        }
+
+        // SHA support (bit 29 in EBX)
+        if (regs7.ebx & (1 << 29)) {
+            g_InstructionSetExtensions |= ISEX_SHA;
         }
 
         // AVX-512BW support (bit 30 in EBX)
@@ -264,6 +308,16 @@ static void DetectInstructionSets() {
         // AMX support (AMX-TILE bit 24 in EDX, AMX-INT8 bit 25 in EDX)
         if ((regs7.edx & (1 << 24)) && (regs7.edx & (1 << 25))) {
             g_InstructionSetExtensions |= ISEX_AMX;
+        }
+    }
+
+    // Check extended CPUID function 0x80000001 for AMD-specific features
+    CpuIdRegs regs80000000 = cpuid(0x80000000);
+    if (regs80000000.eax >= 0x80000001) {
+        CpuIdRegs regs80000001 = cpuid(0x80000001);
+        // LZCNT support (bit 5 in ECX)
+        if (regs80000001.ecx & (1 << 5)) {
+            g_InstructionSetExtensions |= ISEX_LZCNT;
         }
     }
 }
