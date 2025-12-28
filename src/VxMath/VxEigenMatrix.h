@@ -140,7 +140,7 @@ public:
 
                 // Implicit shift
                 const float g0 = (diagonal[i + 1] - diagonal[i]) / (offDiagonal[i] + offDiagonal[i]);
-                const float r0 = sqrtf(g0 * g0 + 1.0);
+                const float r0 = sqrtf(g0 * g0 + 1.0f);
                 float g;
                 if (g0 >= 0.0f) {
                     g = offDiagonal[i] / (g0 + r0) + diagonal[m] - diagonal[i];
@@ -158,13 +158,13 @@ public:
 
                     if (fabs(g) > fabs(f)) {
                         const float t = f / g;
-                        const float r = sqrtf(t * t + 1.0);
+                        const float r = sqrtf(t * t + 1.0f);
                         offDiagonal[j + 1] = r * g;
                         s = 1.0f / r;
                         c = t * s;
                     } else {
                         const float t = g / f;
-                        const float r = sqrtf(t * t + 1.0);
+                        const float r = sqrtf(t * t + 1.0f);
                         offDiagonal[j + 1] = f * r;
                         c = 1.0f / r;
                         s = t * c;
