@@ -140,10 +140,12 @@ VxQuaternion Vx3DQuaternionMultiply(const VxQuaternion &QuatL, const VxQuaternio
 }
 
 VxQuaternion Vx3DQuaternionDivide(const VxQuaternion &P, const VxQuaternion &Q) {
+    // Division: P / Q = P * conjugate(Q) (for unit quaternions)
+    // conjugate(Q) = (-Q.x, -Q.y, -Q.z, Q.w)
+    float newX = -P.w * Q.x + P.x * Q.w - P.y * Q.z + P.z * Q.y;
+    float newY = -P.w * Q.y + P.x * Q.z + P.y * Q.w - P.z * Q.x;
+    float newZ = -P.w * Q.z - P.x * Q.y + P.y * Q.x + P.z * Q.w;
     float newW = P.w * Q.w + P.x * Q.x + P.y * Q.y + P.z * Q.z;
-    float newZ = P.z * Q.w - P.w * Q.z - P.y * Q.x + P.x * Q.y;
-    float newY = P.y * Q.w - P.w * Q.y - P.x * Q.z + P.z * Q.x;
-    float newX = P.w * Q.x - Q.x * P.w - P.z * Q.y + P.y * Q.z;
 
     return VxQuaternion(newX, newY, newZ, newW);
 }
