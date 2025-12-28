@@ -46,12 +46,14 @@ set(VXMATH_PUBLIC_HEADERS
 
 set(VXMATH_PRIVATE_HEADERS
         VxEigenMatrix.h
+        VxBlitEngine.h
         VxSIMD.h
 )
 
 set(VXMATH_SOURCES
         VxMath.cpp
         VxGraphicUtils.cpp
+        VxBlitEngine.cpp
         VxProcessor.cpp
         VxSharedLibraryWin32.cpp
         VxMemoryMappedFileWin32.cpp
