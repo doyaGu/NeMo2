@@ -21,87 +21,33 @@ void InitVxMath() {
 }
 
 void InterpolateFloatArray(void *Res, void *array1, void *array2, float factor, int count) {
-    if (!Res || !array1 || !array2 || count <= 0) {
-        return;
-    }
+    float *pRes = static_cast<float *>(Res);
+    float *pArray1 = static_cast<float *>(array1);
+    float *pArray2 = static_cast<float *>(array2);
 
-    float *pRes = (float *) Res;
-    float *pArray1 = (float *) array1;
-    float *pArray2 = (float *) array2;
-
-    // Ensure we have at least 4 elements as per documentation requirement
-    if (count < 4) {
-        // Fallback for smaller arrays
-        for (int i = 0; i < count; i++) {
-            pRes[i] = pArray1[i] + (pArray2[i] - pArray1[i]) * factor;
-        }
-        return;
-    }
-
-    // Process data in blocks of 4 where possible for better performance
-    int blockCount = count >> 2;
-    int remainder = count & 3;
-
-    // Process 4 elements at once
-    for (int i = 0; i < blockCount; i++) {
-        pRes[0] = pArray1[0] + (pArray2[0] - pArray1[0]) * factor;
-        pRes[1] = pArray1[1] + (pArray2[1] - pArray1[1]) * factor;
-        pRes[2] = pArray1[2] + (pArray2[2] - pArray1[2]) * factor;
-        pRes[3] = pArray1[3] + (pArray2[3] - pArray1[3]) * factor;
-
-        pRes += 4;
-        pArray1 += 4;
-        pArray2 += 4;
-    }
-
-    // Process remaining elements
-    for (int i = 0; i < remainder; i++) {
-        pRes[i] = pArray1[i] + (pArray2[i] - pArray1[i]) * factor;
-    }
+    do {
+        *pRes = *pArray1 + (*pArray2 - *pArray1) * factor;
+        ++pArray1;
+        ++pRes;
+        ++pArray2;
+        --count;
+    } while (count);
 }
 
 void InterpolateVectorArray(void *Res, void *Inarray1, void *Inarray2, float factor, int count, XULONG StrideRes, XULONG StrideIn) {
-    if (!Res || !Inarray1 || !Inarray2 || count <= 0) {
-        return;
-    }
+    VxVector *pRes = static_cast<VxVector *>(Res);
+    VxVector *pArray1 = static_cast<VxVector *>(Inarray1);
+    VxVector *pArray2 = static_cast<VxVector *>(Inarray2);
 
-    // Ensure we have at least 2 elements as per documentation requirement
-    if (count < 2) {
-        if (count == 1) {
-            VxVector *vRes = (VxVector *) Res;
-            const VxVector *v1 = (const VxVector *) Inarray1;
-            const VxVector *v2 = (const VxVector *) Inarray2;
-
-            vRes->x = v1->x + (v2->x - v1->x) * factor;
-            vRes->y = v1->y + (v2->y - v1->y) * factor;
-            vRes->z = v1->z + (v2->z - v1->z) * factor;
-        }
-        return;
-    }
-
-    XBYTE *pRes = (XBYTE *) Res;
-    XBYTE *pArray1 = (XBYTE *) Inarray1;
-    XBYTE *pArray2 = (XBYTE *) Inarray2;
-
-    // Use default stride if zero
-    if (StrideRes == 0) StrideRes = sizeof(VxVector);
-    if (StrideIn == 0) StrideIn = sizeof(VxVector);
-
-    for (int i = 0; i < count; i++) {
-        VxVector *vRes = (VxVector *) pRes;
-        const VxVector *v1 = (const VxVector *) pArray1;
-        const VxVector *v2 = (const VxVector *) pArray2;
-
-        // Interpolate each component
-        vRes->x = v1->x + (v2->x - v1->x) * factor;
-        vRes->y = v1->y + (v2->y - v1->y) * factor;
-        vRes->z = v1->z + (v2->z - v1->z) * factor;
-
-        // Advance pointers
-        pRes += StrideRes;
-        pArray1 += StrideIn;
-        pArray2 += StrideIn;
-    }
+    do {
+        pRes->z = pArray1->z + (pArray2->z - pArray1->z) * factor;
+        pRes->y = pArray1->y + (pArray2->y - pArray1->y) * factor;
+        pRes->x = pArray1->x + (pArray2->x - pArray1->x) * factor;
+        pArray1 = reinterpret_cast<VxVector *>(reinterpret_cast<char *>(pArray1) + StrideIn);
+        pArray2 = reinterpret_cast<VxVector *>(reinterpret_cast<char *>(pArray2) + StrideIn);
+        pRes = reinterpret_cast<VxVector *>(reinterpret_cast<char *>(pRes) + StrideRes);
+        --count;
+    } while (count);
 }
 
 XBOOL VxTransformBox2D(const VxMatrix &World_ProjectionMat, const VxBbox &box, VxRect *ScreenSize, VxRect *Extents, VXCLIP_FLAGS &OrClipFlags, VXCLIP_FLAGS &AndClipFlags) {
@@ -110,6 +56,14 @@ XBOOL VxTransformBox2D(const VxMatrix &World_ProjectionMat, const VxBbox &box, V
         OrClipFlags = VXCLIP_ALL;
         AndClipFlags = VXCLIP_ALL;
         return FALSE;
+    }
+
+    // Initialize extents to zero for deterministic output
+    if (Extents) {
+        Extents->left = 0.0f;
+        Extents->top = 0.0f;
+        Extents->right = 0.0f;
+        Extents->bottom = 0.0f;
     }
 
     // Use local variables for thread safety
@@ -137,11 +91,11 @@ XBOOL VxTransformBox2D(const VxMatrix &World_ProjectionMat, const VxBbox &box, V
     VxVector4 deltaX(matRow0[0] * dx, matRow0[1] * dx, matRow0[2] * dx, matRow0[3] * dx);
     VxVector4 deltaY(matRow1[0] * dy, matRow1[1] * dy, matRow1[2] * dy, matRow1[3] * dy);
 
-    if (XAbs(dz) < EPSILON) {
+    if (dz == 0.0f) {
         // Box is flat in Z dimension - only need 4 vertices
         vertexCount = 4;
 
-        // Calculate corners
+        // Calculate corners - order matches original binary
         transformedVertices[1] = transformedVertices[0] + deltaX;              // Min + (dx, 0, 0)
         transformedVertices[2] = transformedVertices[0] + deltaY;              // Min + (0, dy, 0)
         transformedVertices[3] = transformedVertices[1] + deltaY;              // Min + (dx, dy, 0)
@@ -151,13 +105,13 @@ XBOOL VxTransformBox2D(const VxMatrix &World_ProjectionMat, const VxBbox &box, V
 
         VxVector4 deltaZ(matRow2[0] * dz, matRow2[1] * dz, matRow2[2] * dz, matRow2[3] * dz);
 
-        // Calculate all 8 corners
-        transformedVertices[1] = transformedVertices[0] + deltaX;              // Min + (dx, 0, 0)
+        // Calculate all 8 corners - order matches original binary exactly
+        transformedVertices[1] = transformedVertices[0] + deltaZ;              // Min + (0, 0, dz)
         transformedVertices[2] = transformedVertices[0] + deltaY;              // Min + (0, dy, 0)
-        transformedVertices[3] = transformedVertices[1] + deltaY;              // Min + (dx, dy, 0)
-        transformedVertices[4] = transformedVertices[0] + deltaZ;              // Min + (0, 0, dz)
-        transformedVertices[5] = transformedVertices[4] + deltaX;              // Min + (dx, 0, dz)
-        transformedVertices[6] = transformedVertices[4] + deltaY;              // Min + (0, dy, dz)
+        transformedVertices[3] = transformedVertices[1] + deltaY;              // Min + (0, dy, dz)
+        transformedVertices[4] = transformedVertices[0] + deltaX;              // Min + (dx, 0, 0)
+        transformedVertices[5] = transformedVertices[4] + deltaZ;              // Min + (dx, 0, dz)
+        transformedVertices[6] = transformedVertices[4] + deltaY;              // Min + (dx, dy, 0)
         transformedVertices[7] = transformedVertices[5] + deltaY;              // Min + (dx, dy, dz)
     }
 
@@ -167,12 +121,13 @@ XBOOL VxTransformBox2D(const VxMatrix &World_ProjectionMat, const VxBbox &box, V
         const VxVector4 &vertex = transformedVertices[i];
 
         // Check against frustum planes using homogeneous coordinates
-        if (-vertex.w > vertex.x) vertexFlags |= VXCLIP_LEFT;
-        if (vertex.x > vertex.w) vertexFlags |= VXCLIP_RIGHT;
-        if (-vertex.w > vertex.y) vertexFlags |= VXCLIP_BOTTOM;
-        if (vertex.y > vertex.w) vertexFlags |= VXCLIP_TOP;
-        if (vertex.z < 0.0f) vertexFlags |= VXCLIP_BACK;
-        if (vertex.z > vertex.w) vertexFlags |= VXCLIP_FRONT;
+        // Order and semantics match original binary exactly
+        if (-vertex.w > vertex.x) vertexFlags |= VXCLIP_LEFT;    // bit 4 (0x10)
+        if (vertex.x > vertex.w) vertexFlags |= VXCLIP_RIGHT;    // bit 5 (0x20)
+        if (-vertex.w > vertex.y) vertexFlags |= VXCLIP_BOTTOM;  // bit 7 (0x80)
+        if (vertex.y > vertex.w) vertexFlags |= VXCLIP_TOP;      // bit 6 (0x40)
+        if (vertex.z < 0.0f) vertexFlags |= VXCLIP_FRONT;        // bit 8 (0x100) - z behind near plane
+        if (vertex.z > vertex.w) vertexFlags |= VXCLIP_BACK;     // bit 9 (0x200) - z beyond far plane
 
         // Update combined flags
         allVerticesFlags |= vertexFlags;
@@ -181,10 +136,10 @@ XBOOL VxTransformBox2D(const VxMatrix &World_ProjectionMat, const VxBbox &box, V
 
     // Calculate screen coordinates if box is at least partially visible and screen extents are requested
     if (Extents && ScreenSize && !(allVerticesFlagsAnded & VXCLIP_ALL)) {
-        float minX = 1.0e10f;
-        float minY = 1.0e10f;
-        float maxX = -1.0e10f;
-        float maxY = -1.0e10f;
+        float minX = 1.0e6f;
+        float minY = 1.0e6f;
+        float maxX = -1.0e6f;
+        float maxY = -1.0e6f;
 
         // Calculate viewport parameters
         float halfWidth = (ScreenSize->right - ScreenSize->left) * 0.5f;
@@ -194,18 +149,23 @@ XBOOL VxTransformBox2D(const VxMatrix &World_ProjectionMat, const VxBbox &box, V
 
         // Project vertices and update extents
         for (int i = 0; i < vertexCount; i++) {
-            const VxVector4 &vertex = transformedVertices[i];
+            VxVector4 &vertex = transformedVertices[i];
 
-            // Skip points behind viewer or at viewer position
-            if (vertex.w <= EPSILON)
+            // Skip points behind viewer or at viewer position (w <= 0)
+            if (vertex.w <= 0.0f)
                 continue;
 
             // Perform perspective division
             float invW = 1.0f / vertex.w;
+            vertex.w = invW;  // Store invW back (matches original binary)
 
             // Convert to screen coordinates
             float screenX = vertex.x * invW * halfWidth + centerX;
             float screenY = centerY - vertex.y * invW * halfHeight;
+
+            // Store back into vertex (matches original binary behavior)
+            vertex.x = screenX;
+            vertex.y = screenY;
 
             // Update extents
             if (screenX < minX) minX = screenX;
@@ -214,27 +174,19 @@ XBOOL VxTransformBox2D(const VxMatrix &World_ProjectionMat, const VxBbox &box, V
             if (screenY > maxY) maxY = screenY;
         }
 
-        // Set rectangle extents only if we found valid points
-        if (minX <= maxX && minY <= maxY) {
-            Extents->left = minX;
-            Extents->top = minY;
-            Extents->right = maxX;
-            Extents->bottom = maxY;
+        // Set rectangle extents
+        Extents->left = minX;
+        Extents->top = minY;
+        Extents->right = maxX;
+        Extents->bottom = maxY;
+    }
 
-            // Clamp to screen bounds if partially off-screen
-            if (allVerticesFlags & VXCLIP_LEFT && Extents->left < ScreenSize->left)
-                Extents->left = ScreenSize->left;
-            if (allVerticesFlags & VXCLIP_RIGHT && Extents->right > ScreenSize->right)
-                Extents->right = ScreenSize->right;
-            if (allVerticesFlags & VXCLIP_TOP && Extents->top < ScreenSize->top)
-                Extents->top = ScreenSize->top;
-            if (allVerticesFlags & VXCLIP_BOTTOM && Extents->bottom > ScreenSize->bottom)
-                Extents->bottom = ScreenSize->bottom;
-        } else {
-            // No valid projection found - set to empty rectangle
-            Extents->left = Extents->right = 0;
-            Extents->top = Extents->bottom = 0;
-        }
+    // Clamp to screen bounds only when some vertices are behind near plane (VXCLIP_FRONT set)
+    if ((allVerticesFlags & VXCLIP_FRONT) && Extents && ScreenSize) {
+        if (allVerticesFlags & VXCLIP_LEFT)   Extents->left = ScreenSize->left;
+        if (allVerticesFlags & VXCLIP_RIGHT)  Extents->right = ScreenSize->right;
+        if (allVerticesFlags & VXCLIP_TOP)    Extents->top = ScreenSize->top;
+        if (allVerticesFlags & VXCLIP_BOTTOM) Extents->bottom = ScreenSize->bottom;
     }
 
     // Return flags
@@ -333,81 +285,77 @@ void VxProjectBoxZExtents(const VxMatrix &World_ProjectionMat, const VxBbox &box
  * Fills an array with copies of a structure
  */
 XBOOL VxFillStructure(int Count, void *Dst, XULONG Stride, XULONG SizeSrc, void *Src) {
-    // Validate parameters
-    if (!Src || !Dst || Count <= 0 || SizeSrc == 0 || Stride == 0 || (SizeSrc & 3) != 0)
+    if (!Src || !Dst || !Count || !SizeSrc || !Stride || (SizeSrc & 3) != 0)
         return FALSE;
 
-    // Get pointers for 32-bit aligned access
-    XDWORD *pSrc = (XDWORD *) Src;
-    XBYTE *pDst = (XBYTE *) Dst;
+    XDWORD *pDst = static_cast<XDWORD *>(Dst);
+    XDWORD *pSrc = static_cast<XDWORD *>(Src);
 
-    // Handle common structure sizes with optimized code
     switch (SizeSrc) {
-    case 4: // 4-byte structure (single DWORD)
-    {
-        XDWORD value = *pSrc;
-        for (int i = 0; i < Count; i++) {
-            *(XDWORD *) pDst = value;
-            pDst += Stride;
-        }
+    case 4: {
+        int cnt = Count;
+        XDWORD v = *pSrc;
+        do {
+            *pDst = v;
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + Stride);
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 8: // 8-byte structure (2 DWORDs)
-    {
-        XDWORD value1 = pSrc[0];
-        XDWORD value2 = pSrc[1];
-        for (int i = 0; i < Count; i++) {
-            XDWORD *dest = (XDWORD *) pDst;
-            dest[0] = value1;
-            dest[1] = value2;
-            pDst += Stride;
-        }
+    case 8: {
+        int cnt = Count;
+        XDWORD v0 = pSrc[0];
+        XDWORD v1 = pSrc[1];
+        do {
+            pDst[0] = v0;
+            pDst[1] = v1;
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + Stride);
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 12: // 12-byte structure (3 DWORDs, e.g., VxVector)
-    {
-        XDWORD value1 = pSrc[0];
-        XDWORD value2 = pSrc[1];
-        XDWORD value3 = pSrc[2];
-        for (int i = 0; i < Count; i++) {
-            XDWORD *dest = (XDWORD *) pDst;
-            dest[0] = value1;
-            dest[1] = value2;
-            dest[2] = value3;
-            pDst += Stride;
-        }
+    case 12: {
+        int cnt = Count;
+        XDWORD v0 = pSrc[0];
+        XDWORD v1 = pSrc[1];
+        XDWORD v2 = pSrc[2];
+        do {
+            pDst[0] = v0;
+            pDst[1] = v1;
+            pDst[2] = v2;
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + Stride);
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 16: // 16-byte structure (4 DWORDs, e.g., VxVector4)
-    {
-        XDWORD value1 = pSrc[0];
-        XDWORD value2 = pSrc[1];
-        XDWORD value3 = pSrc[2];
-        XDWORD value4 = pSrc[3];
-        for (int i = 0; i < Count; i++) {
-            XDWORD *dest = (XDWORD *) pDst;
-            dest[0] = value1;
-            dest[1] = value2;
-            dest[2] = value3;
-            dest[3] = value4;
-            pDst += Stride;
-        }
+    case 16: {
+        int cnt = Count;
+        XDWORD v0 = pSrc[0];
+        XDWORD v1 = pSrc[1];
+        XDWORD v2 = pSrc[2];
+        XDWORD v3 = pSrc[3];
+        do {
+            pDst[0] = v0;
+            pDst[1] = v1;
+            pDst[2] = v2;
+            pDst[3] = v3;
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + Stride);
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    default: // General case for any size
-    {
-        XULONG dwordCount = SizeSrc >> 2; // Divide by 4 to get DWORD count
-        for (int i = 0; i < Count; i++) {
-            XDWORD *dest = (XDWORD *) pDst;
-            for (XULONG j = 0; j < dwordCount; j++) {
-                dest[j] = pSrc[j];
-            }
-            pDst += Stride;
-        }
+    default: {
+        int cnt = Count;
+        do {
+            XULONG dwordCount = SizeSrc >> 2;
+            do {
+                *pDst++ = *pSrc++;
+                --dwordCount;
+            } while (dwordCount);
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + Stride - SizeSrc);
+            pSrc = static_cast<XDWORD *>(Src);
+            --cnt;
+        } while (cnt);
         break;
     }
     }
@@ -419,80 +367,77 @@ XBOOL VxFillStructure(int Count, void *Dst, XULONG Stride, XULONG SizeSrc, void 
  * Copies structures from one array to another
  */
 XBOOL VxCopyStructure(int Count, void *Dst, XULONG OutStride, XULONG SizeSrc, void *Src, XULONG InStride) {
-    // Validate parameters
-    if (!Src || !Dst || Count <= 0 || SizeSrc == 0 || OutStride == 0 || InStride == 0 || (SizeSrc & 3) != 0)
+    if (!Src || !Dst || !Count || !SizeSrc || !OutStride || !InStride || (SizeSrc & 3) != 0)
         return FALSE;
 
-    // Get pointers for byte access
-    XBYTE *pSrc = (XBYTE *) Src;
-    XBYTE *pDst = (XBYTE *) Dst;
+    XDWORD *pSrc = static_cast<XDWORD *>(Src);
+    XDWORD *pDst = static_cast<XDWORD *>(Dst);
 
-    // Handle common structure sizes with optimized code
     switch (SizeSrc) {
-    case 4: // 4-byte structure (single DWORD)
-    {
-        for (int i = 0; i < Count; i++) {
-            *(XDWORD *) pDst = *(XDWORD *) pSrc;
-            pSrc += InStride;
-            pDst += OutStride;
-        }
+    case 4: {
+        int cnt = Count;
+        do {
+            *pDst = *pSrc;
+            pSrc = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pSrc) + InStride);
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + OutStride);
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 8: // 8-byte structure (2 DWORDs)
-    {
-        for (int i = 0; i < Count; i++) {
-            XDWORD *src = (XDWORD *) pSrc;
-            XDWORD *dest = (XDWORD *) pDst;
-            dest[0] = src[0];
-            dest[1] = src[1];
-            pSrc += InStride;
-            pDst += OutStride;
-        }
+    case 8: {
+        int cnt = Count;
+        do {
+            XDWORD v1 = pSrc[1];
+            pDst[0] = pSrc[0];
+            pDst[1] = v1;
+            pSrc = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pSrc) + InStride);
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + OutStride);
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 12: // 12-byte structure (3 DWORDs, e.g., VxVector)
-    {
-        for (int i = 0; i < Count; i++) {
-            XDWORD *src = (XDWORD *) pSrc;
-            XDWORD *dest = (XDWORD *) pDst;
-            dest[0] = src[0];
-            dest[1] = src[1];
-            dest[2] = src[2];
-            pSrc += InStride;
-            pDst += OutStride;
-        }
+    case 12: {
+        int cnt = Count;
+        do {
+            XDWORD v1 = pSrc[1];
+            pDst[0] = pSrc[0];
+            XDWORD v2 = pSrc[2];
+            pDst[1] = v1;
+            pDst[2] = v2;
+            pSrc = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pSrc) + InStride);
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + OutStride);
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 16: // 16-byte structure (4 DWORDs, e.g., VxVector4)
-    {
-        for (int i = 0; i < Count; i++) {
-            XDWORD *src = (XDWORD *) pSrc;
-            XDWORD *dest = (XDWORD *) pDst;
-            dest[0] = src[0];
-            dest[1] = src[1];
-            dest[2] = src[2];
-            dest[3] = src[3];
-            pSrc += InStride;
-            pDst += OutStride;
-        }
+    case 16: {
+        int cnt = Count;
+        do {
+            XDWORD v1 = pSrc[1];
+            pDst[0] = pSrc[0];
+            pDst[1] = v1;
+            XDWORD v3 = pSrc[3];
+            pDst[2] = pSrc[2];
+            pDst[3] = v3;
+            pSrc = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pSrc) + InStride);
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + OutStride);
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    default: // General case for any size
-    {
-        XULONG dwordCount = SizeSrc >> 2; // Divide by 4 to get DWORD count
-        for (int i = 0; i < Count; i++) {
-            XDWORD *src = (XDWORD *) pSrc;
-            XDWORD *dest = (XDWORD *) pDst;
-            for (XULONG j = 0; j < dwordCount; j++) {
-                dest[j] = src[j];
-            }
-            pSrc += InStride;
-            pDst += OutStride;
-        }
+    default: {
+        int cnt = Count;
+        XULONG InStrideAdj = InStride - SizeSrc;
+        do {
+            XULONG dwordCount = SizeSrc >> 2;
+            do {
+                *pDst++ = *pSrc++;
+                --dwordCount;
+            } while (dwordCount);
+            pSrc = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pSrc) + InStrideAdj);
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + OutStride - SizeSrc);
+            --cnt;
+        } while (cnt);
         break;
     }
     }
@@ -505,67 +450,134 @@ XBOOL VxCopyStructure(int Count, void *Dst, XULONG OutStride, XULONG SizeSrc, vo
  */
 XBOOL VxIndexedCopy(const VxStridedData &Dst, const VxStridedData &Src, XULONG SizeSrc, int *Indices, int IndexCount) {
     // Validate parameters
-    if (!Dst.Ptr || !Src.Ptr || !Indices || IndexCount <= 0 || SizeSrc == 0 || (SizeSrc & 3) != 0)
+    if (IndexCount <= 0)
+        return FALSE;
+    if (SizeSrc == 0 || (SizeSrc & 3) != 0)
+        return FALSE;
+    if (Dst.Ptr == nullptr || Src.Ptr == nullptr || Indices == nullptr)
         return FALSE;
 
-    // Handle common structure sizes with optimized code
+    XULONG DstStride = Dst.Stride;
+    VxStridedData srcCopy = Src;
+
     switch (SizeSrc) {
-    case 4: // 4-byte structure (single DWORD)
-    {
-        for (int i = 0; i < IndexCount; i++) {
-            XDWORD *src = (XDWORD *) ((XBYTE *) Src.Ptr + Indices[i] * Src.Stride);
-            XDWORD *dst = (XDWORD *) ((XBYTE *) Dst.Ptr + i * Dst.Stride);
-            *dst = *src;
-        }
+    case 4: {
+        int cnt = IndexCount;
+        XDWORD *pDst = static_cast<XDWORD *>(Dst.Ptr);
+        int *pIdx = Indices;
+        do {
+            *pDst = *reinterpret_cast<XDWORD *>(static_cast<char *>(srcCopy.Ptr) + *pIdx * srcCopy.Stride);
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + DstStride);
+            ++pIdx;
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 8: // 8-byte structure (2 DWORDs)
-    {
-        for (int i = 0; i < IndexCount; i++) {
-            XDWORD *src = (XDWORD *) ((XBYTE *) Src.Ptr + Indices[i] * Src.Stride);
-            XDWORD *dst = (XDWORD *) ((XBYTE *) Dst.Ptr + i * Dst.Stride);
-            dst[0] = src[0];
-            dst[1] = src[1];
-        }
+    case 8: {
+        int cnt = IndexCount;
+        XDWORD *pDst = static_cast<XDWORD *>(Dst.Ptr);
+        int *pIdx = Indices;
+        do {
+            XDWORD *pSrc = reinterpret_cast<XDWORD *>(static_cast<char *>(srcCopy.Ptr) + *pIdx * srcCopy.Stride);
+            XDWORD v1 = pSrc[1];
+            pDst[0] = pSrc[0];
+            pDst[1] = v1;
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + DstStride);
+            ++pIdx;
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 12: // 12-byte structure (3 DWORDs, e.g., VxVector)
-    {
-        for (int i = 0; i < IndexCount; i++) {
-            XDWORD *src = (XDWORD *) ((XBYTE *) Src.Ptr + Indices[i] * Src.Stride);
-            XDWORD *dst = (XDWORD *) ((XBYTE *) Dst.Ptr + i * Dst.Stride);
-            dst[0] = src[0];
-            dst[1] = src[1];
-            dst[2] = src[2];
-        }
+    case 12: {
+        int cnt = IndexCount;
+        XDWORD *pDst = static_cast<XDWORD *>(Dst.Ptr);
+        int *pIdx = Indices;
+        do {
+            XDWORD *pSrc = reinterpret_cast<XDWORD *>(static_cast<char *>(srcCopy.Ptr) + *pIdx * srcCopy.Stride);
+            XDWORD v1 = pSrc[1];
+            pDst[0] = pSrc[0];
+            pDst[1] = v1;
+            pDst[2] = pSrc[2];
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + DstStride);
+            ++pIdx;
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    case 16: // 16-byte structure (4 DWORDs, e.g., VxVector4)
-    {
-        for (int i = 0; i < IndexCount; i++) {
-            XDWORD *src = (XDWORD *) ((XBYTE *) Src.Ptr + Indices[i] * Src.Stride);
-            XDWORD *dst = (XDWORD *) ((XBYTE *) Dst.Ptr + i * Dst.Stride);
-            dst[0] = src[0];
-            dst[1] = src[1];
-            dst[2] = src[2];
-            dst[3] = src[3];
-        }
+    case 16: {
+        int cnt = IndexCount;
+        XDWORD *pDst = static_cast<XDWORD *>(Dst.Ptr);
+        int *pIdx = Indices;
+        do {
+            XDWORD *pSrc = reinterpret_cast<XDWORD *>(static_cast<char *>(srcCopy.Ptr) + *pIdx * srcCopy.Stride);
+            XDWORD v1 = pSrc[1];
+            pDst[0] = pSrc[0];
+            pDst[1] = v1;
+            XDWORD v3 = pSrc[3];
+            pDst[2] = pSrc[2];
+            pDst[3] = v3;
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + DstStride);
+            ++pIdx;
+            --cnt;
+        } while (cnt);
         break;
     }
-
-    default: // General case for any size
-    {
-        XULONG dwordCount = SizeSrc >> 2; // Divide by 4 to get DWORD count
-        for (int i = 0; i < IndexCount; i++) {
-            XDWORD *src = (XDWORD *) ((XBYTE *) Src.Ptr + Indices[i] * Src.Stride);
-            XDWORD *dst = (XDWORD *) ((XBYTE *) Dst.Ptr + i * Dst.Stride);
-            for (XULONG j = 0; j < dwordCount; j++) {
-                dst[j] = src[j];
-            }
-        }
+    case 20: {
+        int cnt = IndexCount;
+        XDWORD *pDst = static_cast<XDWORD *>(Dst.Ptr);
+        int *pIdx = Indices;
+        do {
+            XDWORD *pSrc = reinterpret_cast<XDWORD *>(static_cast<char *>(srcCopy.Ptr) + *pIdx * srcCopy.Stride);
+            XDWORD v1 = pSrc[1];
+            pDst[0] = pSrc[0];
+            pDst[1] = v1;
+            XDWORD v3 = pSrc[3];
+            pDst[2] = pSrc[2];
+            pDst[3] = v3;
+            pDst[4] = pSrc[4];
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + DstStride);
+            ++pIdx;
+            --cnt;
+        } while (cnt);
+        break;
+    }
+    case 24: {
+        int cnt = IndexCount;
+        XDWORD *pDst = static_cast<XDWORD *>(Dst.Ptr);
+        int *pIdx = Indices;
+        do {
+            XDWORD *pSrc = reinterpret_cast<XDWORD *>(static_cast<char *>(srcCopy.Ptr) + *pIdx * srcCopy.Stride);
+            XDWORD v1 = pSrc[1];
+            pDst[0] = pSrc[0];
+            pDst[1] = v1;
+            XDWORD v3 = pSrc[3];
+            pDst[2] = pSrc[2];
+            pDst[3] = v3;
+            XDWORD v5 = pSrc[5];
+            pDst[4] = pSrc[4];
+            pDst[5] = v5;
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDst) + DstStride);
+            ++pIdx;
+            --cnt;
+        } while (cnt);
+        break;
+    }
+    default: {
+        int cnt = IndexCount;
+        XDWORD *pDst = static_cast<XDWORD *>(Dst.Ptr);
+        int *pIdx = Indices;
+        do {
+            XDWORD *pSrc = reinterpret_cast<XDWORD *>(static_cast<char *>(srcCopy.Ptr) + *pIdx * srcCopy.Stride);
+            XDWORD *pDstSave = pDst;
+            XULONG dwordCount = SizeSrc >> 2;
+            do {
+                *pDst++ = *pSrc++;
+                --dwordCount;
+            } while (dwordCount);
+            pDst = reinterpret_cast<XDWORD *>(reinterpret_cast<char *>(pDstSave) + DstStride);
+            ++pIdx;
+            --cnt;
+        } while (cnt);
         break;
     }
     }
@@ -582,121 +594,121 @@ XBOOL VxPtInRect(CKRECT *rect, CKPOINT *pt) {
 }
 
 XBOOL VxComputeBestFitBBox(const XBYTE *Points, XULONG Stride, int Count, VxMatrix &BBoxMatrix, float AdditionalBorder) {
-    if (Count <= 0 || !Points) {
+    if (Count > 0 && Points) {
+        // Create and compute covariance matrix
+        VxEigenMatrix eigenMat;
+        eigenMat.Covariance((float *) Points, Stride, Count);
+        eigenMat.EigenStuff3();
+
+        // Copy eigenvectors to the bounding box matrix (transposed)
+        // eigenMat[j][i] -> BBoxMatrix[i][j]
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                BBoxMatrix[i][j] = eigenMat[j][i];
+            }
+            BBoxMatrix[i][3] = 0.0f;
+        }
+        BBoxMatrix[3][0] = 0.0f;
+        BBoxMatrix[3][1] = 0.0f;
+        BBoxMatrix[3][2] = 0.0f;
+        BBoxMatrix[3][3] = 1.0f;
+
+        // Normalize the first two axes
+        BBoxMatrix[0].Normalize();
+        BBoxMatrix[1].Normalize();
+
+        // Compute the third axis using cross product for orthogonality
+        // Cross = (A.y*B.z - A.z*B.y, A.z*B.x - A.x*B.z, A.x*B.y - A.y*B.x)
+        float mx = BBoxMatrix[0][1] * BBoxMatrix[1][2] - BBoxMatrix[0][2] * BBoxMatrix[1][1];
+        float my = BBoxMatrix[0][2] * BBoxMatrix[1][0] - BBoxMatrix[0][0] * BBoxMatrix[1][2];
+        float mz = BBoxMatrix[0][0] * BBoxMatrix[1][1] - BBoxMatrix[0][1] * BBoxMatrix[1][0];
+
+        BBoxMatrix[2][0] = mx;
+        BBoxMatrix[2][1] = my;
+        BBoxMatrix[2][2] = mz;
+        BBoxMatrix[2][3] = 0.0f;
+
+        // Project all points onto the principal axes to find min/max extents
+        const float *pPoint = (const float *) Points;
+
+        // Initialize min/max with the first point projection
+        float projX = pPoint[0] * BBoxMatrix[0][0] + pPoint[1] * BBoxMatrix[0][1] + pPoint[2] * BBoxMatrix[0][2];
+        float minX = projX, maxX = projX;
+
+        float projY = pPoint[0] * BBoxMatrix[1][0] + pPoint[1] * BBoxMatrix[1][1] + pPoint[2] * BBoxMatrix[1][2];
+        float minY = projY, maxY = projY;
+
+        float projZ = pPoint[0] * BBoxMatrix[2][0] + pPoint[1] * BBoxMatrix[2][1] + pPoint[2] * BBoxMatrix[2][2];
+        float minZ = projZ, maxZ = projZ;
+
+        // Find min/max extents for all points
+        for (int i = 0; i < Count; ++i) {
+            const float *p = (const float *)(Points + i * Stride);
+
+            float x = p[0] * BBoxMatrix[0][0] + p[1] * BBoxMatrix[0][1] + p[2] * BBoxMatrix[0][2];
+            if (x >= maxX)
+                maxX = x;
+            else if (x < minX)
+                minX = x;
+
+            float y = p[0] * BBoxMatrix[1][0] + p[1] * BBoxMatrix[1][1] + p[2] * BBoxMatrix[1][2];
+            if (y >= maxY)
+                maxY = y;
+            else if (y < minY)
+                minY = y;
+
+            float z = p[0] * BBoxMatrix[2][0] + p[1] * BBoxMatrix[2][1] + p[2] * BBoxMatrix[2][2];
+            if (z >= maxZ)
+                maxZ = z;
+            else if (z < minZ)
+                minZ = z;
+        }
+
+        // Calculate center point in principal axis space
+        float centerX = (minX + maxX) * 0.5f;
+        float centerY = (minY + maxY) * 0.5f;
+        float centerZ = (minZ + maxZ) * 0.5f;
+
+        // Calculate half-extents with additional border
+        float halfX = (maxX - minX) * 0.5f + AdditionalBorder;
+        float halfY = (maxY - minY) * 0.5f + AdditionalBorder;
+        float halfZ = (maxZ - minZ) * 0.5f + AdditionalBorder;
+
+        // Transform center from principal axis space to world space (using unscaled axes)
+        BBoxMatrix[3][0] = centerX * BBoxMatrix[0][0] + centerY * BBoxMatrix[1][0] + centerZ * BBoxMatrix[2][0];
+        BBoxMatrix[3][1] = centerX * BBoxMatrix[0][1] + centerY * BBoxMatrix[1][1] + centerZ * BBoxMatrix[2][1];
+        BBoxMatrix[3][2] = centerX * BBoxMatrix[0][2] + centerY * BBoxMatrix[1][2] + centerZ * BBoxMatrix[2][2];
+        BBoxMatrix[3][3] = 1.0f;
+
+        // Scale the axes by their respective half-extents
+        for (int j = 0; j < 3; ++j) {
+            BBoxMatrix[0][j] *= halfX;
+        }
+        BBoxMatrix[0][3] = 0.0f;
+
+        for (int j = 0; j < 3; ++j) {
+            BBoxMatrix[1][j] *= halfY;
+        }
+        BBoxMatrix[1][3] = 0.0f;
+
+        for (int j = 0; j < 3; ++j) {
+            BBoxMatrix[2][j] *= halfZ;
+        }
+        BBoxMatrix[2][3] = 0.0f;
+
+        // Validate matrix for reasonable values
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                if (fabs(BBoxMatrix[i][j]) >= 1.0e6f)
+                    return FALSE;
+            }
+        }
+
+        return TRUE;
+    } else {
         BBoxMatrix.SetIdentity();
-        return FALSE;
     }
-
-    // Create and compute covariance matrix
-    VxEigenMatrix eigenMat;
-    eigenMat.Covariance((float *) Points, Stride, Count);
-    eigenMat.EigenStuff3();
-
-    // Copy eigenvectors to the bounding box matrix
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            BBoxMatrix[i][j] = eigenMat[i][j];
-        }
-    }
-
-    // Normalize the first two axes
-    BBoxMatrix[0].Normalize();
-    BBoxMatrix[1].Normalize();
-
-    // Compute the third axis using cross product for orthogonality
-    float mx = BBoxMatrix[0][1] * BBoxMatrix[1][2] - BBoxMatrix[0][2] * BBoxMatrix[1][1];  // A.y*B.z - A.z*B.y
-    float my = BBoxMatrix[0][2] * BBoxMatrix[1][0] - BBoxMatrix[0][0] * BBoxMatrix[1][2];  // A.z*B.x - A.x*B.z
-    float mz = BBoxMatrix[0][0] * BBoxMatrix[1][1] - BBoxMatrix[0][1] * BBoxMatrix[1][0];  // A.x*B.y - A.y*B.x
-
-    BBoxMatrix[2][0] = mx;
-    BBoxMatrix[2][1] = my;
-    BBoxMatrix[2][2] = mz;
-
-    // Project all points onto the principal axes to find min/max extents
-    const float *firstPoint = (const float *) Points;
-
-    // Initialize min/max with the first point
-    float projX = firstPoint[0] * BBoxMatrix[0][0] +
-                  firstPoint[1] * BBoxMatrix[0][1] +
-                  firstPoint[2] * BBoxMatrix[0][2];
-    float minX = projX, maxX = projX;
-
-    float projY = firstPoint[0] * BBoxMatrix[1][0] +
-                  firstPoint[1] * BBoxMatrix[1][1] +
-                  firstPoint[2] * BBoxMatrix[1][2];
-    float minY = projY, maxY = projY;
-
-    float projZ = firstPoint[0] * BBoxMatrix[2][0] +
-                  firstPoint[1] * BBoxMatrix[2][1] +
-                  firstPoint[2] * BBoxMatrix[2][2];
-    float minZ = projZ, maxZ = projZ;
-
-    // Find min/max extents for all points
-    // Fixed: Process all points including the first one for consistency with decompiled code
-    for (int i = 0; i < Count; i++) {
-        const float *point = (const float *) (Points + i * Stride);
-
-        float x = point[0] * BBoxMatrix[0][0] +
-                  point[1] * BBoxMatrix[0][1] +
-                  point[2] * BBoxMatrix[0][2];
-
-        float y = point[0] * BBoxMatrix[1][0] +
-                  point[1] * BBoxMatrix[1][1] +
-                  point[2] * BBoxMatrix[1][2];
-
-        float z = point[0] * BBoxMatrix[2][0] +
-                  point[1] * BBoxMatrix[2][1] +
-                  point[2] * BBoxMatrix[2][2];
-
-        // Update min/max values
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        if (z < minZ) minZ = z;
-        if (z > maxZ) maxZ = z;
-    }
-
-    // Calculate center point in principal axis space
-    float centerX = (minX + maxX) * 0.5f;
-    float centerY = (minY + maxY) * 0.5f;
-    float centerZ = (minZ + maxZ) * 0.5f;
-
-    // Calculate half-extents with additional border
-    float halfExtentX = (maxX - minX) * 0.5f + AdditionalBorder;
-    float halfExtentY = (maxY - minY) * 0.5f + AdditionalBorder;
-    float halfExtentZ = (maxZ - minZ) * 0.5f + AdditionalBorder;
-
-    // Scale the axes by their respective half-extents
-    for (int i = 0; i < 3; i++) {
-        const float extent = (i == 0) ? halfExtentX : (i == 1) ? halfExtentY : halfExtentZ;
-
-        BBoxMatrix[i][0] *= extent;
-        BBoxMatrix[i][1] *= extent;
-        BBoxMatrix[i][2] *= extent;
-        BBoxMatrix[i][3] = 0.0f; // Set homogeneous component to 0
-    }
-
-    // Transform center from principal axis space to world space
-    float worldX = centerX * BBoxMatrix[0][0] + centerY * BBoxMatrix[1][0] + centerZ * BBoxMatrix[2][0];
-    float worldY = centerX * BBoxMatrix[0][1] + centerY * BBoxMatrix[1][1] + centerZ * BBoxMatrix[2][1];
-    float worldZ = centerX * BBoxMatrix[0][2] + centerY * BBoxMatrix[1][2] + centerZ * BBoxMatrix[2][2];
-
-    // Set transformed center position
-    BBoxMatrix[3][0] = worldX;
-    BBoxMatrix[3][1] = worldY;
-    BBoxMatrix[3][2] = worldZ;
-    BBoxMatrix[3][3] = 1.0f;
-
-    // Validate matrix for reasonable values
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 3; j++) {
-            if (fabs(BBoxMatrix[i][j]) > 1000000.0f)
-                return FALSE;
-        }
-    }
-
-    return TRUE;
+    return FALSE;
 }
 
 #ifndef VX_LIB
