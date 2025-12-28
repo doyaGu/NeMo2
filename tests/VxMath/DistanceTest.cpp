@@ -1,19 +1,15 @@
 #include "gtest/gtest.h"
 #include "VxMath.h"
 #include "VxDistance.h"
+#include "VxMathTestHelpers.h"
 
 #include <cmath>
+
+using namespace VxMathTest;
 
 // Test fixture for VxDistance tests
 class VxDistanceTest : public ::testing::Test {
 protected:
-    static constexpr float TOLERANCE = 1e-4f;
-
-    // Helper to compare floats with tolerance
-    static bool NearEqual(float a, float b, float tol = TOLERANCE) {
-        return std::fabs(a - b) < tol;
-    }
-
     // Common test vectors
     const VxVector origin{0.0f, 0.0f, 0.0f};
     const VxVector unitX{1.0f, 0.0f, 0.0f};
@@ -33,8 +29,8 @@ TEST_F(VxDistanceTest, PointLineSquareDistance_PointOnLine) {
     float t;
     float dist = VxDistance::PointLineSquareDistance(point, line, &t);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t, 5.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t, 5.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointLineSquareDistance_PointOffLine) {
@@ -45,8 +41,8 @@ TEST_F(VxDistanceTest, PointLineSquareDistance_PointOffLine) {
     float t;
     float dist = VxDistance::PointLineSquareDistance(point, line, &t);
     
-    EXPECT_NEAR(dist, 9.0f, TOLERANCE);  // Distance^2 = 3^2
-    EXPECT_NEAR(t, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 9.0f, BINARY_TOL);  // Distance^2 = 3^2
+    EXPECT_NEAR(t, 0.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointLineSquareDistance_GeneralCase) {
@@ -58,8 +54,8 @@ TEST_F(VxDistanceTest, PointLineSquareDistance_GeneralCase) {
     float dist = VxDistance::PointLineSquareDistance(point, line, &t);
     
     // Closest point on line is (2, 0, 0), distance = sqrt(9+16) = 5
-    EXPECT_NEAR(dist, 25.0f, TOLERANCE);  // Distance^2 = 3^2 + 4^2 = 25
-    EXPECT_NEAR(t, 2.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 25.0f, BINARY_TOL);  // Distance^2 = 3^2 + 4^2 = 25
+    EXPECT_NEAR(t, 2.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointLineSquareDistance_NullParameter) {
@@ -68,7 +64,7 @@ TEST_F(VxDistanceTest, PointLineSquareDistance_NullParameter) {
     
     // Should not crash with null t parameter
     float dist = VxDistance::PointLineSquareDistance(point, line, nullptr);
-    EXPECT_NEAR(dist, 25.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 25.0f, BINARY_TOL);
 }
 
 // ============================================================================
@@ -82,8 +78,8 @@ TEST_F(VxDistanceTest, PointRaySquareDistance_PointOnRay) {
     float t;
     float dist = VxDistance::PointRaySquareDistance(point, ray, &t);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t, 5.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t, 5.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointRaySquareDistance_PointBehindRay) {
@@ -95,8 +91,8 @@ TEST_F(VxDistanceTest, PointRaySquareDistance_PointBehindRay) {
     float dist = VxDistance::PointRaySquareDistance(point, ray, &t);
     
     // Closest point is at origin (clamped t=0)
-    EXPECT_NEAR(dist, 25.0f, TOLERANCE);  // Distance^2 from origin to point
-    EXPECT_NEAR(t, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 25.0f, BINARY_TOL);  // Distance^2 from origin to point
+    EXPECT_NEAR(t, 0.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointRaySquareDistance_PointOffRay) {
@@ -106,8 +102,8 @@ TEST_F(VxDistanceTest, PointRaySquareDistance_PointOffRay) {
     float t;
     float dist = VxDistance::PointRaySquareDistance(point, ray, &t);
     
-    EXPECT_NEAR(dist, 9.0f, TOLERANCE);  // Distance^2 = 3^2
-    EXPECT_NEAR(t, 2.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 9.0f, BINARY_TOL);  // Distance^2 = 3^2
+    EXPECT_NEAR(t, 2.0f, BINARY_TOL);
 }
 
 // ============================================================================
@@ -121,8 +117,8 @@ TEST_F(VxDistanceTest, PointSegmentSquareDistance_PointOnSegment) {
     float t;
     float dist = VxDistance::PointSegmentSquareDistance(point, segment, &t);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t, 0.5f, TOLERANCE);
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t, 0.5f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointSegmentSquareDistance_PointBeyondEnd) {
@@ -134,8 +130,8 @@ TEST_F(VxDistanceTest, PointSegmentSquareDistance_PointBeyondEnd) {
     float dist = VxDistance::PointSegmentSquareDistance(point, segment, &t);
     
     // Closest point is at segment end (1, 0, 0)
-    EXPECT_NEAR(dist, 16.0f, TOLERANCE);  // Distance^2 = 4^2
-    EXPECT_NEAR(t, 1.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 16.0f, BINARY_TOL);  // Distance^2 = 4^2
+    EXPECT_NEAR(t, 1.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointSegmentSquareDistance_PointBeforeStart) {
@@ -147,8 +143,8 @@ TEST_F(VxDistanceTest, PointSegmentSquareDistance_PointBeforeStart) {
     float dist = VxDistance::PointSegmentSquareDistance(point, segment, &t);
     
     // Closest point is at origin
-    EXPECT_NEAR(dist, 25.0f, TOLERANCE);
-    EXPECT_NEAR(t, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 25.0f, BINARY_TOL);
+    EXPECT_NEAR(t, 0.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointSegmentSquareDistance_PointOffSegment) {
@@ -158,8 +154,8 @@ TEST_F(VxDistanceTest, PointSegmentSquareDistance_PointOffSegment) {
     float t;
     float dist = VxDistance::PointSegmentSquareDistance(point, segment, &t);
     
-    EXPECT_NEAR(dist, 25.0f, TOLERANCE);  // Distance^2 = 3^2 + 4^2
-    EXPECT_NEAR(t, 0.5f, TOLERANCE);
+    EXPECT_NEAR(dist, 25.0f, BINARY_TOL);  // Distance^2 = 3^2 + 4^2
+    EXPECT_NEAR(t, 0.5f, BINARY_TOL);
 }
 
 // ============================================================================
@@ -174,7 +170,7 @@ TEST_F(VxDistanceTest, LineLineSquareDistance_ParallelLines) {
     float t0, t1;
     float dist = VxDistance::LineLineSquareDistance(line0, line1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 9.0f, TOLERANCE);  // Distance^2 = 3^2
+    EXPECT_NEAR(dist, 9.0f, BINARY_TOL);  // Distance^2 = 3^2
 }
 
 TEST_F(VxDistanceTest, LineLineSquareDistance_IntersectingLines) {
@@ -185,9 +181,9 @@ TEST_F(VxDistanceTest, LineLineSquareDistance_IntersectingLines) {
     float t0, t1;
     float dist = VxDistance::LineLineSquareDistance(line0, line1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t0, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t0, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 0.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, LineLineSquareDistance_SkewLines) {
@@ -198,9 +194,9 @@ TEST_F(VxDistanceTest, LineLineSquareDistance_SkewLines) {
     float t0, t1;
     float dist = VxDistance::LineLineSquareDistance(line0, line1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 1.0f, TOLERANCE);  // Distance^2 = 1^2
-    EXPECT_NEAR(t0, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 1.0f, BINARY_TOL);  // Distance^2 = 1^2
+    EXPECT_NEAR(t0, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 0.0f, BINARY_TOL);
 }
 
 // ============================================================================
@@ -214,8 +210,8 @@ TEST_F(VxDistanceTest, LineRaySquareDistance_RayIntersectsLine) {
     float t0, t1;
     float dist = VxDistance::LineRaySquareDistance(line, ray, &t0, &t1);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 1.0f, TOLERANCE);  // Ray reaches line at t=1
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 1.0f, BINARY_TOL);  // Ray reaches line at t=1
 }
 
 TEST_F(VxDistanceTest, LineRaySquareDistance_RayPointsAway) {
@@ -227,8 +223,8 @@ TEST_F(VxDistanceTest, LineRaySquareDistance_RayPointsAway) {
     float dist = VxDistance::LineRaySquareDistance(line, ray, &t0, &t1);
     
     // Closest point on ray is at its origin
-    EXPECT_NEAR(dist, 1.0f, TOLERANCE);  // Distance^2 = 1^2
-    EXPECT_NEAR(t1, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 1.0f, BINARY_TOL);  // Distance^2 = 1^2
+    EXPECT_NEAR(t1, 0.0f, BINARY_TOL);
 }
 
 // ============================================================================
@@ -242,8 +238,8 @@ TEST_F(VxDistanceTest, LineSegmentSquareDistance_SegmentCrossesLine) {
     float t0, t1;
     float dist = VxDistance::LineSegmentSquareDistance(line, segment, &t0, &t1);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.5f, TOLERANCE);  // Segment crosses line at midpoint
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 0.5f, BINARY_TOL);  // Segment crosses line at midpoint
 }
 
 TEST_F(VxDistanceTest, LineSegmentSquareDistance_SegmentParallelToLine) {
@@ -253,7 +249,7 @@ TEST_F(VxDistanceTest, LineSegmentSquareDistance_SegmentParallelToLine) {
     float t0, t1;
     float dist = VxDistance::LineSegmentSquareDistance(line, segment, &t0, &t1);
     
-    EXPECT_NEAR(dist, 4.0f, TOLERANCE);  // Distance^2 = 2^2
+    EXPECT_NEAR(dist, 4.0f, BINARY_TOL);  // Distance^2 = 2^2
 }
 
 // ============================================================================
@@ -267,9 +263,9 @@ TEST_F(VxDistanceTest, RayRaySquareDistance_IntersectingRays) {
     float t0, t1;
     float dist = VxDistance::RayRaySquareDistance(ray0, ray1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t0, 1.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 1.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t0, 1.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 1.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, RayRaySquareDistance_ParallelRays) {
@@ -279,7 +275,7 @@ TEST_F(VxDistanceTest, RayRaySquareDistance_ParallelRays) {
     float t0, t1;
     float dist = VxDistance::RayRaySquareDistance(ray0, ray1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 4.0f, TOLERANCE);  // Distance^2 = 2^2
+    EXPECT_NEAR(dist, 4.0f, BINARY_TOL);  // Distance^2 = 2^2
 }
 
 TEST_F(VxDistanceTest, RayRaySquareDistance_DivergingRays) {
@@ -290,9 +286,9 @@ TEST_F(VxDistanceTest, RayRaySquareDistance_DivergingRays) {
     float t0, t1;
     float dist = VxDistance::RayRaySquareDistance(ray0, ray1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t0, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t0, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 0.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, RayRaySquareDistance_BothBehind) {
@@ -304,9 +300,9 @@ TEST_F(VxDistanceTest, RayRaySquareDistance_BothBehind) {
     float dist = VxDistance::RayRaySquareDistance(ray0, ray1, &t0, &t1);
     
     // Both rays should clamp to t=0
-    EXPECT_NEAR(dist, 2.0f, TOLERANCE);  // Distance^2 = 1^2 + 1^2
-    EXPECT_NEAR(t0, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 2.0f, BINARY_TOL);  // Distance^2 = 1^2 + 1^2
+    EXPECT_NEAR(t0, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 0.0f, BINARY_TOL);
 }
 
 // ============================================================================
@@ -320,9 +316,9 @@ TEST_F(VxDistanceTest, RaySegmentSquareDistance_RayHitsSegment) {
     float t0, t1;
     float dist = VxDistance::RaySegmentSquareDistance(ray, segment, &t0, &t1);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t0, 1.0f, TOLERANCE);  // Ray parameter
-    EXPECT_NEAR(t1, 0.5f, TOLERANCE);  // Segment parameter
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t0, 1.0f, BINARY_TOL);  // Ray parameter
+    EXPECT_NEAR(t1, 0.5f, BINARY_TOL);  // Segment parameter
 }
 
 TEST_F(VxDistanceTest, RaySegmentSquareDistance_RayMissesSegment) {
@@ -334,8 +330,8 @@ TEST_F(VxDistanceTest, RaySegmentSquareDistance_RayMissesSegment) {
     float dist = VxDistance::RaySegmentSquareDistance(ray, segment, &t0, &t1);
     
     // Closest point is segment end (1, 0, 0) to ray at (5, 0, 0)
-    EXPECT_NEAR(dist, 16.0f, TOLERANCE);  // Distance^2 = 4^2
-    EXPECT_NEAR(t1, 1.0f, TOLERANCE);  // Segment clamped to end
+    EXPECT_NEAR(dist, 16.0f, BINARY_TOL);  // Distance^2 = 4^2
+    EXPECT_NEAR(t1, 1.0f, BINARY_TOL);  // Segment clamped to end
 }
 
 // ============================================================================
@@ -349,9 +345,9 @@ TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_Intersecting) {
     float t0, t1;
     float dist = VxDistance::SegmentSegmentSquareDistance(seg0, seg1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t0, 0.5f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.5f, TOLERANCE);
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t0, 0.5f, BINARY_TOL);
+    EXPECT_NEAR(t1, 0.5f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_Parallel) {
@@ -361,7 +357,7 @@ TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_Parallel) {
     float t0, t1;
     float dist = VxDistance::SegmentSegmentSquareDistance(seg0, seg1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 4.0f, TOLERANCE);  // Distance^2 = 2^2
+    EXPECT_NEAR(dist, 4.0f, BINARY_TOL);  // Distance^2 = 2^2
 }
 
 TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_EndpointClosest) {
@@ -376,9 +372,9 @@ TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_EndpointClosest) {
     float t0, t1;
     float dist = VxDistance::SegmentSegmentSquareDistance(seg0, seg1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 4.0f, TOLERANCE);
-    EXPECT_NEAR(t0, 1.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 4.0f, BINARY_TOL);
+    EXPECT_NEAR(t0, 1.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 0.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_CollinearOverlapping) {
@@ -387,20 +383,15 @@ TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_CollinearOverlapping) {
     // seg1: from (1,0,0) to (3,0,0)
     // They overlap from x=1 to x=2
     //
-    // Note: The mathematically optimal result would be distance=0 (they overlap).
-    // However, the original binary's parallel-case handling returns:
-    //   seg0(0)=(0,0,0) and seg1(0)=(1,0,0) with distance^2=1
-    // This is because the parallel case doesn't search for overlapping regions.
-    // We match original binary behavior.
+    // The ground-truth DLL finds the overlap and returns distance=0.
     VxRay seg0(origin, VxVector(2.0f, 0.0f, 0.0f), nullptr);
     VxRay seg1(VxVector(1.0f, 0.0f, 0.0f), VxVector(2.0f, 0.0f, 0.0f), nullptr);
     
     float t0, t1;
     float dist = VxDistance::SegmentSegmentSquareDistance(seg0, seg1, &t0, &t1);
     
-    EXPECT_NEAR(dist, 1.0f, TOLERANCE);
-    EXPECT_NEAR(t0, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.0f, TOLERANCE);
+    // Distance should be 0 since segments overlap
+    EXPECT_NEAR(dist, 0.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_CollinearNonOverlapping) {
@@ -412,9 +403,9 @@ TEST_F(VxDistanceTest, SegmentSegmentSquareDistance_CollinearNonOverlapping) {
     float dist = VxDistance::SegmentSegmentSquareDistance(seg0, seg1, &t0, &t1);
     
     // Closest points: seg0 end at (1,0,0), seg1 start at (3,0,0)
-    EXPECT_NEAR(dist, 4.0f, TOLERANCE);  // Distance^2 = 2^2
-    EXPECT_NEAR(t0, 1.0f, TOLERANCE);
-    EXPECT_NEAR(t1, 0.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 4.0f, BINARY_TOL);  // Distance^2 = 2^2
+    EXPECT_NEAR(t0, 1.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, 0.0f, BINARY_TOL);
 }
 
 // ============================================================================
@@ -428,7 +419,7 @@ TEST_F(VxDistanceTest, PointLineDistance_Wrapper) {
     float t;
     float dist = VxDistance::PointLineDistance(point, line, &t);
     
-    EXPECT_NEAR(dist, 5.0f, TOLERANCE);  // sqrt(3^2 + 4^2) = 5
+    EXPECT_NEAR(dist, 5.0f, BINARY_TOL);  // sqrt(3^2 + 4^2) = 5
 }
 
 TEST_F(VxDistanceTest, PointRayDistance_Wrapper) {
@@ -436,7 +427,7 @@ TEST_F(VxDistanceTest, PointRayDistance_Wrapper) {
     VxVector point(0.0f, 3.0f, 4.0f);
     
     float dist = VxDistance::PointRayDistance(point, ray);
-    EXPECT_NEAR(dist, 5.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 5.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, PointSegmentDistance_Wrapper) {
@@ -444,7 +435,7 @@ TEST_F(VxDistanceTest, PointSegmentDistance_Wrapper) {
     VxVector point(0.0f, 3.0f, 4.0f);
     
     float dist = VxDistance::PointSegmentDistance(point, segment);
-    EXPECT_NEAR(dist, 5.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 5.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, LineLineDistance_Wrapper) {
@@ -452,7 +443,7 @@ TEST_F(VxDistanceTest, LineLineDistance_Wrapper) {
     VxRay line1(VxVector(0.0f, 3.0f, 4.0f), unitX, nullptr);
     
     float dist = VxDistance::LineLineDistance(line0, line1);
-    EXPECT_NEAR(dist, 5.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 5.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, RayRayDistance_Wrapper) {
@@ -460,7 +451,7 @@ TEST_F(VxDistanceTest, RayRayDistance_Wrapper) {
     VxRay ray1(VxVector(0.0f, 3.0f, 4.0f), unitX, nullptr);
     
     float dist = VxDistance::RayRayDistance(ray0, ray1);
-    EXPECT_NEAR(dist, 5.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 5.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, SegmentSegmentDistance_Wrapper) {
@@ -468,7 +459,7 @@ TEST_F(VxDistanceTest, SegmentSegmentDistance_Wrapper) {
     VxRay seg1(VxVector(0.0f, 3.0f, 4.0f), unitX, nullptr);
     
     float dist = VxDistance::SegmentSegmentDistance(seg0, seg1);
-    EXPECT_NEAR(dist, 5.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 5.0f, BINARY_TOL);
 }
 
 // ============================================================================
@@ -506,8 +497,8 @@ TEST_F(VxDistanceTest, NegativeDirectionVector) {
     float t;
     float dist = VxDistance::PointRaySquareDistance(point, ray, &t);
     
-    EXPECT_NEAR(dist, 16.0f, TOLERANCE);  // Distance^2 = 4^2
-    EXPECT_NEAR(t, 3.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 16.0f, BINARY_TOL);  // Distance^2 = 4^2
+    EXPECT_NEAR(t, 3.0f, BINARY_TOL);
 }
 
 TEST_F(VxDistanceTest, NonUnitDirectionVector) {
@@ -518,8 +509,8 @@ TEST_F(VxDistanceTest, NonUnitDirectionVector) {
     float t;
     float dist = VxDistance::PointLineSquareDistance(point, ray, &t);
     
-    EXPECT_NEAR(dist, 1.0f, TOLERANCE);  // Distance^2 = 1^2 (perpendicular distance)
-    EXPECT_NEAR(t, 0.5f, TOLERANCE);     // t = 0.5 because closest point is (1,0,0), and 0.5*2 = 1
+    EXPECT_NEAR(dist, 1.0f, BINARY_TOL);  // Distance^2 = 1^2 (perpendicular distance)
+    EXPECT_NEAR(t, 0.5f, BINARY_TOL);     // t = 0.5 because closest point is (1,0,0), and 0.5*2 = 1
 }
 
 TEST_F(VxDistanceTest, SegmentWithNonUnitDirection) {
@@ -530,8 +521,8 @@ TEST_F(VxDistanceTest, SegmentWithNonUnitDirection) {
     float t;
     float dist = VxDistance::PointSegmentSquareDistance(point, segment, &t);
     
-    EXPECT_NEAR(dist, 1.0f, TOLERANCE);
-    EXPECT_NEAR(t, 0.5f, TOLERANCE);  // t=0.5 gives origin + 0.5*direction = (1,0,0)
+    EXPECT_NEAR(dist, 1.0f, BINARY_TOL);
+    EXPECT_NEAR(t, 0.5f, BINARY_TOL);  // t=0.5 gives origin + 0.5*direction = (1,0,0)
 }
 
 TEST_F(VxDistanceTest, SkewLines3D) {
@@ -543,7 +534,7 @@ TEST_F(VxDistanceTest, SkewLines3D) {
     float dist = VxDistance::LineLineSquareDistance(line0, line1, &t0, &t1);
     
     // Closest approach is 1 unit in Y direction
-    EXPECT_NEAR(dist, 1.0f, TOLERANCE);
-    EXPECT_NEAR(t0, 0.0f, TOLERANCE);
-    EXPECT_NEAR(t1, -1.0f, TOLERANCE);
+    EXPECT_NEAR(dist, 1.0f, BINARY_TOL);
+    EXPECT_NEAR(t0, 0.0f, BINARY_TOL);
+    EXPECT_NEAR(t1, -1.0f, BINARY_TOL);
 }

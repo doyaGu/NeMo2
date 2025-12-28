@@ -5,45 +5,9 @@
 
 #include "VxFrustum.h"
 #include "VxIntersect.h"
+#include "VxMathTestHelpers.h"
 
-// Tolerance for SIMD operations - SIMD can have slightly different rounding than scalar operations
-constexpr float SIMD_EPSILON = 5e-07f;
-
-// Use a tolerance for floating-point comparisons
-const float VEC_TOLERANCE = SIMD_EPSILON;
-const float FLOAT_TOLERANCE = SIMD_EPSILON;
-
-// Helper to compare two VxVector objects with a tolerance.
-void EXPECT_VECTORS_NEAR(const VxVector& v1, const VxVector& v2, float tolerance = VEC_TOLERANCE) {
-    EXPECT_NEAR(v1.x, v2.x, tolerance);
-    EXPECT_NEAR(v1.y, v2.y, tolerance);
-    EXPECT_NEAR(v1.z, v2.z, tolerance);
-}
-
-// Helper to compare two VxPlane objects with a tolerance.
-void EXPECT_PLANES_NEAR(const VxPlane& p1, const VxPlane& p2, float tolerance = VEC_TOLERANCE) {
-    EXPECT_VECTORS_NEAR(p1.GetNormal(), p2.GetNormal(), tolerance);
-    EXPECT_NEAR(p1.m_D, p2.m_D, tolerance);
-}
-
-static void EXPECT_FRUSTUMS_NEAR(const VxFrustum& a, const VxFrustum& b, float tolerance = FLOAT_TOLERANCE) {
-    EXPECT_VECTORS_NEAR(a.GetOrigin(), b.GetOrigin(), tolerance);
-    EXPECT_VECTORS_NEAR(a.GetRight(), b.GetRight(), tolerance);
-    EXPECT_VECTORS_NEAR(a.GetUp(), b.GetUp(), tolerance);
-    EXPECT_VECTORS_NEAR(a.GetDir(), b.GetDir(), tolerance);
-
-    EXPECT_NEAR(a.GetRBound(), b.GetRBound(), tolerance);
-    EXPECT_NEAR(a.GetUBound(), b.GetUBound(), tolerance);
-    EXPECT_NEAR(a.GetDMin(), b.GetDMin(), tolerance);
-    EXPECT_NEAR(a.GetDMax(), b.GetDMax(), tolerance);
-
-    EXPECT_PLANES_NEAR(a.GetNearPlane(), b.GetNearPlane(), tolerance);
-    EXPECT_PLANES_NEAR(a.GetFarPlane(), b.GetFarPlane(), tolerance);
-    EXPECT_PLANES_NEAR(a.GetLeftPlane(), b.GetLeftPlane(), tolerance);
-    EXPECT_PLANES_NEAR(a.GetRightPlane(), b.GetRightPlane(), tolerance);
-    EXPECT_PLANES_NEAR(a.GetUpPlane(), b.GetUpPlane(), tolerance);
-    EXPECT_PLANES_NEAR(a.GetBottomPlane(), b.GetBottomPlane(), tolerance);
-}
+using namespace VxMathTest;
 
 // Test fixture for VxFrustum
 class VxFrustumTest : public ::testing::Test {
@@ -105,26 +69,26 @@ protected:
 // Test the constructor and initial state of the frustum.
 TEST_F(VxFrustumTest, ConstructorAndInitialization) {
     // Check that the initial properties match the input parameters.
-    EXPECT_VECTORS_NEAR(perspectiveFrustum.GetOrigin(), perspectiveOrigin);
-    EXPECT_VECTORS_NEAR(perspectiveFrustum.GetDir(), perspectiveDir);
-    EXPECT_VECTORS_NEAR(perspectiveFrustum.GetUp(), perspectiveUp);
-    EXPECT_VECTORS_NEAR(perspectiveFrustum.GetRight(), perspectiveRight);
+    EXPECT_VEC3_NEAR(perspectiveFrustum.GetOrigin(), perspectiveOrigin, SIMD_TOL);
+    EXPECT_VEC3_NEAR(perspectiveFrustum.GetDir(), perspectiveDir, SIMD_TOL);
+    EXPECT_VEC3_NEAR(perspectiveFrustum.GetUp(), perspectiveUp, SIMD_TOL);
+    EXPECT_VEC3_NEAR(perspectiveFrustum.GetRight(), perspectiveRight, SIMD_TOL);
 
-    EXPECT_NEAR(perspectiveFrustum.GetDMin(), nearPlaneDist, FLOAT_TOLERANCE);
-    EXPECT_NEAR(perspectiveFrustum.GetDMax(), farPlaneDist, FLOAT_TOLERANCE);
+    EXPECT_NEAR(perspectiveFrustum.GetDMin(), nearPlaneDist, SIMD_TOL);
+    EXPECT_NEAR(perspectiveFrustum.GetDMax(), farPlaneDist, SIMD_TOL);
 
     // With FOV = 90 degrees and aspect = 1, the half-width at the near plane should be equal to the near plane distance.
-    EXPECT_NEAR(perspectiveFrustum.GetRBound(), nearPlaneDist, FLOAT_TOLERANCE);
-    EXPECT_NEAR(perspectiveFrustum.GetUBound(), nearPlaneDist, FLOAT_TOLERANCE);
+    EXPECT_NEAR(perspectiveFrustum.GetRBound(), nearPlaneDist, SIMD_TOL);
+    EXPECT_NEAR(perspectiveFrustum.GetUBound(), nearPlaneDist, SIMD_TOL);
 
     // Binary convention for frustum planes:
     // Near plane: normal points TOWARD camera (-Dir), so points in front of near are "outside" (positive classify)
     // Far plane: normal points AWAY from camera (Dir), so points behind far are "outside" (positive classify)
     VxPlane expectedNearPlane(-perspectiveDir, perspectiveOrigin + perspectiveDir * nearPlaneDist);
-    EXPECT_PLANES_NEAR(perspectiveFrustum.GetNearPlane(), expectedNearPlane);
+    EXPECT_PLANE_NEAR(perspectiveFrustum.GetNearPlane(), expectedNearPlane, SIMD_TOL);
 
     VxPlane expectedFarPlane(perspectiveDir, perspectiveOrigin + perspectiveDir * farPlaneDist);
-    EXPECT_PLANES_NEAR(perspectiveFrustum.GetFarPlane(), expectedFarPlane);
+    EXPECT_PLANE_NEAR(perspectiveFrustum.GetFarPlane(), expectedFarPlane, SIMD_TOL);
 
     // Side planes have normals that point toward the inside of the frustum
     // We just verify the frustum is constructed and planes are valid (not checking exact normals)
@@ -153,7 +117,7 @@ TEST_F(VxFrustumTest, Update) {
 
     // Binary convention: near plane normal = -Dir
     VxPlane expectedNewNearPlane(-frustum.GetDir(), frustum.GetOrigin() + frustum.GetDir() * frustum.GetDMin());
-    EXPECT_PLANES_NEAR(newNearPlane, expectedNewNearPlane);
+    EXPECT_PLANE_NEAR(newNearPlane, expectedNewNearPlane, SIMD_TOL);
 }
 
 
@@ -262,6 +226,110 @@ TEST_F(VxFrustumTest, ClassifyOBB) {
     EXPECT_TRUE(VxIntersect::FrustumBox(perspectiveFrustum, edgeBox, identity)) << "FrustumBox should return TRUE for intersecting box.";
 }
 
+// ============================================================================
+// VxIntersect Frustum APIs
+// ============================================================================
+
+TEST_F(VxFrustumTest, VxIntersect_FrustumFace) {
+    // Triangle well inside the frustum
+    VxVector t0(-1, -1, 10);
+    VxVector t1(1, -1, 10);
+    VxVector t2(0, 1, 10);
+    EXPECT_TRUE(VxIntersect::FrustumFace(perspectiveFrustum, t0, t1, t2));
+
+    // Triangle completely outside (to the right)
+    VxVector o0(200, -1, 10);
+    VxVector o1(202, -1, 10);
+    VxVector o2(200, 1, 10);
+    EXPECT_FALSE(VxIntersect::FrustumFace(perspectiveFrustum, o0, o1, o2));
+
+    // Triangle intersecting the frustum edge
+    VxVector e0(90, -1, 90);
+    VxVector e1(110, -1, 90);
+    VxVector e2(100, 1, 90);
+    EXPECT_TRUE(VxIntersect::FrustumFace(perspectiveFrustum, e0, e1, e2));
+}
+
+TEST_F(VxFrustumTest, VxIntersect_FrustumAABB) {
+    // Box inside
+    VxBbox inside(VxVector(-1, -1, 10), VxVector(1, 1, 20));
+    EXPECT_TRUE(VxIntersect::FrustumAABB(perspectiveFrustum, inside));
+
+    // Box outside to the right
+    VxBbox outsideRight(VxVector(200, -1, 10), VxVector(210, 1, 20));
+    EXPECT_FALSE(VxIntersect::FrustumAABB(perspectiveFrustum, outsideRight));
+
+    // Box intersecting near plane
+    VxBbox intersectNear(VxVector(-1, -1, 0.5f), VxVector(1, 1, 1.5f));
+    EXPECT_TRUE(VxIntersect::FrustumAABB(perspectiveFrustum, intersectNear));
+}
+
+TEST_F(VxFrustumTest, VxIntersect_FrustumOBB) {
+    // Local-space box around origin; use transform to place it in front of camera.
+    VxBbox localBox(VxVector(-1, -1, -1), VxVector(1, 1, 1));
+
+    VxMatrix matInside;
+    Vx3DMatrixIdentity(matInside);
+    matInside[3][2] = 10.0f;
+    EXPECT_TRUE(VxIntersect::FrustumOBB(perspectiveFrustum, localBox, matInside));
+
+    VxMatrix matOutside;
+    Vx3DMatrixIdentity(matOutside);
+    matOutside[3][0] = 200.0f;
+    matOutside[3][2] = 10.0f;
+    EXPECT_FALSE(VxIntersect::FrustumOBB(perspectiveFrustum, localBox, matOutside));
+
+    // Rotated box inside
+    VxMatrix matRot;
+    Vx3DMatrixFromEulerAngles(matRot, 0.0f, 0.0f, PI / 4.0f);
+    matRot[3][2] = 10.0f;
+    EXPECT_TRUE(VxIntersect::FrustumOBB(perspectiveFrustum, localBox, matRot));
+}
+
+TEST_F(VxFrustumTest, VxIntersect_FrustumBox_MatchesPlaneClassify) {
+    // FrustumBox is the plane-based frustum-vs-OBB test. It should agree with
+    // VxFrustum::Classify(box, mat) semantics (<= 0 means inside/touching).
+    VxBbox localBox(VxVector(-1, -2, -3), VxVector(1, 2, 3));
+
+    auto expectMatches = [&](const VxMatrix &mat) {
+        const bool expected = (perspectiveFrustum.Classify(localBox, mat) <= 0.0f);
+        EXPECT_EQ(VxIntersect::FrustumBox(perspectiveFrustum, localBox, mat), expected);
+    };
+
+    // Identity at origin: box straddles the near plane (near at z=1), so it intersects.
+    VxMatrix id;
+    Vx3DMatrixIdentity(id);
+    expectMatches(id);
+
+    // Translate forward so the box is clearly inside.
+    VxMatrix inside;
+    Vx3DMatrixIdentity(inside);
+    inside[3][2] = 10.0f;
+    expectMatches(inside);
+
+    // Translate far right so it is clearly outside.
+    VxMatrix outside;
+    Vx3DMatrixIdentity(outside);
+    outside[3][0] = 200.0f;
+    outside[3][2] = 10.0f;
+    expectMatches(outside);
+
+    // Rotate + translate (still inside).
+    VxMatrix rot;
+    Vx3DMatrixFromEulerAngles(rot, 0.0f, PI / 6.0f, PI / 8.0f);
+    rot[3][2] = 10.0f;
+    expectMatches(rot);
+
+    // Non-uniform scale + translate.
+    VxMatrix scaled;
+    Vx3DMatrixIdentity(scaled);
+    scaled[0] *= 2.0f;
+    scaled[1] *= 0.5f;
+    scaled[2] *= 3.0f;
+    scaled[3][2] = 10.0f;
+    expectMatches(scaled);
+}
+
 // Test orthographic frustum classification specifically.
 // Note: The VxFrustum class is designed for perspective frustums.
 // When used with orthographic-like parameters, the side planes are still perspective-style
@@ -306,16 +374,16 @@ TEST_F(VxFrustumTest, ComputeVertices) {
 
     // For our 90-degree FOV frustum at origin, near plane at 1.0:
     // The half-width and half-height at near plane is 1.0.
-    EXPECT_VECTORS_NEAR(vertices[0], VxVector(-1, -1, 1));  // NBL
-    EXPECT_VECTORS_NEAR(vertices[1], VxVector(-1, 1, 1));   // NTL
-    EXPECT_VECTORS_NEAR(vertices[2], VxVector(1, 1, 1));    // NTR
-    EXPECT_VECTORS_NEAR(vertices[3], VxVector(1, -1, 1));   // NBR
+    EXPECT_VEC3_NEAR(vertices[0], VxVector(-1, -1, 1), SIMD_TOL);  // NBL
+    EXPECT_VEC3_NEAR(vertices[1], VxVector(-1, 1, 1), SIMD_TOL);   // NTL
+    EXPECT_VEC3_NEAR(vertices[2], VxVector(1, 1, 1), SIMD_TOL);    // NTR
+    EXPECT_VEC3_NEAR(vertices[3], VxVector(1, -1, 1), SIMD_TOL);   // NBR
 
     // At the far plane (100.0), half-width and half-height is 100.0
-    EXPECT_VECTORS_NEAR(vertices[4], VxVector(-100, -100, 100));  // FBL
-    EXPECT_VECTORS_NEAR(vertices[5], VxVector(-100, 100, 100));   // FTL
-    EXPECT_VECTORS_NEAR(vertices[6], VxVector(100, 100, 100));    // FTR
-    EXPECT_VECTORS_NEAR(vertices[7], VxVector(100, -100, 100));   // FBR
+    EXPECT_VEC3_NEAR(vertices[4], VxVector(-100, -100, 100), SIMD_TOL);  // FBL
+    EXPECT_VEC3_NEAR(vertices[5], VxVector(-100, 100, 100), SIMD_TOL);   // FTL
+    EXPECT_VEC3_NEAR(vertices[6], VxVector(100, 100, 100), SIMD_TOL);    // FTR
+    EXPECT_VEC3_NEAR(vertices[7], VxVector(100, -100, 100), SIMD_TOL);   // FBR
 }
 
 // Test the Transform method.
@@ -354,15 +422,15 @@ TEST_F(VxFrustumTest, Transform) {
     // R^T * (10,0,0) = (0,0,10) for 90-degree inverse Y rotation
     // So new origin = (0, 0, -10)
     
-    EXPECT_VECTORS_NEAR(frustum.GetOrigin(), VxVector(0, 0, -10));
-    EXPECT_VECTORS_NEAR(frustum.GetDir(), VxVector(-1, 0, 0));
-    EXPECT_VECTORS_NEAR(frustum.GetUp(), VxVector(0, 1, 0));
-    EXPECT_VECTORS_NEAR(frustum.GetRight(), VxVector(0, 0, 1));
+    EXPECT_VEC3_NEAR(frustum.GetOrigin(), VxVector(0, 0, -10), SIMD_TOL);
+    EXPECT_VEC3_NEAR(frustum.GetDir(), VxVector(-1, 0, 0), SIMD_TOL);
+    EXPECT_VEC3_NEAR(frustum.GetUp(), VxVector(0, 1, 0), SIMD_TOL);
+    EXPECT_VEC3_NEAR(frustum.GetRight(), VxVector(0, 0, 1), SIMD_TOL);
 
     // Binary convention: near plane normal = -Dir = -(-1,0,0) = (1,0,0)
     // Near plane point = origin + Dir * DMin = (0,0,-10) + (-1,0,0)*1 = (-1,0,-10)
     VxPlane expectedNearPlane(VxVector(1,0,0), VxVector(-1,0,-10));
-    EXPECT_PLANES_NEAR(frustum.GetNearPlane(), expectedNearPlane);
+    EXPECT_PLANE_NEAR(frustum.GetNearPlane(), expectedNearPlane, SIMD_TOL);
 }
 
 // Test the equality operator

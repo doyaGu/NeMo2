@@ -424,7 +424,7 @@ TEST(PixelFormatTests, FormatStringConversion) {
         }
     }
 
-    // Test invalid format
+    // Test invalid format - returns empty string for invalid formats
     const char *invalid_str = VxPixelFormat2String(static_cast<VX_PIXELFORMAT>(999));
     EXPECT_STREQ(invalid_str, "");
 }
@@ -1273,6 +1273,222 @@ TEST_F(UtilityFunctionTest, LargeStructureFill) {
     EXPECT_EQ(buffer[0], pattern);
     EXPECT_EQ(buffer[count/2], pattern);
     EXPECT_EQ(buffer[count-1], pattern);
+}
+
+//--- VxGenerateMipMap Comprehensive Tests ---
+
+TEST_F(ImageManipulationTest, VxGenerateMipMap_UniformColor) {
+    // Test with uniform color - result should be same color
+    VxImageDescEx src_desc;
+    VxPixelFormat2ImageDesc(_32_ARGB8888, src_desc);
+    src_desc.Width = 8;
+    src_desc.Height = 8;
+    src_desc.BytesPerLine = 8 * 4;
+    src_desc.Image = AllocateBuffer(8 * 8 * 4);
+
+    // Fill with uniform magenta
+    uint32_t *src_ptr = reinterpret_cast<uint32_t *>(src_desc.Image);
+    for (int i = 0; i < 64; i++) {
+        src_ptr[i] = 0xFFFF00FF;  // ARGB magenta
+    }
+
+    uint8_t *dst_buffer = AllocateBuffer(4 * 4 * 4);
+    VxGenerateMipMap(src_desc, dst_buffer);
+
+    // All output pixels should be magenta (or very close)
+    uint32_t *dst_ptr = reinterpret_cast<uint32_t *>(dst_buffer);
+    for (int i = 0; i < 16; i++) {
+        EXPECT_EQ((dst_ptr[i] >> 24) & 0xFF, 0xFF) << "Alpha at " << i;
+        EXPECT_EQ((dst_ptr[i] >> 16) & 0xFF, 0xFF) << "Red at " << i;
+        EXPECT_EQ((dst_ptr[i] >> 8) & 0xFF, 0x00) << "Green at " << i;
+        EXPECT_EQ(dst_ptr[i] & 0xFF, 0xFF) << "Blue at " << i;
+    }
+}
+
+TEST_F(ImageManipulationTest, VxGenerateMipMap_Checkerboard) {
+    // Test with checkerboard pattern - should average to gray
+    VxImageDescEx src_desc;
+    VxPixelFormat2ImageDesc(_32_ARGB8888, src_desc);
+    src_desc.Width = 4;
+    src_desc.Height = 4;
+    src_desc.BytesPerLine = 4 * 4;
+    src_desc.Image = AllocateBuffer(4 * 4 * 4);
+
+    // Create checkerboard: black and white
+    uint32_t *src_ptr = reinterpret_cast<uint32_t *>(src_desc.Image);
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
+            src_ptr[y * 4 + x] = ((x + y) % 2 == 0) ? 0xFF000000 : 0xFFFFFFFF;
+        }
+    }
+
+    uint8_t *dst_buffer = AllocateBuffer(2 * 2 * 4);
+    VxGenerateMipMap(src_desc, dst_buffer);
+
+    // Each 2x2 block should average to gray
+    uint32_t *dst_ptr = reinterpret_cast<uint32_t *>(dst_buffer);
+    for (int i = 0; i < 4; i++) {
+        uint8_t r = (dst_ptr[i] >> 16) & 0xFF;
+        uint8_t g = (dst_ptr[i] >> 8) & 0xFF;
+        uint8_t b = dst_ptr[i] & 0xFF;
+        // Should be ~127 (average of 0 and 255)
+        EXPECT_NEAR(r, 127, 2) << "Red at " << i;
+        EXPECT_NEAR(g, 127, 2) << "Green at " << i;
+        EXPECT_NEAR(b, 127, 2) << "Blue at " << i;
+    }
+}
+
+TEST_F(ImageManipulationTest, VxGenerateMipMap_LargeImage) {
+    // Test with larger image to exercise SSE2 path
+    VxImageDescEx src_desc;
+    VxPixelFormat2ImageDesc(_32_ARGB8888, src_desc);
+    src_desc.Width = 64;
+    src_desc.Height = 64;
+    src_desc.BytesPerLine = 64 * 4;
+    src_desc.Image = AllocateBuffer(64 * 64 * 4);
+
+    // Fill with gradient
+    FillGradient32(reinterpret_cast<uint32_t *>(src_desc.Image), 64, 64);
+
+    uint8_t *dst_buffer = AllocateBuffer(32 * 32 * 4);
+    VxGenerateMipMap(src_desc, dst_buffer);
+
+    // Verify non-zero output
+    uint32_t *dst_ptr = reinterpret_cast<uint32_t *>(dst_buffer);
+    bool has_content = false;
+    for (int i = 0; i < 32 * 32; i++) {
+        if (dst_ptr[i] != 0) {
+            has_content = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(has_content);
+}
+
+TEST_F(ImageManipulationTest, VxGenerateMipMap_OddWidth) {
+    // Test with width that doesn't divide evenly by 2
+    // The result width will be floor(5/2) = 2
+    VxImageDescEx src_desc;
+    VxPixelFormat2ImageDesc(_32_ARGB8888, src_desc);
+    src_desc.Width = 5;
+    src_desc.Height = 4;
+    src_desc.BytesPerLine = 5 * 4;
+    src_desc.Image = AllocateBuffer(5 * 4 * 4);
+
+    uint32_t *src_ptr = reinterpret_cast<uint32_t *>(src_desc.Image);
+    for (int i = 0; i < 20; i++) {
+        src_ptr[i] = 0xFF808080;
+    }
+
+    uint8_t *dst_buffer = AllocateBuffer(2 * 2 * 4);
+    VxGenerateMipMap(src_desc, dst_buffer);
+
+    // Should produce valid output
+    uint32_t *dst_ptr = reinterpret_cast<uint32_t *>(dst_buffer);
+    for (int i = 0; i < 4; i++) {
+        EXPECT_NE(dst_ptr[i], 0u);
+    }
+}
+
+TEST_F(ImageManipulationTest, VxGenerateMipMap_SingleRow) {
+    // Test 2xN image (dstHeight = 0 case - only horizontal averaging)
+    VxImageDescEx src_desc;
+    VxPixelFormat2ImageDesc(_32_ARGB8888, src_desc);
+    src_desc.Width = 8;
+    src_desc.Height = 1;
+    src_desc.BytesPerLine = 8 * 4;
+    src_desc.Image = AllocateBuffer(8 * 1 * 4);
+
+    // Alternating red and green
+    uint32_t *src_ptr = reinterpret_cast<uint32_t *>(src_desc.Image);
+    for (int i = 0; i < 8; i++) {
+        src_ptr[i] = (i % 2 == 0) ? 0xFFFF0000 : 0xFF00FF00;
+    }
+
+    uint8_t *dst_buffer = AllocateBuffer(4 * 1 * 4);
+    VxGenerateMipMap(src_desc, dst_buffer);
+
+    // Each pair should average to yellow-ish
+    uint32_t *dst_ptr = reinterpret_cast<uint32_t *>(dst_buffer);
+    for (int i = 0; i < 4; i++) {
+        uint8_t r = (dst_ptr[i] >> 16) & 0xFF;
+        uint8_t g = (dst_ptr[i] >> 8) & 0xFF;
+        EXPECT_NEAR(r, 127, 2) << "Red at " << i;
+        EXPECT_NEAR(g, 127, 2) << "Green at " << i;
+    }
+}
+
+TEST_F(ImageManipulationTest, VxGenerateMipMap_SingleColumn) {
+    // Test Nx2 image (dstWidth = 0 case - only vertical averaging)
+    VxImageDescEx src_desc;
+    VxPixelFormat2ImageDesc(_32_ARGB8888, src_desc);
+    src_desc.Width = 1;
+    src_desc.Height = 8;
+    src_desc.BytesPerLine = 1 * 4;
+    src_desc.Image = AllocateBuffer(1 * 8 * 4);
+
+    // Alternating blue and cyan
+    uint32_t *src_ptr = reinterpret_cast<uint32_t *>(src_desc.Image);
+    for (int i = 0; i < 8; i++) {
+        src_ptr[i] = (i % 2 == 0) ? 0xFF0000FF : 0xFF00FFFF;
+    }
+
+    uint8_t *dst_buffer = AllocateBuffer(1 * 4 * 4);
+    VxGenerateMipMap(src_desc, dst_buffer);
+
+    // Each pair should average
+    uint32_t *dst_ptr = reinterpret_cast<uint32_t *>(dst_buffer);
+    for (int i = 0; i < 4; i++) {
+        uint8_t g = (dst_ptr[i] >> 8) & 0xFF;
+        uint8_t b = dst_ptr[i] & 0xFF;
+        EXPECT_NEAR(g, 127, 2) << "Green at " << i;
+        EXPECT_EQ(b, 0xFF) << "Blue at " << i;
+    }
+}
+
+TEST_F(ImageManipulationTest, VxGenerateMipMap_AlphaPreservation) {
+    // Test that alpha channel is properly averaged
+    VxImageDescEx src_desc;
+    VxPixelFormat2ImageDesc(_32_ARGB8888, src_desc);
+    src_desc.Width = 4;
+    src_desc.Height = 4;
+    src_desc.BytesPerLine = 4 * 4;
+    src_desc.Image = AllocateBuffer(4 * 4 * 4);
+
+    // Create 2x2 blocks with different alpha values
+    uint32_t *src_ptr = reinterpret_cast<uint32_t *>(src_desc.Image);
+    // Top-left: alpha=0, Top-right: alpha=255
+    // Bottom-left: alpha=128, Bottom-right: alpha=64
+    for (int y = 0; y < 2; y++) {
+        for (int x = 0; x < 2; x++) {
+            src_ptr[y * 4 + x] = 0x00808080;  // alpha=0
+        }
+    }
+    for (int y = 0; y < 2; y++) {
+        for (int x = 2; x < 4; x++) {
+            src_ptr[y * 4 + x] = 0xFF808080;  // alpha=255
+        }
+    }
+    for (int y = 2; y < 4; y++) {
+        for (int x = 0; x < 2; x++) {
+            src_ptr[y * 4 + x] = 0x80808080;  // alpha=128
+        }
+    }
+    for (int y = 2; y < 4; y++) {
+        for (int x = 2; x < 4; x++) {
+            src_ptr[y * 4 + x] = 0x40808080;  // alpha=64
+        }
+    }
+
+    uint8_t *dst_buffer = AllocateBuffer(2 * 2 * 4);
+    VxGenerateMipMap(src_desc, dst_buffer);
+
+    uint32_t *dst_ptr = reinterpret_cast<uint32_t *>(dst_buffer);
+    // Check alpha values are properly averaged
+    EXPECT_EQ((dst_ptr[0] >> 24) & 0xFF, 0);    // avg of 0
+    EXPECT_EQ((dst_ptr[1] >> 24) & 0xFF, 255);  // avg of 255
+    EXPECT_EQ((dst_ptr[2] >> 24) & 0xFF, 128);  // avg of 128
+    EXPECT_EQ((dst_ptr[3] >> 24) & 0xFF, 64);   // avg of 64
 }
 
 //--- Edge Case Tests ---

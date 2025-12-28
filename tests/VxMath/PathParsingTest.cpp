@@ -5,6 +5,8 @@
 #include <set>
 #include <fstream>
 #include <filesystem> // For modern filesystem operations in the test fixture
+#include <chrono>
+#include <thread>
 
 // Helper to create a file
 void CreateEmptyFile(const std::filesystem::path &path) {
@@ -25,9 +27,16 @@ protected:
         // │   ├── subfile.txt
         // │   └── another.log
         // └── empty_sub/
-        m_rootDir = "temp_dir_parser_test";
-        std::filesystem::remove_all(m_rootDir);
-        std::filesystem::create_directory(m_rootDir);
+        // Use a unique temp directory per test to avoid cross-test coupling
+        // if Windows keeps a handle open briefly.
+        const auto *info = ::testing::UnitTest::GetInstance()->current_test_info();
+        const std::string uniqueName =
+            std::string("temp_dir_parser_test_") + info->test_suite_name() + "_" + info->name();
+        m_rootDir = std::filesystem::temp_directory_path() / uniqueName;
+
+        std::error_code ec;
+        std::filesystem::remove_all(m_rootDir, ec);
+        std::filesystem::create_directories(m_rootDir);
 
         m_subDir = m_rootDir / "sub";
         std::filesystem::create_directory(m_subDir);
@@ -47,7 +56,8 @@ protected:
     }
 
     void TearDown() override {
-        std::filesystem::remove_all(m_rootDir);
+        std::error_code ec;
+        std::filesystem::remove_all(m_rootDir, ec);
     }
 
     // Helper to collect all files found by the parser

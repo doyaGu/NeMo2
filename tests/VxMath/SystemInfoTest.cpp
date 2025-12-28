@@ -95,10 +95,23 @@ TEST_F(SystemInfoTest, GetProcessorType_ReturnsValidEnum) {
     ProcessorsType type = GetProcessorType();
     // The type should not be PROC_UNKNOWN on any machine this test is likely to run on.
     EXPECT_NE(type, PROC_UNKNOWN);
-    // It should be within the valid range of the enum.
-    EXPECT_GE(type, PROC_PENTIUM);
-    EXPECT_LE(type, PROC_PSP);
-    std::cout << "Processor Type Enum: " << type << std::endl;
+    // It should be within the valid range of the architecture-based enum.
+    EXPECT_GE(type, PROC_X86);
+    EXPECT_LE(type, PROC_RISCV);
+
+    // Print the architecture type
+    const char* archName = "Unknown";
+    switch (type) {
+        case PROC_X86:    archName = "x86"; break;
+        case PROC_X86_64: archName = "x86_64"; break;
+        case PROC_ARM32:  archName = "ARM32"; break;
+        case PROC_ARM64:  archName = "ARM64"; break;
+        case PROC_MIPS:   archName = "MIPS"; break;
+        case PROC_PPC:    archName = "PowerPC"; break;
+        case PROC_RISCV:  archName = "RISC-V"; break;
+        default: break;
+    }
+    std::cout << "Processor Architecture: " << archName << " (enum " << type << ")" << std::endl;
 }
 
 // Test to ensure GetInstructionSetExtensions returns a set of flags.
@@ -122,13 +135,37 @@ TEST_F(SystemInfoTest, GetOsAndPlatform_ReturnsValidEnums) {
     EXPECT_NE(os, VXOS_UNKNOWN);
     // Should be within the valid range.
     EXPECT_GE(os, VXOS_WIN31);
-    EXPECT_LE(os, VXOS_WINSEVEN); // This might need updating for newer OSes.
+    EXPECT_LE(os, VXOS_SWITCH);
 
-    std::cout << "OS Info Enum: " << os << std::endl;
-
-    // This library doesn't provide a direct VxGetPlatformInfo function,
-    // but the enum exists and could be used internally.
-    // A test could be added if such a function is exposed.
+    // Print the OS type
+    const char* osName = "Unknown";
+    switch (os) {
+        case VXOS_WIN31:      osName = "Windows 3.1"; break;
+        case VXOS_WIN95:      osName = "Windows 95"; break;
+        case VXOS_WIN98:      osName = "Windows 98"; break;
+        case VXOS_WINME:      osName = "Windows ME"; break;
+        case VXOS_WINNT4:     osName = "Windows NT 4.0"; break;
+        case VXOS_WIN2K:      osName = "Windows 2000"; break;
+        case VXOS_WINXP:      osName = "Windows XP"; break;
+        case VXOS_WINVISTA:   osName = "Windows Vista"; break;
+        case VXOS_WIN7:       osName = "Windows 7"; break;
+        case VXOS_WIN8:       osName = "Windows 8"; break;
+        case VXOS_WIN81:      osName = "Windows 8.1"; break;
+        case VXOS_WIN10:      osName = "Windows 10"; break;
+        case VXOS_WIN11:      osName = "Windows 11"; break;
+        case VXOS_MACOS:      osName = "macOS"; break;
+        case VXOS_IOS:        osName = "iOS"; break;
+        case VXOS_LINUX:      osName = "Linux"; break;
+        case VXOS_FREEBSD:    osName = "FreeBSD"; break;
+        case VXOS_ANDROID:    osName = "Android"; break;
+        case VXOS_PS4:        osName = "PlayStation 4"; break;
+        case VXOS_PS5:        osName = "PlayStation 5"; break;
+        case VXOS_XBOXONE:    osName = "Xbox One"; break;
+        case VXOS_XBOXSERIES: osName = "Xbox Series X/S"; break;
+        case VXOS_SWITCH:     osName = "Nintendo Switch"; break;
+        default: break;
+    }
+    std::cout << "OS Info: " << osName << " (enum " << os << ")" << std::endl;
 }
 
 // Test bit count and shift helper functions.
