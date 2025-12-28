@@ -50,7 +50,6 @@ set(VXMATH_PRIVATE_HEADERS
 
 set(VXMATH_SOURCES
         VxMath.cpp
-        VxStructureUtils.cpp
         VxGraphicUtils.cpp
         VxProcessor.cpp
         VxSharedLibraryWin32.cpp
