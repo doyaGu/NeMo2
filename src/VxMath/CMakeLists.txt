@@ -46,6 +46,7 @@ set(VXMATH_PUBLIC_HEADERS
 
 set(VXMATH_PRIVATE_HEADERS
         VxEigenMatrix.h
+        VxSIMD.h
 )
 
 set(VXMATH_SOURCES
@@ -80,6 +81,9 @@ set(VXMATH_SOURCES
         VxMemory.cpp
         XString.cpp
         EscapeURL.cpp
+        VxSIMD.cpp
+        VxSIMD_SSE.cpp
+        VxSIMD_AVX.cpp
 )
 
 # ==================== VxMath Library ====================
@@ -106,6 +110,7 @@ target_include_directories(VxMath
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${STB_INCLUDE_DIR}
+        ${SIMDE_INCLUDE_DIR}
 )
 
 # Link libraries
