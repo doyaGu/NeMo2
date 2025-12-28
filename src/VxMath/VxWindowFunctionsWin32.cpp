@@ -518,28 +518,74 @@ XBOOL VxCopyBitmap(BITMAP_HANDLE Bitmap, const VxImageDescEx &desc) {
 }
 
 VX_OSINFO VxGetOs() {
-    OSVERSIONINFOA osvi;
-    memset(&osvi, 0, sizeof(OSVERSIONINFOA));
-    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOA);
-    GetVersionExA(&osvi);
-    switch (osvi.dwPlatformId) {
-    case VER_PLATFORM_WIN32s:
-        return VXOS_WIN31;
-    case VER_PLATFORM_WIN32_WINDOWS:
-        if (osvi.dwMinorVersion == 0)
-            return VXOS_WIN95;
-        else if (osvi.dwMinorVersion < 0x5A)
-            return VXOS_WIN98;
-        else
-            return VXOS_WINME;
-    case VER_PLATFORM_WIN32_NT:
-        if (osvi.dwMajorVersion == 4)
-            return VXOS_WINNT4;
-        if (osvi.dwMajorVersion > 4)
-            return VXOS_WIN2K;
-    default:
-        return VXOS_UNKNOWN;
+    // Use RtlGetVersion for accurate Windows version detection (8+)
+    typedef LONG(WINAPI *RtlGetVersionFunc)(OSVERSIONINFOEXW *);
+    HMODULE hNtdll = GetModuleHandleA("ntdll.dll");
+    if (hNtdll) {
+        RtlGetVersionFunc pRtlGetVersion = (RtlGetVersionFunc)GetProcAddress(hNtdll, "RtlGetVersion");
+        if (pRtlGetVersion) {
+            OSVERSIONINFOEXW osvi;
+            memset(&osvi, 0, sizeof(osvi));
+            osvi.dwOSVersionInfoSize = sizeof(osvi);
+            if (pRtlGetVersion(&osvi) == 0) {
+                // Windows 10/11 (Major version 10)
+                if (osvi.dwMajorVersion == 10) {
+                    // Windows 11 has build >= 22000
+                    if (osvi.dwBuildNumber >= 22000) {
+                        return VXOS_WIN11;
+                    }
+                    return VXOS_WIN10;
+                }
+                // Windows 8.x, 7, Vista (Major version 6)
+                if (osvi.dwMajorVersion == 6) {
+                    if (osvi.dwMinorVersion >= 3) {
+                        return VXOS_WIN81;
+                    }
+                    if (osvi.dwMinorVersion == 2) {
+                        return VXOS_WIN8;
+                    }
+                    if (osvi.dwMinorVersion == 1) {
+                        return VXOS_WIN7;
+                    }
+                    if (osvi.dwMinorVersion == 0) {
+                        return VXOS_WINVISTA;
+                    }
+                }
+                // Windows XP, 2000 (Major version 5)
+                if (osvi.dwMajorVersion == 5) {
+                    if (osvi.dwMinorVersion >= 1) {
+                        return VXOS_WINXP;
+                    }
+                    return VXOS_WIN2K;
+                }
+                // Windows NT 4.0 (Major version 4, NT platform)
+                if (osvi.dwMajorVersion == 4) {
+                    return VXOS_WINNT4;
+                }
+            }
+        }
     }
+
+    // Fallback to GetVersionExA for legacy systems (Win9x)
+    OSVERSIONINFOA osviA;
+    memset(&osviA, 0, sizeof(osviA));
+    osviA.dwOSVersionInfoSize = sizeof(osviA);
+    if (GetVersionExA(&osviA)) {
+        if (osviA.dwPlatformId == VER_PLATFORM_WIN32s) {
+            return VXOS_WIN31;
+        }
+        if (osviA.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
+            if (osviA.dwMinorVersion == 0) {
+                return VXOS_WIN95;
+            }
+            if (osviA.dwMinorVersion < 90) {
+                return VXOS_WIN98;
+            }
+            return VXOS_WINME;
+        }
+    }
+
+    return VXOS_UNKNOWN;
 }
 
 FONT_HANDLE VxCreateFont(char *FontName, int FontSize, int Weight, XBOOL italic, XBOOL underline) {

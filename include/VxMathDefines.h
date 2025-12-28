@@ -196,46 +196,36 @@ typedef enum ProcessorsType {
  * @see VxGetOs
  */
 typedef enum VX_OSINFO {
-    VXOS_UNKNOWN,  ///< Unknown operating system
-    VXOS_WIN31,    ///< Windows 3.1
-    VXOS_WIN95,    ///< Windows 95
-    VXOS_WIN98,    ///< Windows 98
-    VXOS_WINME,    ///< Windows ME
-    VXOS_WINNT4,   ///< Windows NT 4.0
-    VXOS_WIN2K,    ///< Windows 2000
-    VXOS_WINXP,    ///< Windows XP
-    VXOS_MACOS9,   ///< Mac OS 9
-    VXOS_MACOSX,   ///< Mac OS X
-    VXOS_XBOX,     ///< Xbox
-    VXOS_LINUXX86, ///< Linux on x86
-    VXOS_WINCE1,   ///< Windows CE 1.0
-    VXOS_WINCE2,   ///< Windows CE 2.0
-    VXOS_WINCE3,   ///< Windows CE 3.0
-    VXOS_PSX2,     ///< PlayStation 2
-    VXOS_XBOX2,    ///< Xbox 2 (alias for Xbox 360)
-    VXOS_WINVISTA, ///< Windows Vista
-    VXOS_PSP,      ///< PlayStation Portable
-    VXOS_XBOX360,  ///< Xbox 360
-    VXOS_WII,      ///< Nintendo Wii
-    VXOS_WINSEVEN  ///< Windows 7
+    VXOS_UNKNOWN,     ///< Unknown operating system
+    // Windows
+    VXOS_WIN31,       ///< Windows 3.1
+    VXOS_WIN95,       ///< Windows 95
+    VXOS_WIN98,       ///< Windows 98
+    VXOS_WINME,       ///< Windows ME
+    VXOS_WINNT4,      ///< Windows NT 4.0
+    VXOS_WIN2K,       ///< Windows 2000
+    VXOS_WINXP,       ///< Windows XP
+    VXOS_WINVISTA,    ///< Windows Vista
+    VXOS_WIN7,        ///< Windows 7
+    VXOS_WIN8,        ///< Windows 8
+    VXOS_WIN81,       ///< Windows 8.1
+    VXOS_WIN10,       ///< Windows 10
+    VXOS_WIN11,       ///< Windows 11
+    // macOS/iOS
+    VXOS_MACOS,       ///< macOS (formerly Mac OS X)
+    VXOS_IOS,         ///< iOS (iPhone/iPad)
+    // Linux/Unix
+    VXOS_LINUX,       ///< Linux
+    VXOS_FREEBSD,     ///< FreeBSD
+    // Mobile
+    VXOS_ANDROID,     ///< Android
+    // Game consoles
+    VXOS_PS4,         ///< PlayStation 4
+    VXOS_PS5,         ///< PlayStation 5
+    VXOS_XBOXONE,     ///< Xbox One
+    VXOS_XBOXSERIES,  ///< Xbox Series X/S
+    VXOS_SWITCH,      ///< Nintendo Switch
 } VX_OSINFO;
-
-/**
- * @brief Platform enumeration.
- * @see VxGetPlatform
- */
-typedef enum VX_PLATFORMINFO {
-    VXPLATFORM_UNKNOWN = -1, ///< Unknown platform
-    VXPLATFORM_WINDOWS = 0,  ///< Windows platform
-    VXPLATFORM_MAC     = 1,  ///< Macintosh platform
-    VXPLATFORM_XBOX    = 2,  ///< Xbox platform
-    VXPLATFORM_WINCE   = 3,  ///< Windows CE platform
-    VXPLATFORM_LINUX   = 4,  ///< Linux platform
-    VXPLATFORM_PSX2    = 5,  ///< PlayStation 2 platform
-    VXPLATFORM_XBOX2   = 6,  ///< Xbox 360 platform
-    VXPLATFORM_PSP     = 7,  ///< PlayStation Portable platform
-    VXPLATFORM_WII     = 8,  ///< Nintendo Wii platform
-} VX_PLATFORMINFO;
 
 /**
  * @brief Pixel format types.
