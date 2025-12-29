@@ -2,13 +2,15 @@
  * @file SIMDVectorTest.cpp
  * @brief Tests for SIMD vector operations (VxVector and VxVector4).
  *
- * Tests all operations in VxSIMDVectorOps and VxSIMDVector4Ops:
- * - Add, Subtract, Scale
- * - Dot product, Cross product
- * - Length, LengthSquared, Distance
- * - Lerp, Reflect
- * - Minimize, Maximize
- * - NormalizeVector, RotateVector
+ * Tests all inline SIMD operations defined in VxSIMD.h/VxSIMD.inl:
+ * - VxSIMDAddVector, VxSIMDSubtractVector, VxSIMDScaleVector
+ * - VxSIMDDotVector, VxSIMDCrossVector
+ * - VxSIMDLengthVector, VxSIMDLengthSquaredVector, VxSIMDDistanceVector
+ * - VxSIMDLerpVector, VxSIMDReflectVector
+ * - VxSIMDMinimizeVector, VxSIMDMaximizeVector
+ * - VxSIMDNormalizeVector, VxSIMDRotateVector
+ * - VxSIMDAddVector4, VxSIMDSubtractVector4, VxSIMDScaleVector4
+ * - VxSIMDDotVector4, VxSIMDLerpVector4
  */
 
 #include <gtest/gtest.h>
@@ -17,6 +19,8 @@
 
 #include "VxSIMD.h"
 #include "SIMDTestCommon.h"
+
+#if defined(VX_SIMD_SSE)
 
 namespace {
 
@@ -29,13 +33,11 @@ class SIMDVectorTest : public SIMDTest::SIMDTestBase {};
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Add_BasicOperation) {
-    ASSERT_NE(m_dispatch->Vector.Add, nullptr);
-
     VxVector a(1.0f, 2.0f, 3.0f);
     VxVector b(4.0f, 5.0f, 6.0f);
     VxVector result;
 
-    m_dispatch->Vector.Add(&result, &a, &b);
+    VxSIMDAddVector(&result, &a, &b);
 
     EXPECT_FLOAT_EQ(result.x, 5.0f);
     EXPECT_FLOAT_EQ(result.y, 7.0f);
@@ -47,7 +49,7 @@ TEST_F(SIMDVectorTest, Add_ZeroVector) {
     VxVector zero(0.0f, 0.0f, 0.0f);
     VxVector result;
 
-    m_dispatch->Vector.Add(&result, &a, &zero);
+    VxSIMDAddVector(&result, &a, &zero);
 
     EXPECT_SIMD_VEC3_NEAR(result, a, SIMD_EXACT_TOL);
 }
@@ -57,7 +59,7 @@ TEST_F(SIMDVectorTest, Add_NegativeValues) {
     VxVector b(-1.0f, 2.0f, -3.0f);
     VxVector result;
 
-    m_dispatch->Vector.Add(&result, &a, &b);
+    VxSIMDAddVector(&result, &a, &b);
 
     EXPECT_NEAR(result.x, 0.0f, SIMD_EXACT_TOL);
     EXPECT_NEAR(result.y, 0.0f, SIMD_EXACT_TOL);
@@ -73,7 +75,7 @@ TEST_F(SIMDVectorTest, Add_MatchesScalar) {
         Scalar::AddVector(expected, a, b);
 
         VxVector result;
-        m_dispatch->Vector.Add(&result, &a, &b);
+        VxSIMDAddVector(&result, &a, &b);
 
         EXPECT_SIMD_VEC3_NEAR(result, expected, SIMD_EXACT_TOL);
     }
@@ -84,13 +86,11 @@ TEST_F(SIMDVectorTest, Add_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Subtract_BasicOperation) {
-    ASSERT_NE(m_dispatch->Vector.Subtract, nullptr);
-
     VxVector a(5.0f, 7.0f, 9.0f);
     VxVector b(4.0f, 5.0f, 6.0f);
     VxVector result;
 
-    m_dispatch->Vector.Subtract(&result, &a, &b);
+    VxSIMDSubtractVector(&result, &a, &b);
 
     EXPECT_FLOAT_EQ(result.x, 1.0f);
     EXPECT_FLOAT_EQ(result.y, 2.0f);
@@ -101,7 +101,7 @@ TEST_F(SIMDVectorTest, Subtract_SameVector) {
     VxVector a(1.0f, 2.0f, 3.0f);
     VxVector result;
 
-    m_dispatch->Vector.Subtract(&result, &a, &a);
+    VxSIMDSubtractVector(&result, &a, &a);
 
     EXPECT_NEAR(result.x, 0.0f, SIMD_EXACT_TOL);
     EXPECT_NEAR(result.y, 0.0f, SIMD_EXACT_TOL);
@@ -117,7 +117,7 @@ TEST_F(SIMDVectorTest, Subtract_MatchesScalar) {
         Scalar::SubtractVector(expected, a, b);
 
         VxVector result;
-        m_dispatch->Vector.Subtract(&result, &a, &b);
+        VxSIMDSubtractVector(&result, &a, &b);
 
         EXPECT_SIMD_VEC3_NEAR(result, expected, SIMD_EXACT_TOL);
     }
@@ -128,12 +128,10 @@ TEST_F(SIMDVectorTest, Subtract_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Scale_BasicOperation) {
-    ASSERT_NE(m_dispatch->Vector.Scale, nullptr);
-
     VxVector v(1.0f, 2.0f, 3.0f);
     VxVector result;
 
-    m_dispatch->Vector.Scale(&result, &v, 2.0f);
+    VxSIMDScaleVector(&result, &v, 2.0f);
 
     EXPECT_FLOAT_EQ(result.x, 2.0f);
     EXPECT_FLOAT_EQ(result.y, 4.0f);
@@ -144,7 +142,7 @@ TEST_F(SIMDVectorTest, Scale_Zero) {
     VxVector v(1.0f, 2.0f, 3.0f);
     VxVector result;
 
-    m_dispatch->Vector.Scale(&result, &v, 0.0f);
+    VxSIMDScaleVector(&result, &v, 0.0f);
 
     EXPECT_FLOAT_EQ(result.x, 0.0f);
     EXPECT_FLOAT_EQ(result.y, 0.0f);
@@ -155,7 +153,7 @@ TEST_F(SIMDVectorTest, Scale_Negative) {
     VxVector v(1.0f, 2.0f, 3.0f);
     VxVector result;
 
-    m_dispatch->Vector.Scale(&result, &v, -1.0f);
+    VxSIMDScaleVector(&result, &v, -1.0f);
 
     EXPECT_FLOAT_EQ(result.x, -1.0f);
     EXPECT_FLOAT_EQ(result.y, -2.0f);
@@ -171,7 +169,7 @@ TEST_F(SIMDVectorTest, Scale_MatchesScalar) {
         Scalar::ScaleVector(expected, v, s);
 
         VxVector result;
-        m_dispatch->Vector.Scale(&result, &v, s);
+        VxSIMDScaleVector(&result, &v, s);
 
         EXPECT_SIMD_VEC3_NEAR(result, expected, SIMD_EXACT_TOL);
     }
@@ -182,12 +180,10 @@ TEST_F(SIMDVectorTest, Scale_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Dot_Orthogonal) {
-    ASSERT_NE(m_dispatch->Vector.Dot, nullptr);
-
     VxVector x(1.0f, 0.0f, 0.0f);
     VxVector y(0.0f, 1.0f, 0.0f);
 
-    float dot = m_dispatch->Vector.Dot(&x, &y);
+    float dot = VxSIMDDotVector(&x, &y);
 
     EXPECT_NEAR(dot, 0.0f, SIMD_EXACT_TOL);
 }
@@ -196,7 +192,7 @@ TEST_F(SIMDVectorTest, Dot_Parallel) {
     VxVector a(1.0f, 0.0f, 0.0f);
     VxVector b(2.0f, 0.0f, 0.0f);
 
-    float dot = m_dispatch->Vector.Dot(&a, &b);
+    float dot = VxSIMDDotVector(&a, &b);
 
     EXPECT_NEAR(dot, 2.0f, SIMD_EXACT_TOL);
 }
@@ -205,7 +201,7 @@ TEST_F(SIMDVectorTest, Dot_AntiParallel) {
     VxVector a(1.0f, 0.0f, 0.0f);
     VxVector b(-2.0f, 0.0f, 0.0f);
 
-    float dot = m_dispatch->Vector.Dot(&a, &b);
+    float dot = VxSIMDDotVector(&a, &b);
 
     EXPECT_NEAR(dot, -2.0f, SIMD_EXACT_TOL);
 }
@@ -216,7 +212,7 @@ TEST_F(SIMDVectorTest, Dot_MatchesScalar) {
         VxVector b = RandomVector();
 
         float expected = Scalar::DotProduct3(a, b);
-        float result = m_dispatch->Vector.Dot(&a, &b);
+        float result = VxSIMDDotVector(&a, &b);
 
         EXPECT_SIMD_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
@@ -227,13 +223,11 @@ TEST_F(SIMDVectorTest, Dot_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Cross_UnitVectors) {
-    ASSERT_NE(m_dispatch->Vector.Cross, nullptr);
-
     VxVector x(1.0f, 0.0f, 0.0f);
     VxVector y(0.0f, 1.0f, 0.0f);
     VxVector result;
 
-    m_dispatch->Vector.Cross(&result, &x, &y);
+    VxSIMDCrossVector(&result, &x, &y);
 
     // X × Y = Z
     EXPECT_NEAR(result.x, 0.0f, SIMD_EXACT_TOL);
@@ -246,8 +240,8 @@ TEST_F(SIMDVectorTest, Cross_AntiCommutative) {
     VxVector b = RandomVector();
 
     VxVector ab, ba;
-    m_dispatch->Vector.Cross(&ab, &a, &b);
-    m_dispatch->Vector.Cross(&ba, &b, &a);
+    VxSIMDCrossVector(&ab, &a, &b);
+    VxSIMDCrossVector(&ba, &b, &a);
 
     // a × b = -(b × a)
     EXPECT_SIMD_NEAR(ab.x, -ba.x, SIMD_SCALAR_TOL);
@@ -259,7 +253,7 @@ TEST_F(SIMDVectorTest, Cross_SelfIsZero) {
     VxVector v = RandomVector();
     VxVector result;
 
-    m_dispatch->Vector.Cross(&result, &v, &v);
+    VxSIMDCrossVector(&result, &v, &v);
 
     EXPECT_NEAR(result.x, 0.0f, SIMD_SCALAR_TOL);
     EXPECT_NEAR(result.y, 0.0f, SIMD_SCALAR_TOL);
@@ -275,7 +269,7 @@ TEST_F(SIMDVectorTest, Cross_MatchesScalar) {
         Scalar::CrossProduct(expected, a, b);
 
         VxVector result;
-        m_dispatch->Vector.Cross(&result, &a, &b);
+        VxSIMDCrossVector(&result, &a, &b);
 
         EXPECT_SIMD_VEC3_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
@@ -286,21 +280,19 @@ TEST_F(SIMDVectorTest, Cross_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Length_UnitVectors) {
-    ASSERT_NE(m_dispatch->Vector.Length, nullptr);
-
     VxVector x(1.0f, 0.0f, 0.0f);
     VxVector y(0.0f, 1.0f, 0.0f);
     VxVector z(0.0f, 0.0f, 1.0f);
 
-    EXPECT_NEAR(m_dispatch->Vector.Length(&x), 1.0f, SIMD_EXACT_TOL);
-    EXPECT_NEAR(m_dispatch->Vector.Length(&y), 1.0f, SIMD_EXACT_TOL);
-    EXPECT_NEAR(m_dispatch->Vector.Length(&z), 1.0f, SIMD_EXACT_TOL);
+    EXPECT_NEAR(VxSIMDLengthVector(&x), 1.0f, SIMD_EXACT_TOL);
+    EXPECT_NEAR(VxSIMDLengthVector(&y), 1.0f, SIMD_EXACT_TOL);
+    EXPECT_NEAR(VxSIMDLengthVector(&z), 1.0f, SIMD_EXACT_TOL);
 }
 
 TEST_F(SIMDVectorTest, Length_ZeroVector) {
     VxVector zero(0.0f, 0.0f, 0.0f);
 
-    float len = m_dispatch->Vector.Length(&zero);
+    float len = VxSIMDLengthVector(&zero);
 
     EXPECT_NEAR(len, 0.0f, SIMD_EXACT_TOL);
 }
@@ -310,20 +302,18 @@ TEST_F(SIMDVectorTest, Length_MatchesScalar) {
         VxVector v = RandomVector();
 
         float expected = Scalar::VectorLength(v);
-        float result = m_dispatch->Vector.Length(&v);
+        float result = VxSIMDLengthVector(&v);
 
         EXPECT_SIMD_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
 }
 
 TEST_F(SIMDVectorTest, LengthSquared_MatchesScalar) {
-    ASSERT_NE(m_dispatch->Vector.LengthSquared, nullptr);
-
     for (int i = 0; i < 100; ++i) {
         VxVector v = RandomVector();
 
         float expected = Scalar::VectorLengthSquared(v);
-        float result = m_dispatch->Vector.LengthSquared(&v);
+        float result = VxSIMDLengthSquaredVector(&v);
 
         EXPECT_SIMD_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
@@ -334,11 +324,9 @@ TEST_F(SIMDVectorTest, LengthSquared_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Distance_SamePoint) {
-    ASSERT_NE(m_dispatch->Vector.Distance, nullptr);
-
     VxVector v = RandomVector();
 
-    float dist = m_dispatch->Vector.Distance(&v, &v);
+    float dist = VxSIMDDistanceVector(&v, &v);
 
     EXPECT_NEAR(dist, 0.0f, SIMD_EXACT_TOL);
 }
@@ -347,7 +335,7 @@ TEST_F(SIMDVectorTest, Distance_KnownValues) {
     VxVector a(0.0f, 0.0f, 0.0f);
     VxVector b(3.0f, 4.0f, 0.0f);  // 3-4-5 triangle
 
-    float dist = m_dispatch->Vector.Distance(&a, &b);
+    float dist = VxSIMDDistanceVector(&a, &b);
 
     EXPECT_NEAR(dist, 5.0f, SIMD_SCALAR_TOL);
 }
@@ -356,8 +344,8 @@ TEST_F(SIMDVectorTest, Distance_Symmetric) {
     VxVector a = RandomVector();
     VxVector b = RandomVector();
 
-    float ab = m_dispatch->Vector.Distance(&a, &b);
-    float ba = m_dispatch->Vector.Distance(&b, &a);
+    float ab = VxSIMDDistanceVector(&a, &b);
+    float ba = VxSIMDDistanceVector(&b, &a);
 
     EXPECT_SIMD_NEAR(ab, ba, SIMD_EXACT_TOL);
 }
@@ -368,7 +356,7 @@ TEST_F(SIMDVectorTest, Distance_MatchesScalar) {
         VxVector b = RandomVector();
 
         float expected = Scalar::VectorDistance(a, b);
-        float result = m_dispatch->Vector.Distance(&a, &b);
+        float result = VxSIMDDistanceVector(&a, &b);
 
         EXPECT_SIMD_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
@@ -379,18 +367,16 @@ TEST_F(SIMDVectorTest, Distance_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Lerp_Boundaries) {
-    ASSERT_NE(m_dispatch->Vector.Lerp, nullptr);
-
     VxVector a(0.0f, 0.0f, 0.0f);
     VxVector b(1.0f, 2.0f, 3.0f);
     VxVector result;
 
     // t=0 should return a
-    m_dispatch->Vector.Lerp(&result, &a, &b, 0.0f);
+    VxSIMDLerpVector(&result, &a, &b, 0.0f);
     EXPECT_SIMD_VEC3_NEAR(result, a, SIMD_EXACT_TOL);
 
     // t=1 should return b
-    m_dispatch->Vector.Lerp(&result, &a, &b, 1.0f);
+    VxSIMDLerpVector(&result, &a, &b, 1.0f);
     EXPECT_SIMD_VEC3_NEAR(result, b, SIMD_EXACT_TOL);
 }
 
@@ -399,7 +385,7 @@ TEST_F(SIMDVectorTest, Lerp_Midpoint) {
     VxVector b(2.0f, 4.0f, 6.0f);
     VxVector result;
 
-    m_dispatch->Vector.Lerp(&result, &a, &b, 0.5f);
+    VxSIMDLerpVector(&result, &a, &b, 0.5f);
 
     EXPECT_NEAR(result.x, 1.0f, SIMD_SCALAR_TOL);
     EXPECT_NEAR(result.y, 2.0f, SIMD_SCALAR_TOL);
@@ -416,7 +402,7 @@ TEST_F(SIMDVectorTest, Lerp_MatchesScalar) {
         Scalar::VectorLerp(expected, a, b, t);
 
         VxVector result;
-        m_dispatch->Vector.Lerp(&result, &a, &b, t);
+        VxSIMDLerpVector(&result, &a, &b, t);
 
         EXPECT_SIMD_VEC3_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
@@ -427,14 +413,12 @@ TEST_F(SIMDVectorTest, Lerp_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Reflect_PerpendicularIncidence) {
-    ASSERT_NE(m_dispatch->Vector.Reflect, nullptr);
-
     // Ray straight down, normal pointing up
     VxVector incident(0.0f, -1.0f, 0.0f);
     VxVector normal(0.0f, 1.0f, 0.0f);
     VxVector result;
 
-    m_dispatch->Vector.Reflect(&result, &incident, &normal);
+    VxSIMDReflectVector(&result, &incident, &normal);
 
     // Should reflect straight up
     EXPECT_NEAR(result.x, 0.0f, SIMD_SCALAR_TOL);
@@ -449,7 +433,7 @@ TEST_F(SIMDVectorTest, Reflect_45DegreeAngle) {
     VxVector normal(0.0f, 1.0f, 0.0f);
     VxVector result;
 
-    m_dispatch->Vector.Reflect(&result, &incident, &normal);
+    VxSIMDReflectVector(&result, &incident, &normal);
 
     // Should reflect at 45 degrees opposite
     VxVector expected(incident.x, -incident.y, incident.z);
@@ -465,7 +449,7 @@ TEST_F(SIMDVectorTest, Reflect_MatchesScalar) {
         Scalar::VectorReflect(expected, incident, normal);
 
         VxVector result;
-        m_dispatch->Vector.Reflect(&result, &incident, &normal);
+        VxSIMDReflectVector(&result, &incident, &normal);
 
         EXPECT_SIMD_VEC3_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
@@ -476,13 +460,11 @@ TEST_F(SIMDVectorTest, Reflect_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Minimize_BasicOperation) {
-    ASSERT_NE(m_dispatch->Vector.Minimize, nullptr);
-
     VxVector a(1.0f, 5.0f, 3.0f);
     VxVector b(4.0f, 2.0f, 6.0f);
     VxVector result;
 
-    m_dispatch->Vector.Minimize(&result, &a, &b);
+    VxSIMDMinimizeVector(&result, &a, &b);
 
     EXPECT_FLOAT_EQ(result.x, 1.0f);
     EXPECT_FLOAT_EQ(result.y, 2.0f);
@@ -490,13 +472,11 @@ TEST_F(SIMDVectorTest, Minimize_BasicOperation) {
 }
 
 TEST_F(SIMDVectorTest, Maximize_BasicOperation) {
-    ASSERT_NE(m_dispatch->Vector.Maximize, nullptr);
-
     VxVector a(1.0f, 5.0f, 3.0f);
     VxVector b(4.0f, 2.0f, 6.0f);
     VxVector result;
 
-    m_dispatch->Vector.Maximize(&result, &a, &b);
+    VxSIMDMaximizeVector(&result, &a, &b);
 
     EXPECT_FLOAT_EQ(result.x, 4.0f);
     EXPECT_FLOAT_EQ(result.y, 5.0f);
@@ -513,8 +493,8 @@ TEST_F(SIMDVectorTest, MinMaximize_MatchesScalar) {
         Scalar::VectorMaximize(expectedMax, a, b);
 
         VxVector resultMin, resultMax;
-        m_dispatch->Vector.Minimize(&resultMin, &a, &b);
-        m_dispatch->Vector.Maximize(&resultMax, &a, &b);
+        VxSIMDMinimizeVector(&resultMin, &a, &b);
+        VxSIMDMaximizeVector(&resultMax, &a, &b);
 
         EXPECT_SIMD_VEC3_NEAR(resultMin, expectedMin, SIMD_EXACT_TOL);
         EXPECT_SIMD_VEC3_NEAR(resultMax, expectedMax, SIMD_EXACT_TOL);
@@ -526,12 +506,10 @@ TEST_F(SIMDVectorTest, MinMaximize_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Normalize_UnitVectorUnchanged) {
-    ASSERT_NE(m_dispatch->Vector.NormalizeVector, nullptr);
-
     VxVector v(1.0f, 0.0f, 0.0f);
     VxVector original = v;
 
-    m_dispatch->Vector.NormalizeVector(&v);
+    VxSIMDNormalizeVector(&v);
 
     EXPECT_SIMD_VEC3_NEAR(v, original, SIMD_SCALAR_TOL);
 }
@@ -541,7 +519,7 @@ TEST_F(SIMDVectorTest, Normalize_ResultHasUnitLength) {
         VxVector v = RandomVector();
         if (v.SquareMagnitude() < EPSILON) continue;
 
-        m_dispatch->Vector.NormalizeVector(&v);
+        VxSIMDNormalizeVector(&v);
 
         float len = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
         EXPECT_NEAR(len, 1.0f, SIMD_SCALAR_TOL);
@@ -556,7 +534,7 @@ TEST_F(SIMDVectorTest, Normalize_PreservesDirection) {
         VxVector expected = v;
         Scalar::NormalizeVector(expected);
 
-        m_dispatch->Vector.NormalizeVector(&v);
+        VxSIMDNormalizeVector(&v);
 
         EXPECT_SIMD_VEC3_NEAR(v, expected, SIMD_SCALAR_TOL);
     }
@@ -565,7 +543,7 @@ TEST_F(SIMDVectorTest, Normalize_PreservesDirection) {
 TEST_F(SIMDVectorTest, Normalize_ZeroVectorSafe) {
     VxVector zero(0.0f, 0.0f, 0.0f);
 
-    m_dispatch->Vector.NormalizeVector(&zero);
+    VxSIMDNormalizeVector(&zero);
 
     // Should not crash or produce NaN
     EXPECT_FALSE(std::isnan(zero.x));
@@ -576,7 +554,7 @@ TEST_F(SIMDVectorTest, Normalize_ZeroVectorSafe) {
 TEST_F(SIMDVectorTest, Normalize_VerySmallVectorSafe) {
     VxVector tiny(1e-38f, 1e-38f, 1e-38f);
 
-    m_dispatch->Vector.NormalizeVector(&tiny);
+    VxSIMDNormalizeVector(&tiny);
 
     // Should not crash or produce NaN
     EXPECT_FALSE(std::isnan(tiny.x));
@@ -589,14 +567,12 @@ TEST_F(SIMDVectorTest, Normalize_VerySmallVectorSafe) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Rotate_IdentityMatrix) {
-    ASSERT_NE(m_dispatch->Vector.RotateVector, nullptr);
-
     VxMatrix identity;
     identity.SetIdentity();
     VxVector v(1.0f, 2.0f, 3.0f);
     VxVector result;
 
-    m_dispatch->Vector.RotateVector(&result, &identity, &v);
+    VxSIMDRotateVector(&result, &identity, &v);
 
     EXPECT_SIMD_VEC3_NEAR(result, v, SIMD_SCALAR_TOL);
 }
@@ -608,7 +584,7 @@ TEST_F(SIMDVectorTest, Rotate_90DegreesAroundZ) {
     VxVector v(1.0f, 0.0f, 0.0f);
     VxVector result;
 
-    m_dispatch->Vector.RotateVector(&result, &rot, &v);
+    VxSIMDRotateVector(&result, &rot, &v);
 
     // X axis rotated 90 degrees around Z should become Y
     EXPECT_NEAR(result.x, 0.0f, SIMD_SCALAR_TOL);
@@ -624,7 +600,7 @@ TEST_F(SIMDVectorTest, Rotate_PreservesLength) {
         float originalLen = v.Magnitude();
 
         VxVector result;
-        m_dispatch->Vector.RotateVector(&result, &rot, &v);
+        VxSIMDRotateVector(&result, &rot, &v);
 
         float newLen = result.Magnitude();
         EXPECT_SIMD_NEAR(newLen, originalLen, SIMD_SCALAR_TOL);
@@ -640,7 +616,7 @@ TEST_F(SIMDVectorTest, Rotate_MatchesScalar) {
         Vx3DRotateVector(&expected, rot, &v);
 
         VxVector result;
-        m_dispatch->Vector.RotateVector(&result, &rot, &v);
+        VxSIMDRotateVector(&result, &rot, &v);
 
         EXPECT_SIMD_VEC3_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
@@ -651,8 +627,6 @@ TEST_F(SIMDVectorTest, Rotate_MatchesScalar) {
 //=============================================================================
 
 TEST_F(SIMDVectorTest, Vector4_Add_MatchesScalar) {
-    ASSERT_NE(m_dispatch->Vector4.Add, nullptr);
-
     for (int i = 0; i < 100; ++i) {
         VxVector4 a = RandomVector4();
         VxVector4 b = RandomVector4();
@@ -661,15 +635,13 @@ TEST_F(SIMDVectorTest, Vector4_Add_MatchesScalar) {
         Scalar::AddVector4(expected, a, b);
 
         VxVector4 result;
-        m_dispatch->Vector4.Add(&result, &a, &b);
+        VxSIMDAddVector4(&result, &a, &b);
 
         EXPECT_SIMD_VEC4_NEAR(result, expected, SIMD_EXACT_TOL);
     }
 }
 
 TEST_F(SIMDVectorTest, Vector4_Subtract_MatchesScalar) {
-    ASSERT_NE(m_dispatch->Vector4.Subtract, nullptr);
-
     for (int i = 0; i < 100; ++i) {
         VxVector4 a = RandomVector4();
         VxVector4 b = RandomVector4();
@@ -678,15 +650,13 @@ TEST_F(SIMDVectorTest, Vector4_Subtract_MatchesScalar) {
         Scalar::SubtractVector4(expected, a, b);
 
         VxVector4 result;
-        m_dispatch->Vector4.Subtract(&result, &a, &b);
+        VxSIMDSubtractVector4(&result, &a, &b);
 
         EXPECT_SIMD_VEC4_NEAR(result, expected, SIMD_EXACT_TOL);
     }
 }
 
 TEST_F(SIMDVectorTest, Vector4_Scale_MatchesScalar) {
-    ASSERT_NE(m_dispatch->Vector4.Scale, nullptr);
-
     for (int i = 0; i < 100; ++i) {
         VxVector4 v = RandomVector4();
         float s = RandomFloat(-10.0f, 10.0f);
@@ -695,39 +665,35 @@ TEST_F(SIMDVectorTest, Vector4_Scale_MatchesScalar) {
         Scalar::ScaleVector4(expected, v, s);
 
         VxVector4 result;
-        m_dispatch->Vector4.Scale(&result, &v, s);
+        VxSIMDScaleVector4(&result, &v, s);
 
         EXPECT_SIMD_VEC4_NEAR(result, expected, SIMD_EXACT_TOL);
     }
 }
 
 TEST_F(SIMDVectorTest, Vector4_Dot_MatchesScalar) {
-    ASSERT_NE(m_dispatch->Vector4.Dot, nullptr);
-
     for (int i = 0; i < 100; ++i) {
         VxVector4 a = RandomVector4();
         VxVector4 b = RandomVector4();
 
         float expected = Scalar::DotProduct4(a, b);
-        float result = m_dispatch->Vector4.Dot(&a, &b);
+        float result = VxSIMDDotVector4(&a, &b);
 
         EXPECT_SIMD_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
 }
 
 TEST_F(SIMDVectorTest, Vector4_Lerp_Boundaries) {
-    ASSERT_NE(m_dispatch->Vector4.Lerp, nullptr);
-
     VxVector4 a(0.0f, 0.0f, 0.0f, 0.0f);
     VxVector4 b(1.0f, 2.0f, 3.0f, 4.0f);
     VxVector4 result;
 
     // t=0
-    m_dispatch->Vector4.Lerp(&result, &a, &b, 0.0f);
+    VxSIMDLerpVector4(&result, &a, &b, 0.0f);
     EXPECT_SIMD_VEC4_NEAR(result, a, SIMD_EXACT_TOL);
 
     // t=1
-    m_dispatch->Vector4.Lerp(&result, &a, &b, 1.0f);
+    VxSIMDLerpVector4(&result, &a, &b, 1.0f);
     EXPECT_SIMD_VEC4_NEAR(result, b, SIMD_EXACT_TOL);
 }
 
@@ -741,7 +707,7 @@ TEST_F(SIMDVectorTest, Vector4_Lerp_MatchesScalar) {
         Scalar::LerpVector4(expected, a, b, t);
 
         VxVector4 result;
-        m_dispatch->Vector4.Lerp(&result, &a, &b, t);
+        VxSIMDLerpVector4(&result, &a, &b, t);
 
         EXPECT_SIMD_VEC4_NEAR(result, expected, SIMD_SCALAR_TOL);
     }
@@ -756,7 +722,7 @@ TEST_F(SIMDVectorTest, EdgeCase_LargeValues) {
     VxVector b(1e6f, 1e6f, 1e6f);
     VxVector result;
 
-    m_dispatch->Vector.Add(&result, &a, &b);
+    VxSIMDAddVector(&result, &a, &b);
 
     EXPECT_NEAR(result.x, 2e6f, 1e3f);
     EXPECT_NEAR(result.y, 2e6f, 1e3f);
@@ -768,7 +734,7 @@ TEST_F(SIMDVectorTest, EdgeCase_SmallValues) {
     VxVector b(1e-6f, 1e-6f, 1e-6f);
     VxVector result;
 
-    m_dispatch->Vector.Add(&result, &a, &b);
+    VxSIMDAddVector(&result, &a, &b);
 
     EXPECT_NEAR(result.x, 2e-6f, 1e-10f);
     EXPECT_NEAR(result.y, 2e-6f, 1e-10f);
@@ -780,7 +746,7 @@ TEST_F(SIMDVectorTest, EdgeCase_MixedSigns) {
     VxVector b(-4.0f, 5.0f, -6.0f);
     VxVector result;
 
-    m_dispatch->Vector.Add(&result, &a, &b);
+    VxSIMDAddVector(&result, &a, &b);
 
     EXPECT_FLOAT_EQ(result.x, -3.0f);
     EXPECT_FLOAT_EQ(result.y, 3.0f);
@@ -793,8 +759,8 @@ TEST_F(SIMDVectorTest, StressTest_ManyOperations) {
 
     for (int i = 0; i < 1000; ++i) {
         VxVector temp;
-        m_dispatch->Vector.Scale(&temp, &v, 1.001f);
-        m_dispatch->Vector.NormalizeVector(&temp);
+        VxSIMDScaleVector(&temp, &v, 1.001f);
+        VxSIMDNormalizeVector(&temp);
         v = temp;
     }
 
@@ -804,3 +770,5 @@ TEST_F(SIMDVectorTest, StressTest_ManyOperations) {
 }
 
 } // namespace
+
+#endif // VX_SIMD_SSE

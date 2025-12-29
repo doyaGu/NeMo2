@@ -202,160 +202,94 @@ TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_MemoryIsWritable) {
 }
 
 //=============================================================================
-// Dispatch Table Tests
+// SIMD Inline Function Availability Tests
+// (Replaces the old dispatch table tests - verifies inline SIMD functions work)
 //=============================================================================
 
-TEST(SIMDDispatchTable, VxGetSIMDDispatch_ReturnsValidTable) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
+#if defined(VX_SIMD_SSE)
 
-    ASSERT_NE(dispatch, nullptr);
-    EXPECT_NE(dispatch->VariantName, nullptr);
-    EXPECT_GT(strlen(dispatch->VariantName), 0) << "Variant name should not be empty";
+TEST(SIMDInlineFunctions, VectorOperationsWork) {
+    // Test that the inline SIMD vector functions are available and work correctly
+    VxVector a(1.0f, 2.0f, 3.0f);
+    VxVector b(4.0f, 5.0f, 6.0f);
+    VxVector result;
+
+    VxSIMDAddVector(&result, &a, &b);
+    EXPECT_FLOAT_EQ(result.x, 5.0f);
+    EXPECT_FLOAT_EQ(result.y, 7.0f);
+    EXPECT_FLOAT_EQ(result.z, 9.0f);
+
+    VxSIMDSubtractVector(&result, &a, &b);
+    EXPECT_FLOAT_EQ(result.x, -3.0f);
+    EXPECT_FLOAT_EQ(result.y, -3.0f);
+    EXPECT_FLOAT_EQ(result.z, -3.0f);
+
+    VxSIMDScaleVector(&result, &a, 2.0f);
+    EXPECT_FLOAT_EQ(result.x, 2.0f);
+    EXPECT_FLOAT_EQ(result.y, 4.0f);
+    EXPECT_FLOAT_EQ(result.z, 6.0f);
+
+    float dot = VxSIMDDotVector(&a, &b);
+    EXPECT_FLOAT_EQ(dot, 32.0f);  // 1*4 + 2*5 + 3*6 = 32
+
+    float len = VxSIMDLengthVector(&a);
+    EXPECT_NEAR(len, std::sqrt(14.0f), 1e-5f);  // sqrt(1+4+9)
 }
 
-TEST(SIMDDispatchTable, VectorOpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
+TEST(SIMDInlineFunctions, MatrixOperationsWork) {
+    VxMatrix identity;
+    VxSIMDMatrixIdentity(&identity);
 
-    EXPECT_NE(dispatch->Vector.NormalizeVector, nullptr);
-    EXPECT_NE(dispatch->Vector.RotateVector, nullptr);
-    EXPECT_NE(dispatch->Vector.Add, nullptr);
-    EXPECT_NE(dispatch->Vector.Subtract, nullptr);
-    EXPECT_NE(dispatch->Vector.Scale, nullptr);
-    EXPECT_NE(dispatch->Vector.Dot, nullptr);
-    EXPECT_NE(dispatch->Vector.Cross, nullptr);
-    EXPECT_NE(dispatch->Vector.Length, nullptr);
-    EXPECT_NE(dispatch->Vector.LengthSquared, nullptr);
-    EXPECT_NE(dispatch->Vector.Distance, nullptr);
-    EXPECT_NE(dispatch->Vector.Lerp, nullptr);
-    EXPECT_NE(dispatch->Vector.Reflect, nullptr);
-    EXPECT_NE(dispatch->Vector.Minimize, nullptr);
-    EXPECT_NE(dispatch->Vector.Maximize, nullptr);
+    // Verify identity matrix
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            float expected = (i == j) ? 1.0f : 0.0f;
+            EXPECT_FLOAT_EQ(identity[i][j], expected);
+        }
+    }
+
+    // Test matrix-vector multiply with identity
+    VxVector v(1.0f, 2.0f, 3.0f);
+    VxVector result;
+    VxSIMDMultiplyMatrixVector(&result, &identity, &v);
+    EXPECT_FLOAT_EQ(result.x, v.x);
+    EXPECT_FLOAT_EQ(result.y, v.y);
+    EXPECT_FLOAT_EQ(result.z, v.z);
 }
 
-TEST(SIMDDispatchTable, Vector4OpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
+TEST(SIMDInlineFunctions, QuaternionOperationsWork) {
+    VxQuaternion identity(0.0f, 0.0f, 0.0f, 1.0f);
+    VxQuaternion q = identity;
 
-    EXPECT_NE(dispatch->Vector4.Add, nullptr);
-    EXPECT_NE(dispatch->Vector4.Subtract, nullptr);
-    EXPECT_NE(dispatch->Vector4.Scale, nullptr);
-    EXPECT_NE(dispatch->Vector4.Dot, nullptr);
-    EXPECT_NE(dispatch->Vector4.Lerp, nullptr);
+    VxSIMDNormalizeQuaternion(&q);
+    float len = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+    EXPECT_NEAR(len, 1.0f, 1e-5f);
+
+    // Test quaternion multiplication with identity
+    VxQuaternion a(0.5f, 0.5f, 0.5f, 0.5f);
+    VxQuaternion result;
+    VxSIMDMultiplyQuaternion(&result, &identity, &a);
+    EXPECT_NEAR(result.x, a.x, 1e-5f);
+    EXPECT_NEAR(result.y, a.y, 1e-5f);
+    EXPECT_NEAR(result.z, a.z, 1e-5f);
+    EXPECT_NEAR(result.w, a.w, 1e-5f);
 }
 
-TEST(SIMDDispatchTable, MatrixOpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
+TEST(SIMDInlineFunctions, Vector4OperationsWork) {
+    VxVector4 a(1.0f, 2.0f, 3.0f, 4.0f);
+    VxVector4 b(5.0f, 6.0f, 7.0f, 8.0f);
+    VxVector4 result;
 
-    EXPECT_NE(dispatch->Matrix.MultiplyMatrix, nullptr);
-    EXPECT_NE(dispatch->Matrix.MultiplyMatrix4, nullptr);
-    EXPECT_NE(dispatch->Matrix.TransposeMatrix, nullptr);
-    EXPECT_NE(dispatch->Matrix.MultiplyMatrixVector, nullptr);
-    EXPECT_NE(dispatch->Matrix.MultiplyMatrixVector4, nullptr);
-    EXPECT_NE(dispatch->Matrix.RotateVectorOp, nullptr);
-    EXPECT_NE(dispatch->Matrix.MultiplyMatrixVectorMany, nullptr);
-    EXPECT_NE(dispatch->Matrix.RotateVectorMany, nullptr);
-    EXPECT_NE(dispatch->Matrix.MultiplyMatrixVectorStrided, nullptr);
-    EXPECT_NE(dispatch->Matrix.MultiplyMatrixVector4Strided, nullptr);
-    EXPECT_NE(dispatch->Matrix.RotateVectorStrided, nullptr);
-    EXPECT_NE(dispatch->Matrix.Identity, nullptr);
-    EXPECT_NE(dispatch->Matrix.Inverse, nullptr);
-    EXPECT_NE(dispatch->Matrix.Determinant, nullptr);
-    EXPECT_NE(dispatch->Matrix.FromAxisAngle, nullptr);
-    EXPECT_NE(dispatch->Matrix.FromAxisAngleOrigin, nullptr);
-    EXPECT_NE(dispatch->Matrix.FromEulerAngles, nullptr);
-    EXPECT_NE(dispatch->Matrix.ToEulerAngles, nullptr);
-    EXPECT_NE(dispatch->Matrix.Interpolate, nullptr);
-    EXPECT_NE(dispatch->Matrix.InterpolateNoScale, nullptr);
-    EXPECT_NE(dispatch->Matrix.Decompose, nullptr);
-    EXPECT_NE(dispatch->Matrix.DecomposeTotal, nullptr);
-    EXPECT_NE(dispatch->Matrix.DecomposeTotalPtr, nullptr);
+    VxSIMDAddVector4(&result, &a, &b);
+    EXPECT_FLOAT_EQ(result.x, 6.0f);
+    EXPECT_FLOAT_EQ(result.y, 8.0f);
+    EXPECT_FLOAT_EQ(result.z, 10.0f);
+    EXPECT_FLOAT_EQ(result.w, 12.0f);
+
+    float dot = VxSIMDDotVector4(&a, &b);
+    EXPECT_FLOAT_EQ(dot, 70.0f);  // 1*5 + 2*6 + 3*7 + 4*8 = 70
 }
 
-TEST(SIMDDispatchTable, QuaternionOpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
-
-    EXPECT_NE(dispatch->Quaternion.NormalizeQuaternion, nullptr);
-    EXPECT_NE(dispatch->Quaternion.MultiplyQuaternion, nullptr);
-    EXPECT_NE(dispatch->Quaternion.SlerpQuaternion, nullptr);
-    EXPECT_NE(dispatch->Quaternion.FromMatrix, nullptr);
-    EXPECT_NE(dispatch->Quaternion.ToMatrix, nullptr);
-    EXPECT_NE(dispatch->Quaternion.FromAxisAngle, nullptr);
-    EXPECT_NE(dispatch->Quaternion.FromEulerAngles, nullptr);
-    EXPECT_NE(dispatch->Quaternion.ToEulerAngles, nullptr);
-    EXPECT_NE(dispatch->Quaternion.MultiplyInPlace, nullptr);
-    EXPECT_NE(dispatch->Quaternion.Conjugate, nullptr);
-    EXPECT_NE(dispatch->Quaternion.Divide, nullptr);
-    EXPECT_NE(dispatch->Quaternion.Snuggle, nullptr);
-    EXPECT_NE(dispatch->Quaternion.Ln, nullptr);
-    EXPECT_NE(dispatch->Quaternion.Exp, nullptr);
-    EXPECT_NE(dispatch->Quaternion.LnDif, nullptr);
-    EXPECT_NE(dispatch->Quaternion.Squad, nullptr);
-}
-
-TEST(SIMDDispatchTable, GeometryOpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
-
-    EXPECT_NE(dispatch->Ray.Transform, nullptr);
-    EXPECT_NE(dispatch->Plane.CreateFromPoint, nullptr);
-    EXPECT_NE(dispatch->Plane.CreateFromTriangle, nullptr);
-    EXPECT_NE(dispatch->Rect.Transform, nullptr);
-    EXPECT_NE(dispatch->Rect.TransformBySize, nullptr);
-    EXPECT_NE(dispatch->Rect.TransformToHomogeneous, nullptr);
-    EXPECT_NE(dispatch->Rect.TransformFromHomogeneous, nullptr);
-    EXPECT_NE(dispatch->Geometry.TransformBox2D, nullptr);
-    EXPECT_NE(dispatch->Geometry.ProjectBoxZExtents, nullptr);
-    EXPECT_NE(dispatch->Geometry.ComputeBestFitBBox, nullptr);
-}
-
-TEST(SIMDDispatchTable, BboxOpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
-
-    EXPECT_NE(dispatch->Bbox.Classify, nullptr);
-    EXPECT_NE(dispatch->Bbox.ClassifyVertices, nullptr);
-    EXPECT_NE(dispatch->Bbox.ClassifyVerticesOneAxis, nullptr);
-    EXPECT_NE(dispatch->Bbox.TransformTo, nullptr);
-    EXPECT_NE(dispatch->Bbox.TransformFrom, nullptr);
-}
-
-TEST(SIMDDispatchTable, FrustumOpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
-
-    EXPECT_NE(dispatch->Frustum.Update, nullptr);
-    EXPECT_NE(dispatch->Frustum.ComputeVertices, nullptr);
-    EXPECT_NE(dispatch->Frustum.Transform, nullptr);
-}
-
-TEST(SIMDDispatchTable, ArrayOpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
-
-    EXPECT_NE(dispatch->Array.InterpolateFloatArray, nullptr);
-    EXPECT_NE(dispatch->Array.InterpolateVectorArray, nullptr);
-}
-
-//=============================================================================
-// Dispatch Reset Tests
-//=============================================================================
-
-TEST(SIMDDispatchReset, VxResetSIMDDispatch_AllowsReinitialization) {
-    // Get initial dispatch
-    const VxSIMDDispatch* dispatch1 = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch1, nullptr);
-    const char* name1 = dispatch1->VariantName;
-
-    // Reset and get again
-    VxResetSIMDDispatch();
-    const VxSIMDDispatch* dispatch2 = VxGetSIMDDispatch();
-
-    ASSERT_NE(dispatch2, nullptr);
-    // Should be same variant (same CPU)
-    EXPECT_STREQ(dispatch2->VariantName, name1);
-}
+#endif // VX_SIMD_SSE
 
 } // namespace

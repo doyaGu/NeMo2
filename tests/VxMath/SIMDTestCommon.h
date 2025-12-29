@@ -255,17 +255,14 @@ inline void LerpVector4(VxVector4& result, const VxVector4& a, const VxVector4& 
 //=============================================================================
 
 /**
- * @brief Base fixture for SIMD tests with random generator and dispatch access.
+ * @brief Base fixture for SIMD tests with random generator.
  */
 class SIMDTestBase : public ::testing::Test {
 protected:
     void SetUp() override {
-        m_dispatch = VxGetSIMDDispatch();
-        ASSERT_NE(m_dispatch, nullptr) << "SIMD dispatch table is null";
         m_rng.SetSeed(0xDEADBEEF);
     }
 
-    const VxSIMDDispatch* m_dispatch = nullptr;
     VxMathTest::RandomGenerator m_rng;
 
     // Helper to get random vectors
