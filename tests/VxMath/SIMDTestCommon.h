@@ -318,13 +318,13 @@ class SIMDAlignedMemoryTest : public ::testing::Test {
 protected:
     void TearDown() override {
         for (void* ptr : m_allocatedPtrs) {
-            VxAlignedFree(ptr);
+            VxDeleteAligned(ptr);
         }
         m_allocatedPtrs.clear();
     }
 
     void* AllocAndTrack(size_t size, size_t alignment) {
-        void* ptr = VxAlignedMalloc(size, alignment);
+        void* ptr = VxNewAligned(size, alignment);
         if (ptr) m_allocatedPtrs.push_back(ptr);
         return ptr;
     }

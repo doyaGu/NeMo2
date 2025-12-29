@@ -6,7 +6,7 @@
  * - CPU feature detection (VxDetectSIMDFeatures)
  * - Feature caching (VxGetSIMDFeatures)
  * - SIMD info string (VxGetSIMDInfo)
- * - Aligned memory allocation (VxAlignedMalloc/VxAlignedFree)
+ * - Aligned memory allocation (VxNewAligned/VxDeleteAligned)
  * - Dispatch table validity
  */
 
@@ -113,13 +113,13 @@ class SIMDAlignedMemoryTest : public ::testing::Test {
 protected:
     void TearDown() override {
         for (void* ptr : m_allocated) {
-            VxAlignedFree(ptr);
+            VxDeleteAligned(ptr);
         }
         m_allocated.clear();
     }
 
     void* AllocAndTrack(size_t size, size_t alignment) {
-        void* ptr = VxAlignedMalloc(size, alignment);
+        void* ptr = VxNewAligned(size, alignment);
         if (ptr) m_allocated.push_back(ptr);
         return ptr;
     }
@@ -127,7 +127,7 @@ protected:
     std::vector<void*> m_allocated;
 };
 
-TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_ReturnsAligned16) {
+TEST_F(SIMDAlignedMemoryTest, VxNewAligned_ReturnsAligned16) {
     void* ptr = AllocAndTrack(64, 16);
 
     ASSERT_NE(ptr, nullptr);
@@ -135,7 +135,7 @@ TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_ReturnsAligned16) {
         << "Pointer should be 16-byte aligned";
 }
 
-TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_ReturnsAligned32) {
+TEST_F(SIMDAlignedMemoryTest, VxNewAligned_ReturnsAligned32) {
     void* ptr = AllocAndTrack(128, 32);
 
     ASSERT_NE(ptr, nullptr);
@@ -143,7 +143,7 @@ TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_ReturnsAligned32) {
         << "Pointer should be 32-byte aligned";
 }
 
-TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_ReturnsAligned64) {
+TEST_F(SIMDAlignedMemoryTest, VxNewAligned_ReturnsAligned64) {
     void* ptr = AllocAndTrack(256, 64);
 
     ASSERT_NE(ptr, nullptr);
@@ -151,7 +151,7 @@ TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_ReturnsAligned64) {
         << "Pointer should be 64-byte aligned";
 }
 
-TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_VariousSizes) {
+TEST_F(SIMDAlignedMemoryTest, VxNewAligned_VariousSizes) {
     const size_t sizes[] = {1, 7, 15, 16, 31, 32, 63, 64, 100, 1000, 4096};
     const size_t alignments[] = {16, 32, 64};
 
@@ -168,24 +168,24 @@ TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_VariousSizes) {
     }
 }
 
-TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_ZeroSize) {
+TEST_F(SIMDAlignedMemoryTest, VxNewAligned_ZeroSize) {
     // Zero size allocation behavior is implementation-defined
     // But we should not crash
-    void* ptr = VxAlignedMalloc(0, 16);
+    void* ptr = VxNewAligned(0, 16);
     // If returns non-null, it should still be aligned
     if (ptr) {
         EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % 16, 0);
-        VxAlignedFree(ptr);
+        VxDeleteAligned(ptr);
     }
 }
 
-TEST_F(SIMDAlignedMemoryTest, VxAlignedFree_HandleNull) {
+TEST_F(SIMDAlignedMemoryTest, VxDeleteAligned_HandleNull) {
     // Should not crash on null
-    VxAlignedFree(nullptr);
-    SUCCEED() << "VxAlignedFree(nullptr) did not crash";
+    VxDeleteAligned(nullptr);
+    SUCCEED() << "VxDeleteAligned(nullptr) did not crash";
 }
 
-TEST_F(SIMDAlignedMemoryTest, VxAlignedMalloc_MemoryIsWritable) {
+TEST_F(SIMDAlignedMemoryTest, VxNewAligned_MemoryIsWritable) {
     const size_t size = 1024;
     float* ptr = static_cast<float*>(AllocAndTrack(size * sizeof(float), 32));
     ASSERT_NE(ptr, nullptr);
