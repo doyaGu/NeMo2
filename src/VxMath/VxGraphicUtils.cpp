@@ -862,3 +862,18 @@ XBOOL VxConvertToBumpMap(const VxImageDescEx &image) {
     operator delete(tempImage);
     return TRUE;
 }
+
+//------------------------------------------------------------------------------
+// Color Quantization
+//------------------------------------------------------------------------------
+
+// Global quantization sampling factor (1 = best quality)
+static int QuantizationSamplingFactor = 15;
+
+int GetQuantizationSamplingFactor() {
+    return QuantizationSamplingFactor;
+}
+
+void SetQuantizationSamplingFactor(int factor) {
+    QuantizationSamplingFactor = factor;
+}
