@@ -717,6 +717,21 @@ XBOOL VxComputeBestFitBBox(const XBYTE *Points, XULONG Stride, int Count, VxMatr
     return FALSE;
 }
 
+//------------------------------------------------------------------------------
+// Color Quantization
+//------------------------------------------------------------------------------
+
+// Global quantization sampling factor (1 = best quality)
+static int QuantizationSamplingFactor = 15;
+
+int GetQuantizationSamplingFactor() {
+    return QuantizationSamplingFactor;
+}
+
+void SetQuantizationSamplingFactor(int factor) {
+    QuantizationSamplingFactor = factor;
+}
+
 #if defined(_WIN32) && !defined(VX_LIB)
 BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
     switch (fdwReason) {

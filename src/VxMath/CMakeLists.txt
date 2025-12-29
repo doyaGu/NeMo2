@@ -51,6 +51,7 @@ set(VXMATH_PRIVATE_HEADERS
         VxBlitEngine.h
         VxSIMD.h
         VxSIMD.inl
+        NeuQuant.h
 )
 
 set(VXMATH_SOURCES
@@ -79,6 +80,7 @@ set(VXMATH_SOURCES
         VxMemory.cpp
         XString.cpp
         EscapeURL.cpp
+        NeuQuant.cpp
 )
 
 # Platform-specific sources
