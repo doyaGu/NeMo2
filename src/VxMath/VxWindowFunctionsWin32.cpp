@@ -1,6 +1,13 @@
 #include "VxWindowFunctions.h"
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <Windows.h>
+
+#if defined(_MSC_VER)
+#include <float.h>
+#endif
 
 #include <direct.h>
 #include <shellapi.h>
@@ -92,10 +99,10 @@ XBOOL VxSetCursor(VXCURSOR_POINTER cursorID) {
 
 XWORD VxGetFPUControlWord() {
     XWORD cw = 0;
-#if defined(_MSC_VER)  // MSVC
-    __asm {
-        fstcw cw
-    }
+#if defined(_MSC_VER)  // MSVC (x86/x64)
+    unsigned int msCw = 0;
+    (void)_controlfp_s(&msCw, 0, 0); // query current control word
+    cw = static_cast<XWORD>(msCw);
 #elif defined(__GNUC__) || defined(__clang__)  // GCC / Clang
     __asm__ __volatile__ ("fstcw %0" : "=m" (cw));
 #else
@@ -105,10 +112,9 @@ XWORD VxGetFPUControlWord() {
 }
 
 void VxSetFPUControlWord(XWORD Fpu) {
-#if defined(_MSC_VER)  // MSVC
-    __asm {
-        fldcw Fpu
-    }
+#if defined(_MSC_VER)  // MSVC (x86/x64)
+    unsigned int ignored = 0;
+    (void)_controlfp_s(&ignored, static_cast<unsigned int>(Fpu), 0xFFFFu);
 #elif defined(__GNUC__) || defined(__clang__)  // GCC / Clang
     __asm__ __volatile__ ("fldcw %0" : : "m" (Fpu));
 #else
@@ -116,7 +122,12 @@ void VxSetFPUControlWord(XWORD Fpu) {
 #endif
 }
 
-void VxSetBaseFPUControlWord() {}
+void VxSetBaseFPUControlWord() {
+#if defined(_MSC_VER)
+    unsigned int ignored = 0;
+    (void)_controlfp_s(&ignored, _CW_DEFAULT, _MCW_EM | _MCW_DN | _MCW_RC | _MCW_PC);
+#endif
+}
 
 void VxAddLibrarySearchPath(char *path) {
     char buffer[4096];
