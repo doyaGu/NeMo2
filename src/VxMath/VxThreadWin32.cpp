@@ -179,7 +179,7 @@ XHashTable<VxThread *, GENERIC_HANDLE> &VxThread::GetHashThread() {
     return hashThread;
 }
 
-XULONG VxThread::ThreadFunc(void *args) {
+XULONG VX_STDCALL VxThread::ThreadFunc(void *args) {
     if (!args)
         return VXTERROR_NULLTHREAD;
 
