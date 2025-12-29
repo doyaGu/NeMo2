@@ -25,7 +25,7 @@ void mydeletearray(void *a) {
 }
 
 void *VxNewAligned(int size, int align) {
-#if defined(VX_COMPILER_MSVC)
+#if VX_COMPILER_MSVC
     return _aligned_malloc(size, align);
 #else
     if (align < sizeof(void *)) {
@@ -51,7 +51,7 @@ void *VxNewAligned(int size, int align) {
 }
 
 void VxDeleteAligned(void *ptr) {
-#if defined(VX_COMPILER_MSVC)
+#if VX_COMPILER_MSVC
     _aligned_free(ptr);
 #else
     if (!ptr) {
