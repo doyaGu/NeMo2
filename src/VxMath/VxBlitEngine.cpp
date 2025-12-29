@@ -3160,8 +3160,6 @@ void SetQuantizationSamplingFactor(int factor) {
 // Based on NeuQuant by Anthony Dekker (1994)
 //------------------------------------------------------------------------------
 
-namespace {
-
 // NeuQuant constants
 static const int NETSIZE = 256;           // Number of neurons in network
 static const int NCYCLES = 100;           // Number of learning cycles
@@ -3203,13 +3201,13 @@ static const int PRIME4 = 503;
  */
 class NeuQuant {
 public:
-    NeuQuant() : m_thepicture(nullptr), m_lengthcount(0), m_samplefac(1) {
-        memset(m_network, 0, sizeof(m_network));
-        memset(m_netindex, 0, sizeof(m_netindex));
-        memset(m_bias, 0, sizeof(m_bias));
-        memset(m_freq, 0, sizeof(m_freq));
-        memset(m_radpower, 0, sizeof(m_radpower));
-        memset(m_palette, 0, sizeof(m_palette));
+    NeuQuant() : m_ThePicture(nullptr), m_LengthCount(0), m_SampleFactor(1) {
+        memset(m_Network, 0, sizeof(m_Network));
+        memset(m_NetIndex, 0, sizeof(m_NetIndex));
+        memset(m_Bias, 0, sizeof(m_Bias));
+        memset(m_Freq, 0, sizeof(m_Freq));
+        memset(m_Radpower, 0, sizeof(m_Radpower));
+        memset(m_Palette, 0, sizeof(m_Palette));
     }
 
     /**
@@ -3219,23 +3217,23 @@ public:
      * @param sample Sampling factor (1 = every pixel, N = every Nth pixel)
      */
     void initnet(const XBYTE *thepicture, int len, int sample) {
-        m_thepicture = thepicture;
-        m_lengthcount = len;
-        m_samplefac = sample;
+        m_ThePicture = thepicture;
+        m_LengthCount = len;
+        m_SampleFactor = sample;
 
         // Initialize bias and freq arrays
         for (int i = 0; i < NETSIZE; ++i) {
-            m_bias[i] = 0;
-            m_freq[i] = INTBIAS / NETSIZE; // 1/NETSIZE
+            m_Bias[i] = 0;
+            m_Freq[i] = INTBIAS / NETSIZE; // 1/NETSIZE
         }
 
         // Initialize network with evenly distributed colors
         for (int i = 0; i < NETSIZE; ++i) {
             int val = (i << (NETBIASSHIFT + 8)) / NETSIZE; // i * 4096 / 256 = i * 16
-            m_network[i][0] = val; // Red
-            m_network[i][1] = val; // Green
-            m_network[i][2] = val; // Blue
-            m_network[i][3] = i;   // Index
+            m_Network[i][0] = val; // Red
+            m_Network[i][1] = val; // Green
+            m_Network[i][2] = val; // Blue
+            m_Network[i][3] = i;   // Index
         }
     }
 
@@ -3243,10 +3241,10 @@ public:
      * @brief Main learning loop - trains network on image samples
      */
     void learn() {
-        if (m_lengthcount < 4) return;
+        if (m_LengthCount < 4) return;
 
-        int alphadec = 30 + (m_samplefac - 1) / 3;
-        int samplepixels = m_lengthcount / (3 * m_samplefac);
+        int alphadec = 30 + (m_SampleFactor - 1) / 3;
+        int samplepixels = m_LengthCount / (3 * m_SampleFactor);
         int delta = samplepixels / NCYCLES;
         if (delta == 0) delta = 1;
 
@@ -3257,25 +3255,25 @@ public:
 
         // Initialize radpower lookup
         for (int i = 0; i < rad; ++i) {
-            m_radpower[i] = alpha * (((rad * rad - i * i) * RADBIAS) / (rad * rad));
+            m_Radpower[i] = alpha * (((rad * rad - i * i) * RADBIAS) / (rad * rad));
         }
 
         // Choose step size based on picture length to avoid correlations
         int step;
-        if (m_lengthcount < 4 * PRIME1) {
+        if (m_LengthCount < 4 * PRIME1) {
             step = 3;
-        } else if ((m_lengthcount % PRIME1) != 0) {
+        } else if ((m_LengthCount % PRIME1) != 0) {
             step = 3 * PRIME1;
-        } else if ((m_lengthcount % PRIME2) != 0) {
+        } else if ((m_LengthCount % PRIME2) != 0) {
             step = 3 * PRIME2;
-        } else if ((m_lengthcount % PRIME3) != 0) {
+        } else if ((m_LengthCount % PRIME3) != 0) {
             step = 3 * PRIME3;
         } else {
             step = 3 * PRIME4;
         }
 
-        const XBYTE *p = m_thepicture;
-        const XBYTE *pend = m_thepicture + m_lengthcount;
+        const XBYTE *p = m_ThePicture;
+        const XBYTE *pend = m_ThePicture + m_LengthCount;
 
         int i = 0;
         while (i < samplepixels) {
@@ -3297,7 +3295,7 @@ public:
             // Move to next sample pixel
             p += step;
             if (p >= pend) {
-                p -= m_lengthcount;
+                p -= m_LengthCount;
             }
 
             ++i;
@@ -3312,7 +3310,7 @@ public:
 
                 // Recalculate radpower
                 for (int k = 0; k < rad; ++k) {
-                    m_radpower[k] = alpha * (((rad * rad - k * k) * RADBIAS) / (rad * rad));
+                    m_Radpower[k] = alpha * (((rad * rad - k * k) * RADBIAS) / (rad * rad));
                 }
             }
         }
@@ -3323,16 +3321,16 @@ public:
      */
     void unbiasnet() {
         for (int i = 0; i < NETSIZE; ++i) {
-            m_network[i][0] >>= NETBIASSHIFT;
-            m_network[i][1] >>= NETBIASSHIFT;
-            m_network[i][2] >>= NETBIASSHIFT;
-            m_network[i][3] = i; // Store index
+            m_Network[i][0] >>= NETBIASSHIFT;
+            m_Network[i][1] >>= NETBIASSHIFT;
+            m_Network[i][2] >>= NETBIASSHIFT;
+            m_Network[i][3] = i; // Store index
             
             // Store unbiased palette values BEFORE sorting
             // Network stores [R, G, B] based on learn() order
-            m_palette[i][0] = m_network[i][0]; // R
-            m_palette[i][1] = m_network[i][1]; // G
-            m_palette[i][2] = m_network[i][2]; // B
+            m_Palette[i][0] = m_Network[i][0]; // R
+            m_Palette[i][1] = m_Network[i][1]; // G
+            m_Palette[i][2] = m_Network[i][2]; // B
         }
     }
 
@@ -3348,8 +3346,8 @@ public:
             int smallval = 1000;
             int smallpos = -1;
             for (int j = i; j < NETSIZE; ++j) {
-                if (m_network[j][1] < smallval) {
-                    smallval = m_network[j][1];
+                if (m_Network[j][1] < smallval) {
+                    smallval = m_Network[j][1];
                     smallpos = j;
                 }
             }
@@ -3357,33 +3355,33 @@ public:
             // Swap with position i
             if (smallpos != i) {
                 int temp[4];
-                temp[0] = m_network[i][0];
-                temp[1] = m_network[i][1];
-                temp[2] = m_network[i][2];
-                temp[3] = m_network[i][3];
-                m_network[i][0] = m_network[smallpos][0];
-                m_network[i][1] = m_network[smallpos][1];
-                m_network[i][2] = m_network[smallpos][2];
-                m_network[i][3] = m_network[smallpos][3];
-                m_network[smallpos][0] = temp[0];
-                m_network[smallpos][1] = temp[1];
-                m_network[smallpos][2] = temp[2];
-                m_network[smallpos][3] = temp[3];
+                temp[0] = m_Network[i][0];
+                temp[1] = m_Network[i][1];
+                temp[2] = m_Network[i][2];
+                temp[3] = m_Network[i][3];
+                m_Network[i][0] = m_Network[smallpos][0];
+                m_Network[i][1] = m_Network[smallpos][1];
+                m_Network[i][2] = m_Network[smallpos][2];
+                m_Network[i][3] = m_Network[smallpos][3];
+                m_Network[smallpos][0] = temp[0];
+                m_Network[smallpos][1] = temp[1];
+                m_Network[smallpos][2] = temp[2];
+                m_Network[smallpos][3] = temp[3];
             }
 
             // Build index for green values
             if (smallval != previouscol) {
-                m_netindex[previouscol] = (startpos + i) >> 1;
+                m_NetIndex[previouscol] = (startpos + i) >> 1;
                 for (int j = previouscol + 1; j < smallval; ++j) {
-                    m_netindex[j] = i;
+                    m_NetIndex[j] = i;
                 }
                 previouscol = smallval;
                 startpos = i;
             }
         }
-        m_netindex[previouscol] = (startpos + MAXNETPOS) >> 1;
+        m_NetIndex[previouscol] = (startpos + MAXNETPOS) >> 1;
         for (int j = previouscol + 1; j < 256; ++j) {
-            m_netindex[j] = MAXNETPOS;
+            m_NetIndex[j] = MAXNETPOS;
         }
     }
 
@@ -3397,50 +3395,50 @@ public:
     int inxsearch(int r, int g, int b) const {
         int bestd = 1000;    // Best distance
         int best = -1;       // Best index
-        int i = m_netindex[g]; // Index to start at (based on green)
+        int i = m_NetIndex[g]; // Index to start at (based on green)
         int j = i - 1;
 
         // Network stores [R, G, B, idx] - green is at [1] for sorting
         // Search forward and backward until distance is too great
         while (i < NETSIZE || j >= 0) {
             if (i < NETSIZE) {
-                int dist = m_network[i][1] - g;
+                int dist = m_Network[i][1] - g;
                 if (dist >= bestd) {
                     i = NETSIZE; // Stop searching forward
                 } else {
                     ++i;
                     if (dist < 0) dist = -dist;
-                    int a = m_network[i - 1][0] - r;  // [0] is R
+                    int a = m_Network[i - 1][0] - r;  // [0] is R
                     if (a < 0) a = -a;
                     dist += a;
                     if (dist < bestd) {
-                        a = m_network[i - 1][2] - b;  // [2] is B
+                        a = m_Network[i - 1][2] - b;  // [2] is B
                         if (a < 0) a = -a;
                         dist += a;
                         if (dist < bestd) {
                             bestd = dist;
-                            best = m_network[i - 1][3];
+                            best = m_Network[i - 1][3];
                         }
                     }
                 }
             }
             if (j >= 0) {
-                int dist = g - m_network[j][1];
+                int dist = g - m_Network[j][1];
                 if (dist >= bestd) {
                     j = -1; // Stop searching backward
                 } else {
                     --j;
                     if (dist < 0) dist = -dist;
-                    int a = m_network[j + 1][0] - r;  // [0] is R
+                    int a = m_Network[j + 1][0] - r;  // [0] is R
                     if (a < 0) a = -a;
                     dist += a;
                     if (dist < bestd) {
-                        a = m_network[j + 1][2] - b;  // [2] is B
+                        a = m_Network[j + 1][2] - b;  // [2] is B
                         if (a < 0) a = -a;
                         dist += a;
                         if (dist < bestd) {
                             bestd = dist;
-                            best = m_network[j + 1][3];
+                            best = m_Network[j + 1][3];
                         }
                     }
                 }
@@ -3459,9 +3457,9 @@ public:
     void getpalette(int i, XBYTE &r, XBYTE &g, XBYTE &b) const {
         // Palette was stored in original order before inxbuild sorting
         // Network stores [R, G, B] based on the order fed in learn()
-        r = (XBYTE)m_palette[i][0];
-        g = (XBYTE)m_palette[i][1];
-        b = (XBYTE)m_palette[i][2];
+        r = (XBYTE)m_Palette[i][0];
+        g = (XBYTE)m_Palette[i][1];
+        b = (XBYTE)m_Palette[i][2];
     }
 
 private:
@@ -3479,12 +3477,12 @@ private:
         for (int i = 0; i < NETSIZE; ++i) {
             // Calculate Manhattan distance (faster than Euclidean)
             // Network stores [R, G, B, idx]
-            int dist = m_network[i][0] - r;
+            int dist = m_Network[i][0] - r;
             if (dist < 0) dist = -dist;
-            int a = m_network[i][1] - g;
+            int a = m_Network[i][1] - g;
             if (a < 0) a = -a;
             dist += a;
-            a = m_network[i][2] - b;
+            a = m_Network[i][2] - b;
             if (a < 0) a = -a;
             dist += a;
 
@@ -3494,21 +3492,21 @@ private:
             }
 
             // Factor in bias for frequently used neurons
-            int biasdist = dist - ((m_bias[i]) >> (INTBIASSHIFT - NETBIASSHIFT));
+            int biasdist = dist - ((m_Bias[i]) >> (INTBIASSHIFT - NETBIASSHIFT));
             if (biasdist < bestbiasd) {
                 bestbiasd = biasdist;
                 bestbiaspos = i;
             }
 
             // Update frequency and bias
-            int betafreq = m_freq[i] >> BETASHIFT;
-            m_freq[i] -= betafreq;
-            m_bias[i] += betafreq << GAMMASHIFT;
+            int betafreq = m_Freq[i] >> BETASHIFT;
+            m_Freq[i] -= betafreq;
+            m_Bias[i] += betafreq << GAMMASHIFT;
         }
 
         // Boost frequency of best match
-        m_freq[bestpos] += BETA;
-        m_bias[bestpos] -= BETAGAMMA;
+        m_Freq[bestpos] += BETA;
+        m_Bias[bestpos] -= BETAGAMMA;
 
         return bestbiaspos;
     }
@@ -3518,9 +3516,9 @@ private:
      */
     void altersingle(int alpha, int i, int r, int g, int b) {
         // Adjust weights - network stores [R, G, B, idx]
-        m_network[i][0] -= (alpha * (m_network[i][0] - r)) / INITALPHA;
-        m_network[i][1] -= (alpha * (m_network[i][1] - g)) / INITALPHA;
-        m_network[i][2] -= (alpha * (m_network[i][2] - b)) / INITALPHA;
+        m_Network[i][0] -= (alpha * (m_Network[i][0] - r)) / INITALPHA;
+        m_Network[i][1] -= (alpha * (m_Network[i][1] - g)) / INITALPHA;
+        m_Network[i][2] -= (alpha * (m_Network[i][2] - b)) / INITALPHA;
     }
 
     /**
@@ -3534,7 +3532,7 @@ private:
 
         int j = i + 1;
         int k = i - 1;
-        int *q = m_radpower;
+        int *q = m_Radpower;
 
         while (j < hi || k > lo) {
             int *radp = ++q;
@@ -3542,42 +3540,38 @@ private:
 
             if (j < hi) {
                 // Network stores [R, G, B, idx]
-                m_network[j][0] -= (a * (m_network[j][0] - r)) / ALPHARADBIAS;
-                m_network[j][1] -= (a * (m_network[j][1] - g)) / ALPHARADBIAS;
-                m_network[j][2] -= (a * (m_network[j][2] - b)) / ALPHARADBIAS;
+                m_Network[j][0] -= (a * (m_Network[j][0] - r)) / ALPHARADBIAS;
+                m_Network[j][1] -= (a * (m_Network[j][1] - g)) / ALPHARADBIAS;
+                m_Network[j][2] -= (a * (m_Network[j][2] - b)) / ALPHARADBIAS;
                 ++j;
             }
             if (k > lo) {
                 // Network stores [R, G, B, idx]
-                m_network[k][0] -= (a * (m_network[k][0] - r)) / ALPHARADBIAS;
-                m_network[k][1] -= (a * (m_network[k][1] - g)) / ALPHARADBIAS;
-                m_network[k][2] -= (a * (m_network[k][2] - b)) / ALPHARADBIAS;
+                m_Network[k][0] -= (a * (m_Network[k][0] - r)) / ALPHARADBIAS;
+                m_Network[k][1] -= (a * (m_Network[k][1] - g)) / ALPHARADBIAS;
+                m_Network[k][2] -= (a * (m_Network[k][2] - b)) / ALPHARADBIAS;
                 --k;
             }
         }
     }
 
     // Neural network data
-    int m_network[NETSIZE][4];   // [B, G, R, idx] for each neuron
-    int m_netindex[256];          // Fast lookup index
-    int m_bias[NETSIZE];          // Bias array
-    int m_freq[NETSIZE];          // Frequency array
-    int m_radpower[INITRAD];      // Radpower lookup
-    int m_palette[NETSIZE][3];    // Palette storage [B, G, R] (saved before sorting)
+    int m_Network[NETSIZE][4];   // [B, G, R, idx] for each neuron
+    int m_NetIndex[256];          // Fast lookup index
+    int m_Bias[NETSIZE];          // Bias array
+    int m_Freq[NETSIZE];          // Frequency array
+    int m_Radpower[INITRAD];      // Radpower lookup
+    int m_Palette[NETSIZE][3];    // Palette storage [B, G, R] (saved before sorting)
 
     // Image data
-    const XBYTE *m_thepicture;
-    int m_lengthcount;
-    int m_samplefac;
+    const XBYTE *m_ThePicture;
+    int m_LengthCount;
+    int m_SampleFactor;
 };
-
-} // anonymous namespace (NeuQuant)
 
 //------------------------------------------------------------------------------
 // Median-Cut Algorithm
 //------------------------------------------------------------------------------
-
-namespace {
 
 // Color box for median-cut algorithm
 struct ColorBox {
@@ -3608,8 +3602,6 @@ inline int ColorDistSq(int r1, int g1, int b1, int r2, int g2, int b2) {
     // Weighted by human perception: green > red > blue
     return dr * dr * 2 + dg * dg * 4 + db * db;
 }
-
-} // anonymous namespace (Median-cut)
 
 //------------------------------------------------------------------------------
 // NeuQuant-based Quantization (Default)
