@@ -176,11 +176,11 @@ TEST_F(VxFrustumTest, ClassifyAABB) {
     EXPECT_LT(perspectiveFrustum.Classify(boxInside), 0.0f) << "Box fully inside should return a negative value (no single plane separates).";
 
     // Box intersecting the near plane
-    VxBbox boxIntersectNear(VxVector(-1, -1, 0.5), VxVector(1, 1, 1.5));
+    VxBbox boxIntersectNear(VxVector(-1, -1, 0.5f), VxVector(1, 1, 1.5f));
     EXPECT_FLOAT_EQ(perspectiveFrustum.Classify(boxIntersectNear), 0.0f) << "Box intersecting should return 0.";
 
     // Box completely in front of the frustum
-    VxBbox boxInFront(VxVector(-1, -1, 0.1), VxVector(1, 1, 0.5));
+    VxBbox boxInFront(VxVector(-1, -1, 0.1f), VxVector(1, 1, 0.5f));
     EXPECT_GT(perspectiveFrustum.Classify(boxInFront), 0.0f) << "Box fully in front should return positive value.";
 
     // Box completely behind the frustum
