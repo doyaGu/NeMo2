@@ -82,9 +82,6 @@ set(VXMATH_SOURCES
         VxMemory.cpp
         XString.cpp
         EscapeURL.cpp
-        VxSIMD.cpp
-        VxSIMD_SSE.cpp
-        VxSIMD_AVX.cpp
 )
 
 # ==================== VxMath Library ====================
