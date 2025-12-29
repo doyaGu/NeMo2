@@ -111,8 +111,6 @@ set(CK2_PUBLIC_HEADERS
 set(CK2_PRIVATE_HEADERS)
 
 set(CK2_SOURCES
-        CK2Win32.cpp
-
         # Global Functions and Base Classes
         CKGlobals.cpp
         CKBaseManager.cpp
@@ -188,6 +186,17 @@ set(CK2_SOURCES
         CKObjectArray.cpp
 )
 
+# Platform-specific sources
+if(WIN32)
+    list(APPEND CK2_SOURCES
+        CK2Win32.cpp
+    )
+else()
+    list(APPEND CK2_SOURCES
+        CK2Posix.cpp
+    )
+endif()
+
 # ==================== CK2 Library ====================
 add_library(CK2 SHARED
     ${CK2_SOURCES}
@@ -224,9 +233,11 @@ target_link_libraries(CK2
         miniz
 )
 
-# Windows-specific settings
+# Platform-specific settings
 if(WIN32)
     target_compile_definitions(CK2 PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+elseif(UNIX)
+    target_link_libraries(CK2 PRIVATE dl pthread)
 endif()
 
 # ==================== Installation ====================
