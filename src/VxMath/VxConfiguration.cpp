@@ -3,10 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <Windows.h>
+#endif
 
 VxConfiguration::VxConfiguration(unsigned short indent) : m_Root(NULL), m_DefaultRoot(NULL), m_Indent(indent) {
     m_Root = new VxConfigurationSection("root", NULL);
@@ -1112,6 +1114,7 @@ char *Shrink(char *str) {
 }
 
 // VxConfig implementation
+#if defined(_WIN32)
 VxConfig::VxConfig() : m_VirtoolsSection(NULL), m_CurrentSection(NULL) {
     LONG result = ::RegCreateKeyExA(HKEY_CURRENT_USER, "Software\\Virtools\\UserConfig", 0, NULL, 0, KEY_WRITE, NULL, (PHKEY) &m_VirtoolsSection, NULL);
     if (result != ERROR_SUCCESS) {
@@ -1149,3 +1152,28 @@ int VxConfig::ReadStringEntry(char *iKey, char *oData) {
     }
     return -1;
 }
+#else
+VxConfig::VxConfig() : m_VirtoolsSection(NULL), m_CurrentSection(NULL) {}
+
+VxConfig::~VxConfig() {}
+
+void VxConfig::OpenSection(char *iSection, VxConfig::Mode iOpeningMode) {
+    (void)iSection;
+    (void)iOpeningMode;
+}
+
+void VxConfig::CloseSection(char *iSection) {
+    (void)iSection;
+}
+
+void VxConfig::WriteStringEntry(const char *iKey, const char *iValue) {
+    (void)iKey;
+    (void)iValue;
+}
+
+int VxConfig::ReadStringEntry(char *iKey, char *oData) {
+    (void)iKey;
+    (void)oData;
+    return -1;
+}
+#endif
