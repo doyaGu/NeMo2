@@ -2,22 +2,28 @@
 
 #include <stdio.h>
 
+#if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <Windows.h>
+#endif
 
 #include "VxEigenMatrix.h"
 
 extern void InitializeTables();
 
+#if defined(_WIN32)
 HINSTANCE g_hinstDLL;
 CRITICAL_SECTION g_CriticalSection;
+#endif
 
 void InitVxMath() {
     VxDetectProcessor();
     InitializeTables();
+#if defined(_WIN32)
     ::InitializeCriticalSection(&g_CriticalSection);
+#endif
 }
 
 void InterpolateFloatArray(void *Res, void *array1, void *array2, float factor, int count) {
@@ -711,7 +717,7 @@ XBOOL VxComputeBestFitBBox(const XBYTE *Points, XULONG Stride, int Count, VxMatr
     return FALSE;
 }
 
-#ifndef VX_LIB
+#if defined(_WIN32) && !defined(VX_LIB)
 BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
     switch (fdwReason) {
         case DLL_PROCESS_ATTACH:

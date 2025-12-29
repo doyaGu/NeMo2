@@ -1,4 +1,6 @@
 set(VXMATH_PUBLIC_HEADERS
+        ${NEMO_INCLUDE_DIR}/VxPlatform.h
+        ${NEMO_INCLUDE_DIR}/VxEndian.h
         ${NEMO_INCLUDE_DIR}/VxMathCompiler.h
         ${NEMO_INCLUDE_DIR}/VxMemory.h
         ${NEMO_INCLUDE_DIR}/VxMathDefines.h
@@ -48,6 +50,7 @@ set(VXMATH_PRIVATE_HEADERS
         VxEigenMatrix.h
         VxBlitEngine.h
         VxSIMD.h
+        VxSIMD.inl
 )
 
 set(VXMATH_SOURCES
@@ -55,11 +58,8 @@ set(VXMATH_SOURCES
         VxGraphicUtils.cpp
         VxBlitEngine.cpp
         VxProcessor.cpp
-        VxSharedLibraryWin32.cpp
-        VxMemoryMappedFileWin32.cpp
         CKPathSplitter.cpp
         CKDirectoryParser.cpp
-        VxWindowFunctionsWin32.cpp
         VxColor.cpp
         VxVector.cpp
         VxBbox.cpp
@@ -76,13 +76,31 @@ set(VXMATH_SOURCES
         VxIntersect_Sphere.cpp
         VxDistance.cpp
         VxFrustum.cpp
-        VxTimeProfilerWin32.cpp
-        VxMutexWin32.cpp
-        VxThreadWin32.cpp
         VxMemory.cpp
         XString.cpp
         EscapeURL.cpp
 )
+
+# Platform-specific sources
+if(WIN32)
+    list(APPEND VXMATH_SOURCES
+        VxSharedLibraryWin32.cpp
+        VxMemoryMappedFileWin32.cpp
+        VxTimeProfilerWin32.cpp
+        VxWindowFunctionsWin32.cpp
+        VxMutexWin32.cpp
+        VxThreadWin32.cpp
+    )
+else()
+    list(APPEND VXMATH_SOURCES
+        VxSharedLibraryPosix.cpp
+        VxMemoryMappedFilePosix.cpp
+        VxTimeProfilerPosix.cpp
+        VxWindowFunctionsPosix.cpp
+        VxMutexPosix.cpp
+        VxThreadPosix.cpp
+    )
+endif()
 
 # ==================== VxMath Library ====================
 add_library(VxMath SHARED
@@ -113,6 +131,13 @@ target_include_directories(VxMath
 
 # Link libraries
 target_link_libraries(VxMath PRIVATE miniz)
+
+# Platform-specific link libraries
+if(WIN32)
+    target_link_libraries(VxMath PRIVATE urlmon)
+elseif(UNIX)
+    target_link_libraries(VxMath PRIVATE dl pthread)
+endif()
 
 # ==================== Installation ====================
 # Install runtime libraries

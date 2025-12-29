@@ -3,13 +3,19 @@
 #include <stdio.h>
 #include <string.h>
 
+#if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <Windows.h>
+#else
+#include <chrono>
+#include <thread>
+#endif
 
 #if defined(__GNUC__)
 #include <cpuid.h>
+#include <x86intrin.h>
 #elif defined(_MSC_VER)
 #include <intrin.h>
 #endif
@@ -327,6 +333,7 @@ void VxDetectProcessor() {
     if (ProcessorDetected)
         return;
 
+#if defined(_WIN32)
     ::OutputDebugString("VxMath: Detecting processor------------------------\n");
 
     // Timing measurement (unchanged from original)
@@ -356,6 +363,33 @@ void VxDetectProcessor() {
     g_MSecondsPerCycle = (float) (1000.0 * t1 / t2);
     g_ProcessorFrequency = (int) (t2 / t1 / 1000000.0);
     ::SetThreadPriority(hThread, priority);
+#else
+    fprintf(stderr, "VxMath: Detecting processor------------------------\n");
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    uint64_t timeStamp1 = __rdtsc();
+    auto start = std::chrono::steady_clock::now();
+    {
+        int x = 0, y = 0, z = 0;
+        for (int i = 0; i < 500000; ++i) {
+            x += ++y;
+            z += x;
+            x -= z;
+        }
+    }
+    auto end = std::chrono::steady_clock::now();
+    uint64_t timeStamp2 = __rdtsc();
+    std::chrono::duration<double> elapsed = end - start;
+    double t1 = elapsed.count();
+    double t2 = (double) (timeStamp2 - timeStamp1);
+    if (t1 > 0.0 && t2 > 0.0) {
+        g_MSecondsPerCycle = (float) (1000.0 * t1 / t2);
+        g_ProcessorFrequency = (int) (t2 / t1 / 1000000.0);
+    } else {
+        g_MSecondsPerCycle = 0.0f;
+        g_ProcessorFrequency = 0;
+    }
+#endif
 
     // Determine processor type using CPUID
     g_ProcessorType = DetermineProcessorType();

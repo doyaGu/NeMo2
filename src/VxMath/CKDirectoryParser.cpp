@@ -1,13 +1,43 @@
 #include "CKDirectoryParser.h"
 
-#include <io.h>
 #include <stdio.h>
 #include <string.h>
 
+#if defined(_WIN32)
+#include <io.h>
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <Windows.h>
+#else
+#include <dirent.h>
+#include <fnmatch.h>
+#include <sys/stat.h>
+#endif
+
+#if !defined(_WIN32)
+static bool IsDirectory(const char *path) {
+    struct stat st;
+    if (stat(path, &st) != 0) {
+        return false;
+    }
+    return S_ISDIR(st.st_mode);
+}
+
+static bool MatchMask(const char *name, const char *mask) {
+    if (!mask || !*mask) {
+        return true;
+    }
+    if (strcmp(mask, "*.*") == 0) {
+        mask = "*";
+    }
+    int flags = 0;
+#ifdef FNM_CASEFOLD
+    flags |= FNM_CASEFOLD;
+#endif
+    return fnmatch(mask, name ? name : "", flags) == 0;
+}
+#endif
 
 CKDirectoryParser::CKDirectoryParser(char *dir, char *fileMask, XBOOL recurse) {
     m_FindData = NULL;
@@ -15,7 +45,11 @@ CKDirectoryParser::CKDirectoryParser(char *dir, char *fileMask, XBOOL recurse) {
     m_FullFileName = NULL;
     m_FileMask = NULL;
     m_SubParser = NULL;
+#if defined(_WIN32)
     m_hFile = -1;
+#else
+    m_hFile = 0;
+#endif
     m_State = 0;
     Reset(dir, fileMask, recurse);
 }
@@ -29,6 +63,7 @@ CKDirectoryParser::~CKDirectoryParser() {
 }
 
 char *CKDirectoryParser::GetNextFile() {
+#if defined(_WIN32)
     char buf[MAX_PATH];
 
     // Handle non-recursive mode or first phase of recursive mode (files in current directory)
@@ -127,9 +162,104 @@ char *CKDirectoryParser::GetNextFile() {
     }
 
     return NULL;
+#else
+    char buf[MAX_PATH];
+
+    if ((m_State & 2) == 0) {
+        while (true) {
+            DIR *dir = reinterpret_cast<DIR *>(m_hFile);
+            if (!dir) {
+                dir = opendir(m_StartDir ? m_StartDir : ".");
+                if (!dir) {
+                    if ((m_State & 1) != 0) {
+                        m_State |= 2;
+                    } else {
+                        return NULL;
+                    }
+                    break;
+                }
+                m_hFile = reinterpret_cast<intptr_t>(dir);
+            }
+
+            struct dirent *entry = readdir(dir);
+            if (!entry) {
+                closedir(dir);
+                m_hFile = 0;
+                if ((m_State & 1) != 0) {
+                    m_State |= 2;
+                } else {
+                    return NULL;
+                }
+                break;
+            }
+
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+                continue;
+            }
+
+            snprintf(buf, MAX_PATH, "%s/%s", m_StartDir, entry->d_name);
+            if (IsDirectory(buf)) {
+                continue;
+            }
+            if (!MatchMask(entry->d_name, m_FileMask)) {
+                continue;
+            }
+
+            snprintf(m_FullFileName, MAX_PATH, "%s/%s", m_StartDir, entry->d_name);
+            return m_FullFileName;
+        }
+    }
+
+    if ((m_State & 2) != 0) {
+        if (m_SubParser) {
+            char *ret = m_SubParser->GetNextFile();
+            if (ret) {
+                return ret;
+            }
+            delete m_SubParser;
+            m_SubParser = NULL;
+        }
+
+        while (true) {
+            DIR *dir = reinterpret_cast<DIR *>(m_hFile);
+            if (!dir) {
+                dir = opendir(m_StartDir ? m_StartDir : ".");
+                if (!dir) {
+                    return NULL;
+                }
+                m_hFile = reinterpret_cast<intptr_t>(dir);
+            }
+
+            struct dirent *entry = readdir(dir);
+            if (!entry) {
+                closedir(dir);
+                m_hFile = 0;
+                return NULL;
+            }
+
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+                continue;
+            }
+
+            snprintf(buf, MAX_PATH, "%s/%s", m_StartDir, entry->d_name);
+            if (IsDirectory(buf)) {
+                m_SubParser = new CKDirectoryParser(buf, m_FileMask, TRUE);
+                char *ret = m_SubParser->GetNextFile();
+                if (ret) {
+                    return ret;
+                }
+                delete m_SubParser;
+                m_SubParser = NULL;
+            }
+        }
+    }
+
+    return NULL;
+#endif
 }
 
 void CKDirectoryParser::Reset(char *dir, char *fileMask, XBOOL recurse) {
+#if defined(_WIN32)
     // Clean up existing resources
     Clean();
 
@@ -175,9 +305,47 @@ void CKDirectoryParser::Reset(char *dir, char *fileMask, XBOOL recurse) {
     m_State = recurse ? 1 : 0;
     m_hFile = -1;
     m_SubParser = NULL;
+#else
+    Clean();
+
+    char *oldStartDir = m_StartDir;
+    char *oldFileMask = m_FileMask;
+
+    delete[] m_FullFileName;
+
+    m_FullFileName = new char[MAX_PATH];
+    m_FindData = NULL;
+
+    if (dir) {
+        delete[] oldStartDir;
+        size_t dirLen = strlen(dir);
+        m_StartDir = new char[dirLen + 1];
+        strcpy_s(m_StartDir, dirLen + 1, dir);
+
+        if (dirLen > 0 && (m_StartDir[dirLen - 1] == '\\' || m_StartDir[dirLen - 1] == '/')) {
+            m_StartDir[dirLen - 1] = '\0';
+        }
+    } else {
+        m_StartDir = oldStartDir;
+    }
+
+    if (fileMask) {
+        delete[] oldFileMask;
+        size_t maskLen = strlen(fileMask);
+        m_FileMask = new char[maskLen + 1];
+        strcpy_s(m_FileMask, maskLen + 1, fileMask);
+    } else {
+        m_FileMask = oldFileMask;
+    }
+
+    m_State = recurse ? 1 : 0;
+    m_hFile = 0;
+    m_SubParser = NULL;
+#endif
 }
 
 void CKDirectoryParser::Clean() {
+#if defined(_WIN32)
     if (m_hFile != -1) {
         _findclose(m_hFile);
         m_hFile = -1;
@@ -192,4 +360,17 @@ void CKDirectoryParser::Clean() {
         delete (_finddata_t*)m_FindData;
         m_FindData = NULL;
     }
+#else
+    if (m_hFile) {
+        closedir(reinterpret_cast<DIR *>(m_hFile));
+        m_hFile = 0;
+    }
+
+    if (m_SubParser) {
+        delete m_SubParser;
+        m_SubParser = NULL;
+    }
+
+    m_FindData = NULL;
+#endif
 }
