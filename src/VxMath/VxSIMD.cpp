@@ -209,11 +209,6 @@ static void ConfigureDispatch(VxSIMDDispatch &table, const char *variantName) {
     table.Quaternion.LnDif = F::QuaternionLnDif;
     table.Quaternion.Squad = F::QuaternionSquad;
 
-    // Pixel operations
-    table.Pixel.ConvertPixelBatch32 = F::ConvertPixelBatch32;
-    table.Pixel.ApplyAlphaBatch32 = F::ApplyAlphaBatch32;
-    table.Pixel.ApplyVariableAlphaBatch32 = F::ApplyVariableAlphaBatch32;
-
     // Ray operations
     table.Ray.Transform = F::RayTransform;
 
@@ -324,10 +319,6 @@ struct SIMDFunctions<SSEVariant> {
     static constexpr auto QuaternionLnDif = &VxSIMDQuaternionLnDif_SSE;
     static constexpr auto QuaternionSquad = &VxSIMDQuaternionSquad_SSE;
 
-    static constexpr auto ConvertPixelBatch32 = &VxSIMDConvertPixelBatch32_SSE;
-    static constexpr auto ApplyAlphaBatch32 = &VxSIMDApplyAlphaBatch32_SSE;
-    static constexpr auto ApplyVariableAlphaBatch32 = &VxSIMDApplyVariableAlphaBatch32_SSE;
-
     static constexpr auto RayTransform = &VxSIMDRayTransform_SSE;
 
     static constexpr auto PlaneCreateFromPoint = &VxSIMDPlaneCreateFromPoint_SSE;
@@ -381,9 +372,6 @@ struct SIMDFunctions<AVXVariant> {
     static constexpr auto NormalizeQuaternion = &VxSIMDNormalizeQuaternion_AVX;
     static constexpr auto MultiplyQuaternion = &VxSIMDMultiplyQuaternion_AVX;
     static constexpr auto SlerpQuaternion = &VxSIMDSlerpQuaternion_AVX;
-    static constexpr auto ConvertPixelBatch32 = &VxSIMDConvertPixelBatch32_AVX;
-    static constexpr auto ApplyAlphaBatch32 = &VxSIMDApplyAlphaBatch32_AVX;
-    static constexpr auto ApplyVariableAlphaBatch32 = &VxSIMDApplyVariableAlphaBatch32_AVX;
     static constexpr auto InterpolateFloatArray = &VxSIMDInterpolateFloatArray_AVX;
     static constexpr auto InterpolateVectorArray = &VxSIMDInterpolateVectorArray_AVX;
     static constexpr auto TransformBox2D = &VxSIMDTransformBox2D_AVX;

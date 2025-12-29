@@ -8,6 +8,8 @@
 // ============================================================================
 
 #include <cstdlib>
+#include <cstdint>
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 
@@ -121,6 +123,44 @@
 #endif
 #endif
 
+// ============================================================================
+// FMA Macros (like DirectXMath XM_FMADD_PS)
+// ============================================================================
+// These macros use FMA instructions when available, falling back to mul+add.
+// FMA provides better precision (single rounding) and can be faster on modern CPUs.
+
+#if defined(VX_SIMD_FMA)
+// FMA3: a * b + c  (fused multiply-add, single rounding)
+#define VX_FMADD_PS(a, b, c)  _mm_fmadd_ps((a), (b), (c))
+// FMA3: -(a * b) + c  (negated multiply-add)
+#define VX_FNMADD_PS(a, b, c) _mm_fnmadd_ps((a), (b), (c))
+// FMA3: a * b - c  (fused multiply-subtract)
+#define VX_FMSUB_PS(a, b, c)  _mm_fmsub_ps((a), (b), (c))
+// FMA3: -(a * b) - c  (negated multiply-subtract)
+#define VX_FNMSUB_PS(a, b, c) _mm_fnmsub_ps((a), (b), (c))
+
+// 256-bit AVX FMA variants
+#if defined(VX_SIMD_AVX)
+#define VX_FMADD_PS256(a, b, c)  _mm256_fmadd_ps((a), (b), (c))
+#define VX_FNMADD_PS256(a, b, c) _mm256_fnmadd_ps((a), (b), (c))
+#define VX_FMSUB_PS256(a, b, c)  _mm256_fmsub_ps((a), (b), (c))
+#define VX_FNMSUB_PS256(a, b, c) _mm256_fnmsub_ps((a), (b), (c))
+#endif
+#else
+// Fallback: separate mul and add (two roundings, but still correct)
+#define VX_FMADD_PS(a, b, c)  _mm_add_ps(_mm_mul_ps((a), (b)), (c))
+#define VX_FNMADD_PS(a, b, c) _mm_sub_ps((c), _mm_mul_ps((a), (b)))
+#define VX_FMSUB_PS(a, b, c)  _mm_sub_ps(_mm_mul_ps((a), (b)), (c))
+#define VX_FNMSUB_PS(a, b, c) _mm_sub_ps(_mm_set1_ps(0.0f), _mm_add_ps(_mm_mul_ps((a), (b)), (c)))
+
+#if defined(VX_SIMD_AVX)
+#define VX_FMADD_PS256(a, b, c)  _mm256_add_ps(_mm256_mul_ps((a), (b)), (c))
+#define VX_FNMADD_PS256(a, b, c) _mm256_sub_ps((c), _mm256_mul_ps((a), (b)))
+#define VX_FMSUB_PS256(a, b, c)  _mm256_sub_ps(_mm256_mul_ps((a), (b)), (c))
+#define VX_FNMSUB_PS256(a, b, c) _mm256_sub_ps(_mm256_set1_ps(0.0f), _mm256_add_ps(_mm256_mul_ps((a), (b)), (c)))
+#endif
+#endif
+
 // CPU feature detection at runtime
 #if defined(VX_SIMD_X86)
 #if defined(VX_SIMD_MSVC)
@@ -201,6 +241,71 @@ typedef __m256i vx_simd_int8;
 #endif
 
 // ============================================================================
+// Global SIMD Constants (like DirectXMath g_XMOne, etc.)
+// ============================================================================
+// These constants avoid repeated _mm_set calls in hot paths.
+// Note: These are compile-time constants when VX_SIMD_SSE is defined.
+
+#if defined(VX_SIMD_SSE)
+
+// Common scalar values broadcast to all lanes
+#define VX_SIMD_ONE       _mm_set1_ps(1.0f)
+#define VX_SIMD_HALF      _mm_set1_ps(0.5f)
+#define VX_SIMD_QUARTER   _mm_set1_ps(0.25f)
+#define VX_SIMD_TWO       _mm_set1_ps(2.0f)
+#define VX_SIMD_THREE     _mm_set1_ps(3.0f)
+#define VX_SIMD_FOUR      _mm_set1_ps(4.0f)
+#define VX_SIMD_NEG_ONE   _mm_set1_ps(-1.0f)
+#define VX_SIMD_ZERO      _mm_setzero_ps()
+
+// Newton-Raphson rsqrt constants
+#define VX_SIMD_NR_HALF       _mm_set1_ps(0.5f)
+#define VX_SIMD_NR_THREE_HALF _mm_set1_ps(1.5f)
+
+// Epsilon values for comparisons
+#define VX_SIMD_EPSILON   _mm_set1_ps(1.0e-5f)
+
+// Identity matrix rows
+#define VX_SIMD_IDENTITY_R0 _mm_setr_ps(1.0f, 0.0f, 0.0f, 0.0f)
+#define VX_SIMD_IDENTITY_R1 _mm_setr_ps(0.0f, 1.0f, 0.0f, 0.0f)
+#define VX_SIMD_IDENTITY_R2 _mm_setr_ps(0.0f, 0.0f, 1.0f, 0.0f)
+#define VX_SIMD_IDENTITY_R3 _mm_setr_ps(0.0f, 0.0f, 0.0f, 1.0f)
+
+// Identity quaternion {0, 0, 0, 1}
+#define VX_SIMD_QUAT_IDENTITY _mm_setr_ps(0.0f, 0.0f, 0.0f, 1.0f)
+
+// Sign masks for quaternion operations (using integer reinterpret)
+// These use the sign bit pattern 0x80000000 for -0.0f
+#define VX_SIMD_SIGN_MASK     _mm_castsi128_ps(_mm_set1_epi32(static_cast<int>(0x80000000)))
+#define VX_SIMD_ABS_MASK      _mm_castsi128_ps(_mm_set1_epi32(0x7FFFFFFF))
+
+// Quaternion multiplication sign masks {+, -, +, -}, {+, +, -, -}, etc.
+#define VX_SIMD_QUAT_SIGN1 _mm_setr_ps(1.0f, -1.0f, 1.0f, -1.0f)
+#define VX_SIMD_QUAT_SIGN2 _mm_setr_ps(1.0f, 1.0f, -1.0f, -1.0f)
+#define VX_SIMD_QUAT_SIGN3 _mm_setr_ps(-1.0f, 1.0f, 1.0f, -1.0f)
+
+// Pi-related constants for trigonometric approximations
+#define VX_SIMD_PI        _mm_set1_ps(3.14159265358979323846f)
+#define VX_SIMD_TWO_PI    _mm_set1_ps(6.28318530717958647692f)
+#define VX_SIMD_HALF_PI   _mm_set1_ps(1.57079632679489661923f)
+#define VX_SIMD_INV_PI    _mm_set1_ps(0.31830988618379067154f)
+#define VX_SIMD_INV_TWO_PI _mm_set1_ps(0.15915494309189533577f)
+
+#endif // VX_SIMD_SSE
+
+#if defined(VX_SIMD_AVX)
+// 256-bit versions
+#define VX_SIMD256_ONE      _mm256_set1_ps(1.0f)
+#define VX_SIMD256_HALF     _mm256_set1_ps(0.5f)
+#define VX_SIMD256_TWO      _mm256_set1_ps(2.0f)
+#define VX_SIMD256_THREE    _mm256_set1_ps(3.0f)
+#define VX_SIMD256_NEG_ONE  _mm256_set1_ps(-1.0f)
+#define VX_SIMD256_ZERO     _mm256_setzero_ps()
+#define VX_SIMD256_NR_HALF       _mm256_set1_ps(0.5f)
+#define VX_SIMD256_NR_THREE_HALF _mm256_set1_ps(1.5f)
+#endif
+
+// ============================================================================
 // SIMD Dispatch Declarations
 // ============================================================================
 
@@ -267,31 +372,6 @@ typedef void (*VxSIMDQuaternionLnFn)(VxQuaternion *result, const VxQuaternion *q
 typedef void (*VxSIMDQuaternionExpFn)(VxQuaternion *result, const VxQuaternion *q);
 typedef void (*VxSIMDQuaternionLnDifFn)(VxQuaternion *result, const VxQuaternion *p, const VxQuaternion *q);
 typedef void (*VxSIMDQuaternionSquadFn)(VxQuaternion *result, float t, const VxQuaternion *quat1, const VxQuaternion *quat1Out, const VxQuaternion *quat2In, const VxQuaternion *quat2);
-
-struct VxPixelSimdConfig {
-    bool enabled;
-    bool alphaFill;
-    bool channelCopy[4]{};
-    int srcShiftRight[4]{};
-    int dstShiftLeft[4]{};
-    XULONG srcMasks[4]{};
-    XULONG dstMasks[4]{};
-    XULONG alphaFillComponent;
-
-    VxPixelSimdConfig() : enabled(false), alphaFill(false), alphaFillComponent(0) {
-        for (int i = 0; i < 4; ++i) {
-            channelCopy[i] = false;
-            srcShiftRight[i] = 0;
-            dstShiftLeft[i] = 0;
-            srcMasks[i] = 0;
-            dstMasks[i] = 0;
-        }
-    }
-};
-
-typedef int (*VxSIMDConvertPixelBatch32Fn)(const XULONG *srcPixels, XULONG *dstPixels, int count, const VxPixelSimdConfig &config);
-typedef int (*VxSIMDApplyAlphaBatch32Fn)(XULONG *pixels, int count, XBYTE alphaValue, XULONG alphaMask, XULONG alphaShift);
-typedef int (*VxSIMDApplyVariableAlphaBatch32Fn)(XULONG *pixels, const XBYTE *alphaValues, int count, XULONG alphaMask, XULONG alphaShift);
 
 // Ray operations
 typedef void (*VxSIMDRayTransformFn)(VxRay *dest, const VxRay *ray, const VxMatrix *mat);
@@ -429,15 +509,6 @@ struct VxSIMDQuaternionOps {
 };
 
 /**
- * @brief Dispatch table for pixel operations
- */
-struct VxSIMDPixelOps {
-    VxSIMDConvertPixelBatch32Fn ConvertPixelBatch32;
-    VxSIMDApplyAlphaBatch32Fn ApplyAlphaBatch32;
-    VxSIMDApplyVariableAlphaBatch32Fn ApplyVariableAlphaBatch32;
-};
-
-/**
  * @brief Dispatch table for ray operations
  */
 struct VxSIMDRayOps {
@@ -498,7 +569,6 @@ struct VxSIMDDispatch {
     VxSIMDRayOps Ray;
     VxSIMDPlaneOps Plane;
     VxSIMDRectOps Rect;
-    VxSIMDPixelOps Pixel;
     VxSIMDArrayOps Array;
     VxSIMDGeometryOps Geometry;
     VxSIMDBboxOps Bbox;
@@ -524,9 +594,6 @@ VX_EXPORT void VxSIMDRotateVectorMany_SSE(VxVector *results, const VxMatrix *mat
 VX_EXPORT void VxSIMDNormalizeQuaternion_SSE(VxQuaternion *q);
 VX_EXPORT void VxSIMDMultiplyQuaternion_SSE(VxQuaternion *result, const VxQuaternion *a, const VxQuaternion *b);
 VX_EXPORT void VxSIMDSlerpQuaternion_SSE(VxQuaternion *result, float t, const VxQuaternion *a, const VxQuaternion *b);
-VX_EXPORT int VxSIMDConvertPixelBatch32_SSE(const XULONG *srcPixels, XULONG *dstPixels, int count, const VxPixelSimdConfig &config);
-VX_EXPORT int VxSIMDApplyAlphaBatch32_SSE(XULONG *pixels, int count, XBYTE alphaValue, XULONG alphaMask, XULONG alphaShift);
-VX_EXPORT int VxSIMDApplyVariableAlphaBatch32_SSE(XULONG *pixels, const XBYTE *alphaValues, int count, XULONG alphaMask, XULONG alphaShift);
 VX_EXPORT void VxSIMDInterpolateFloatArray_SSE(float *result, const float *a, const float *b, float factor, int count);
 VX_EXPORT void VxSIMDInterpolateVectorArray_SSE(void *result, const void *a, const void *b, float factor, int count, XULONG strideResult, XULONG strideInput);
 VX_EXPORT XBOOL VxSIMDTransformBox2D_SSE(const VxMatrix *worldProjection, const VxBbox *box, VxRect *screenSize, VxRect *extents, VXCLIP_FLAGS *orClipFlags, VXCLIP_FLAGS *andClipFlags);
@@ -554,6 +621,12 @@ VX_EXPORT void VxSIMDLerpVector_SSE(VxVector *result, const VxVector *a, const V
 VX_EXPORT void VxSIMDReflectVector_SSE(VxVector *result, const VxVector *incident, const VxVector *normal);
 VX_EXPORT void VxSIMDMinimizeVector_SSE(VxVector *result, const VxVector *a, const VxVector *b);
 VX_EXPORT void VxSIMDMaximizeVector_SSE(VxVector *result, const VxVector *a, const VxVector *b);
+
+// Batch vector operations - amortize function call overhead
+VX_EXPORT void VxSIMDNormalizeVectorMany_SSE(VxVector *vectors, int count);
+VX_EXPORT void VxSIMDDotVectorMany_SSE(float *results, const VxVector *a, const VxVector *b, int count);
+VX_EXPORT void VxSIMDCrossVectorMany_SSE(VxVector *results, const VxVector *a, const VxVector *b, int count);
+VX_EXPORT void VxSIMDLerpVectorMany_SSE(VxVector *results, const VxVector *a, const VxVector *b, float t, int count);
 
 // Vector4 operations
 VX_EXPORT void VxSIMDAddVector4_SSE(VxVector4 *result, const VxVector4 *a, const VxVector4 *b);
@@ -623,9 +696,6 @@ VX_EXPORT void VxSIMDRotateVectorMany_AVX(VxVector *results, const VxMatrix *mat
 VX_EXPORT void VxSIMDNormalizeQuaternion_AVX(VxQuaternion *q);
 VX_EXPORT void VxSIMDMultiplyQuaternion_AVX(VxQuaternion *result, const VxQuaternion *a, const VxQuaternion *b);
 VX_EXPORT void VxSIMDSlerpQuaternion_AVX(VxQuaternion *result, float t, const VxQuaternion *a, const VxQuaternion *b);
-VX_EXPORT int VxSIMDConvertPixelBatch32_AVX(const XULONG *srcPixels, XULONG *dstPixels, int count, const VxPixelSimdConfig &config);
-VX_EXPORT int VxSIMDApplyAlphaBatch32_AVX(XULONG *pixels, int count, XBYTE alphaValue, XULONG alphaMask, XULONG alphaShift);
-VX_EXPORT int VxSIMDApplyVariableAlphaBatch32_AVX(XULONG *pixels, const XBYTE *alphaValues, int count, XULONG alphaMask, XULONG alphaShift);
 VX_EXPORT void VxSIMDInterpolateFloatArray_AVX(float *result, const float *a, const float *b, float factor, int count);
 VX_EXPORT void VxSIMDInterpolateVectorArray_AVX(void *result, const void *a, const void *b, float factor, int count, XULONG strideResult, XULONG strideInput);
 VX_EXPORT XBOOL VxSIMDTransformBox2D_AVX(const VxMatrix *worldProjection, const VxBbox *box, VxRect *screenSize, VxRect *extents, VXCLIP_FLAGS *orClipFlags, VXCLIP_FLAGS *andClipFlags);
@@ -653,6 +723,12 @@ VX_EXPORT void VxSIMDLerpVector_AVX(VxVector *result, const VxVector *a, const V
 VX_EXPORT void VxSIMDReflectVector_AVX(VxVector *result, const VxVector *incident, const VxVector *normal);
 VX_EXPORT void VxSIMDMinimizeVector_AVX(VxVector *result, const VxVector *a, const VxVector *b);
 VX_EXPORT void VxSIMDMaximizeVector_AVX(VxVector *result, const VxVector *a, const VxVector *b);
+
+// Batch vector operations - amortize function call overhead
+VX_EXPORT void VxSIMDNormalizeVectorMany_AVX(VxVector *vectors, int count);
+VX_EXPORT void VxSIMDDotVectorMany_AVX(float *results, const VxVector *a, const VxVector *b, int count);
+VX_EXPORT void VxSIMDCrossVectorMany_AVX(VxVector *results, const VxVector *a, const VxVector *b, int count);
+VX_EXPORT void VxSIMDLerpVectorMany_AVX(VxVector *results, const VxVector *a, const VxVector *b, float t, int count);
 
 // Vector4 operations
 VX_EXPORT void VxSIMDAddVector4_AVX(VxVector4 *result, const VxVector4 *a, const VxVector4 *b);
@@ -717,26 +793,25 @@ VX_EXPORT void VxSIMDRectTransformFromHomogeneous_AVX(VxRect *rect, const VxRect
 #if defined(VX_SIMD_SSE)
 
 /**
- * @brief Loads 3 floats into a SIMD register (w component is undefined)
+ * @brief Loads 3 floats into a SIMD register (w component is 0)
+ * @remarks Follows DirectXMath XMLoadFloat3 pattern for optimal performance
  */
 VX_SIMD_INLINE __m128 VxSIMDLoadFloat3(const float *ptr) {
-    // Load x,y as one 64-bit chunk + z as scalar.
-    // Use memcpy to avoid strict-aliasing UB from type-punning `float*`.
-    uint64_t xy_u64;
-    std::memcpy(&xy_u64, ptr, sizeof(xy_u64));
-    const __m128i xy_i = _mm_cvtsi64_si128(static_cast<long long>(xy_u64));
-    const __m128 xy = _mm_castsi128_ps(xy_i);
-    const __m128 z = _mm_set_ss(ptr[2]);
-    return _mm_movelh_ps(xy, z); // [x y z 0]
+    // Load x,y as 64-bit (double), then z as scalar - matches DirectXMath approach
+    __m128 xy = _mm_castpd_ps(_mm_load_sd(reinterpret_cast<const double*>(ptr)));
+    __m128 z = _mm_load_ss(&ptr[2]);
+    return _mm_movelh_ps(xy, z);  // [x, y, z, 0]
 }
 
 /**
  * @brief Stores the first 3 components of a SIMD register
+ * @remarks Follows DirectXMath XMStoreFloat3 pattern for optimal performance
  */
 VX_SIMD_INLINE void VxSIMDStoreFloat3(float *ptr, __m128 v) {
-    _mm_store_ss(&ptr[0], v);
-    _mm_store_ss(&ptr[1], _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 1, 1, 1)));
-    _mm_store_ss(&ptr[2], _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 2, 2, 2)));
+    // Store x,y as 64-bit (double), then z separately - matches DirectXMath
+    _mm_store_sd(reinterpret_cast<double*>(ptr), _mm_castps_pd(v));
+    __m128 z = _mm_movehl_ps(v, v);  // Move z to position 0
+    _mm_store_ss(&ptr[2], z);
 }
 
 /**
@@ -774,12 +849,15 @@ VX_SIMD_INLINE __m128 VxSIMDDotProduct3(__m128 a, __m128 b) {
 #if defined(VX_SIMD_SSE4_1)
     return _mm_dp_ps(a, b, 0x7F);
 #else
+    // SSE2 fallback: compute x*ax + y*ay + z*az (ignore w)
+    // mul = {x, y, z, w}
     __m128 mul = _mm_mul_ps(a, b);
-    __m128 shuf = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 1, 0, 3));
-    __m128 sums = _mm_add_ps(mul, shuf);
-    shuf = _mm_movehl_ps(shuf, sums);
-    sums = _mm_add_ss(sums, shuf);
-    return _mm_shuffle_ps(sums, sums, _MM_SHUFFLE(0, 0, 0, 0));
+    // sum_xy = x + y (in lane 0)
+    __m128 sum_xy = _mm_add_ss(mul, _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(1, 1, 1, 1)));
+    // sum_xyz = x + y + z (in lane 0)
+    __m128 sum_xyz = _mm_add_ss(sum_xy, _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 2, 2, 2)));
+    // Broadcast to all lanes
+    return _mm_shuffle_ps(sum_xyz, sum_xyz, _MM_SHUFFLE(0, 0, 0, 0));
 #endif
 }
 
@@ -801,12 +879,17 @@ VX_SIMD_INLINE __m128 VxSIMDDotProduct4(__m128 a, __m128 b) {
 
 /**
  * @brief Computes cross product of two 3D vectors
+ * @details Optimized using FMA: cross = a_yzx * b_zxy - a_zxy * b_yzx
+ *          This pattern minimizes shuffles compared to the naive approach.
  */
 VX_SIMD_INLINE __m128 VxSIMDCrossProduct3(__m128 a, __m128 b) {
+    // Shuffle patterns: yzx = {y,z,x,w}, zxy = {z,x,y,w}
     __m128 a_yzx = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 0, 2, 1));
+    __m128 b_zxy = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 1, 0, 2));
+    __m128 a_zxy = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 1, 0, 2));
     __m128 b_yzx = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 0, 2, 1));
-    __m128 c = _mm_sub_ps(_mm_mul_ps(a, b_yzx), _mm_mul_ps(a_yzx, b));
-    return _mm_shuffle_ps(c, c, _MM_SHUFFLE(3, 0, 2, 1));
+    // cross = a_yzx * b_zxy - a_zxy * b_yzx
+    return VX_FNMADD_PS(a_zxy, b_yzx, _mm_mul_ps(a_yzx, b_zxy));
 }
 
 /**
@@ -818,25 +901,32 @@ VX_SIMD_INLINE __m128 VxSIMDReciprocalSqrt(__m128 v) {
 
 /**
  * @brief Computes reciprocal square root (accurate)
+ * @details Uses Newton-Raphson refinement: rsqrt' = rsqrt * (1.5 - 0.5 * v * rsqrt^2)
+ *          With FMA this becomes: rsqrt' = rsqrt * (1.5 + (-0.5 * v) * rsqrt^2)
+ *          One NR iteration gives ~24 bits of precision from rsqrt's ~12 bits.
  */
 VX_SIMD_INLINE __m128 VxSIMDReciprocalSqrtAccurate(__m128 v) {
     __m128 rsqrt = _mm_rsqrt_ps(v);
-    // Newton-Raphson iteration: rsqrt * (1.5 - 0.5 * v * rsqrt * rsqrt)
-    __m128 half = _mm_set1_ps(0.5f);
-    __m128 three_half = _mm_set1_ps(1.5f);
-    return _mm_mul_ps(rsqrt, _mm_sub_ps(three_half, _mm_mul_ps(_mm_mul_ps(half, v), _mm_mul_ps(rsqrt, rsqrt))));
+    // Newton-Raphson: rsqrt * (1.5 - 0.5 * v * rsqrt * rsqrt)
+    // = rsqrt * (1.5 + (-0.5 * v) * (rsqrt * rsqrt))
+    __m128 halfV = _mm_mul_ps(VX_SIMD_NR_HALF, v);            // 0.5 * v
+    __m128 rsqrt_sq = _mm_mul_ps(rsqrt, rsqrt);               // rsqrt^2
+    __m128 correction = VX_FNMADD_PS(halfV, rsqrt_sq, VX_SIMD_NR_THREE_HALF);  // 1.5 - 0.5*v*rsqrt^2
+    return _mm_mul_ps(rsqrt, correction);
 }
 
 /**
  * @brief Normalizes a 3D vector
+ * @details Uses rsqrt with Newton-Raphson refinement for speed.
+ *          If magnitude² <= epsilon, returns original vector unchanged.
  */
 VX_SIMD_INLINE __m128 VxSIMDNormalize3(__m128 v) {
     __m128 dot = VxSIMDDotProduct3(v, v);
-    __m128 epsilon = _mm_set1_ps(EPSILON);
-    __m128 mask = _mm_cmpgt_ps(dot, epsilon);
-    __m128 safeDot = _mm_max_ps(dot, epsilon);
+    __m128 mask = _mm_cmpgt_ps(dot, VX_SIMD_EPSILON);
+    __m128 safeDot = _mm_max_ps(dot, VX_SIMD_EPSILON);
     __m128 invLen = VxSIMDReciprocalSqrtAccurate(safeDot);
     __m128 normalized = _mm_mul_ps(v, invLen);
+    // Branchless select: (mask & normalized) | (~mask & v)
     __m128 keepOriginal = _mm_andnot_ps(mask, v);
     __m128 useNormalized = _mm_and_ps(mask, normalized);
     return _mm_or_ps(keepOriginal, useNormalized);
@@ -844,6 +934,7 @@ VX_SIMD_INLINE __m128 VxSIMDNormalize3(__m128 v) {
 
 /**
  * @brief Normalizes a 4D vector
+ * @details Uses rsqrt with Newton-Raphson refinement for speed.
  */
 VX_SIMD_INLINE __m128 VxSIMDNormalize4(__m128 v) {
     __m128 dot = VxSIMDDotProduct4(v, v);
@@ -853,6 +944,7 @@ VX_SIMD_INLINE __m128 VxSIMDNormalize4(__m128 v) {
 
 /**
  * @brief Performs matrix-vector multiplication for 3D vector (with translation)
+ * @details Uses FMA for efficient multiply-accumulate: result = r0*vx + r1*vy + r2*vz + r3
  */
 VX_SIMD_INLINE __m128 VxSIMDMatrixMultiplyVector3(const float *mat, __m128 v) {
     __m128 r0 = _mm_loadu_ps(&mat[0]);
@@ -864,11 +956,16 @@ VX_SIMD_INLINE __m128 VxSIMDMatrixMultiplyVector3(const float *mat, __m128 v) {
     __m128 v_y = _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 1, 1, 1));
     __m128 v_z = _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 2, 2, 2));
 
-    return _mm_add_ps(_mm_add_ps(_mm_mul_ps(r0, v_x), _mm_mul_ps(r1, v_y)), _mm_add_ps(_mm_mul_ps(r2, v_z), r3));
+    // r0*vx + (r1*vy + (r2*vz + r3))
+    __m128 result = VX_FMADD_PS(r2, v_z, r3);   // r2*vz + r3
+    result = VX_FMADD_PS(r1, v_y, result);       // r1*vy + result
+    result = VX_FMADD_PS(r0, v_x, result);       // r0*vx + result
+    return result;
 }
 
 /**
  * @brief Performs matrix rotation for 3D vector (no translation)
+ * @details Uses FMA for efficient multiply-accumulate: result = r0*vx + r1*vy + r2*vz
  */
 VX_SIMD_INLINE __m128 VxSIMDMatrixRotateVector3(const float *mat, __m128 v) {
     __m128 r0 = _mm_loadu_ps(&mat[0]);
@@ -879,7 +976,11 @@ VX_SIMD_INLINE __m128 VxSIMDMatrixRotateVector3(const float *mat, __m128 v) {
     __m128 v_y = _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 1, 1, 1));
     __m128 v_z = _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 2, 2, 2));
 
-    return _mm_add_ps(_mm_add_ps(_mm_mul_ps(r0, v_x), _mm_mul_ps(r1, v_y)), _mm_mul_ps(r2, v_z));
+    // r0*vx + (r1*vy + r2*vz)
+    __m128 result = _mm_mul_ps(r2, v_z);         // r2*vz
+    result = VX_FMADD_PS(r1, v_y, result);       // r1*vy + result
+    result = VX_FMADD_PS(r0, v_x, result);       // r0*vx + result
+    return result;
 }
 
 #endif // VX_SIMD_SSE

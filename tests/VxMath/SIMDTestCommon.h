@@ -248,59 +248,6 @@ inline void LerpVector4(VxVector4& result, const VxVector4& a, const VxVector4& 
     result.w = a.w + (b.w - a.w) * t;
 }
 
-// Pixel operations
-inline int ConvertPixelBatch32(const XULONG* srcPixels, XULONG* dstPixels, int count, const VxPixelSimdConfig& config) {
-    if (!config.enabled) return 0;
-
-    const int simdCount = count & ~3;
-    if (simdCount <= 0) return 0;
-
-    for (int i = 0; i < simdCount; ++i) {
-        XULONG dst = config.alphaFill ? config.alphaFillComponent : 0u;
-        const XULONG src = srcPixels[i];
-
-        for (int c = 0; c < 4; ++c) {
-            if (!config.channelCopy[c]) continue;
-            XULONG channel = src & config.srcMasks[c];
-            if (config.srcShiftRight[c]) {
-                channel >>= static_cast<XULONG>(config.srcShiftRight[c]);
-            }
-            if (config.dstShiftLeft[c]) {
-                channel <<= static_cast<XULONG>(config.dstShiftLeft[c]);
-            }
-            channel &= config.dstMasks[c];
-            dst |= channel;
-        }
-        dstPixels[i] = dst;
-    }
-    return simdCount;
-}
-
-inline int ApplyAlphaBatch32(XULONG* pixels, int count, XBYTE alphaValue, XULONG alphaMask, XULONG alphaShift) {
-    const int simdCount = count & ~3;
-    if (simdCount <= 0) return 0;
-
-    const XULONG alphaComponent = (static_cast<XULONG>(alphaValue) << alphaShift) & alphaMask;
-    const XULONG colorMask = ~alphaMask;
-
-    for (int i = 0; i < simdCount; ++i) {
-        pixels[i] = (pixels[i] & colorMask) | alphaComponent;
-    }
-    return simdCount;
-}
-
-inline int ApplyVariableAlphaBatch32(XULONG* pixels, const XBYTE* alphaValues, int count, XULONG alphaMask, XULONG alphaShift) {
-    const int simdCount = count & ~3;
-    if (simdCount <= 0) return 0;
-
-    const XULONG colorMask = ~alphaMask;
-    for (int i = 0; i < simdCount; ++i) {
-        const XULONG a = (static_cast<XULONG>(alphaValues[i]) << alphaShift) & alphaMask;
-        pixels[i] = (pixels[i] & colorMask) | a;
-    }
-    return simdCount;
-}
-
 } // namespace Scalar
 
 //=============================================================================

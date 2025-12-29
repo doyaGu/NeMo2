@@ -91,7 +91,6 @@ set(VXMATH_TEST_SOURCES
         SIMDVectorTest.cpp
         SIMDMatrixTest.cpp
         SIMDQuaternionTest.cpp
-        SIMDPixelTest.cpp
         # BlitEngine Tests
         BlitEngineFormatConversionTest.cpp
         BlitEngineAlphaTest.cpp

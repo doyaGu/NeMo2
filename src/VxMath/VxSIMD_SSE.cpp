@@ -26,29 +26,19 @@ void VxSIMDNormalizeVector_SSE(VxVector *v) {
     // Match VxVector::Normalize() semantics (sqrt-based, epsilon guard)
     __m128 vec = VxSIMDLoadFloat3(&v->x);
 
-    // dot = x*x + y*y + z*z using horizontal adds
-    const __m128 mul = _mm_mul_ps(vec, vec);
-    __m128 sum = _mm_add_ss(mul, _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(1, 1, 1, 1)));
-    sum = _mm_add_ss(sum, _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 2, 2, 2)));
+    // Use the optimized inline helper which handles epsilon check and NR refinement
+    __m128 dot = VxSIMDDotProduct3(vec, vec);
 
-    float magSqScalar;
-    _mm_store_ss(&magSqScalar, sum);
-    if (magSqScalar > EPSILON) {
-        // Use rsqrt with Newton-Raphson for fast, accurate 1/sqrt
-        // rsqrt gives ~12 bits precision; one NR iteration gives ~24 bits
-        __m128 rsqrt = _mm_rsqrt_ss(sum);
-        // Newton-Raphson: rsqrt' = rsqrt * (1.5 - 0.5 * magSq * rsqrt * rsqrt)
-        __m128 half = _mm_set_ss(0.5f);
-        __m128 three_half = _mm_set_ss(1.5f);
-        __m128 rsqrt_sq = _mm_mul_ss(rsqrt, rsqrt);
-        __m128 half_sum = _mm_mul_ss(half, sum);
-        __m128 correction = _mm_sub_ss(three_half, _mm_mul_ss(half_sum, rsqrt_sq));
-        rsqrt = _mm_mul_ss(rsqrt, correction);
+    // SIMD epsilon check and safe normalization
+    __m128 mask = _mm_cmpgt_ps(dot, VX_SIMD_EPSILON);
+    __m128 safeDot = _mm_max_ps(dot, VX_SIMD_EPSILON);
+    __m128 invLen = VxSIMDReciprocalSqrtAccurate(safeDot);
+    __m128 normalized = _mm_mul_ps(vec, invLen);
 
-        // Broadcast and multiply
-        const __m128 invMag4 = _mm_shuffle_ps(rsqrt, rsqrt, _MM_SHUFFLE(0, 0, 0, 0));
-        vec = _mm_mul_ps(vec, invMag4);
-    }
+    // Branchless select: keep original if dot <= epsilon
+    __m128 keepOriginal = _mm_andnot_ps(mask, vec);
+    __m128 useNormalized = _mm_and_ps(mask, normalized);
+    vec = _mm_or_ps(keepOriginal, useNormalized);
 
     VxSIMDStoreFloat3(&v->x, vec);
 }
@@ -60,10 +50,8 @@ void VxSIMDRotateVector_SSE(VxVector *result, const VxMatrix *mat, const VxVecto
 }
 
 void VxSIMDMultiplyMatrix_SSE(VxMatrix *result, const VxMatrix *a, const VxMatrix *b) {
-    // NOTE:
-    // VxMatrix::operator[] reinterprets float storage as VxVector4. That is UB under
-    // strict-aliasing and can produce scalar/SIMD mismatches under optimization.
-    // Use raw float pointer access here to guarantee identical memory interpretation.
+    // Optimized SSE matrix multiplication using FMA where available
+    // Uses row-major interpretation: result[i] = b[i].x*a[0] + b[i].y*a[1] + b[i].z*a[2] + b[i].w*a[3]
     const float* ap = static_cast<const float*>(static_cast<const void*>(*a));
     const float* bp = static_cast<const float*>(static_cast<const void*>(*b));
 
@@ -74,17 +62,54 @@ void VxSIMDMultiplyMatrix_SSE(VxMatrix *result, const VxMatrix *a, const VxMatri
 
     alignas(16) float out[16];
 
-    for (int i = 0; i < 4; ++i) {
-        const __m128 bRow = _mm_loadu_ps(bp + i * 4);
+    // Unrolled loop with FMA for better instruction-level parallelism
+    // Row 0
+    {
+        const __m128 bRow = _mm_loadu_ps(bp + 0);
         const __m128 b_x = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(0, 0, 0, 0));
         const __m128 b_y = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(1, 1, 1, 1));
         const __m128 b_z = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(2, 2, 2, 2));
         const __m128 b_w = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(3, 3, 3, 3));
-
-        const __m128 res = _mm_add_ps(
-            _mm_add_ps(_mm_mul_ps(a0, b_x), _mm_mul_ps(a1, b_y)),
-            _mm_add_ps(_mm_mul_ps(a2, b_z), _mm_mul_ps(a3, b_w)));
-        _mm_storeu_ps(out + i * 4, res);
+        __m128 res = VX_FMADD_PS(a2, b_z, _mm_mul_ps(a3, b_w));
+        res = VX_FMADD_PS(a1, b_y, res);
+        res = VX_FMADD_PS(a0, b_x, res);
+        _mm_storeu_ps(out + 0, res);
+    }
+    // Row 1
+    {
+        const __m128 bRow = _mm_loadu_ps(bp + 4);
+        const __m128 b_x = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(0, 0, 0, 0));
+        const __m128 b_y = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(1, 1, 1, 1));
+        const __m128 b_z = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(2, 2, 2, 2));
+        const __m128 b_w = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(3, 3, 3, 3));
+        __m128 res = VX_FMADD_PS(a2, b_z, _mm_mul_ps(a3, b_w));
+        res = VX_FMADD_PS(a1, b_y, res);
+        res = VX_FMADD_PS(a0, b_x, res);
+        _mm_storeu_ps(out + 4, res);
+    }
+    // Row 2
+    {
+        const __m128 bRow = _mm_loadu_ps(bp + 8);
+        const __m128 b_x = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(0, 0, 0, 0));
+        const __m128 b_y = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(1, 1, 1, 1));
+        const __m128 b_z = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(2, 2, 2, 2));
+        const __m128 b_w = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(3, 3, 3, 3));
+        __m128 res = VX_FMADD_PS(a2, b_z, _mm_mul_ps(a3, b_w));
+        res = VX_FMADD_PS(a1, b_y, res);
+        res = VX_FMADD_PS(a0, b_x, res);
+        _mm_storeu_ps(out + 8, res);
+    }
+    // Row 3
+    {
+        const __m128 bRow = _mm_loadu_ps(bp + 12);
+        const __m128 b_x = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(0, 0, 0, 0));
+        const __m128 b_y = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(1, 1, 1, 1));
+        const __m128 b_z = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(2, 2, 2, 2));
+        const __m128 b_w = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(3, 3, 3, 3));
+        __m128 res = VX_FMADD_PS(a2, b_z, _mm_mul_ps(a3, b_w));
+        res = VX_FMADD_PS(a1, b_y, res);
+        res = VX_FMADD_PS(a0, b_x, res);
+        _mm_storeu_ps(out + 12, res);
     }
 
     // Enforce 3D transformation constraints
@@ -97,6 +122,7 @@ void VxSIMDMultiplyMatrix_SSE(VxMatrix *result, const VxMatrix *a, const VxMatri
 }
 
 void VxSIMDMultiplyMatrix4_SSE(VxMatrix *result, const VxMatrix *a, const VxMatrix *b) {
+    // Full 4x4 matrix multiplication with FMA optimization
     const float* ap = static_cast<const float*>(static_cast<const void*>(*a));
     const float* bp = static_cast<const float*>(static_cast<const void*>(*b));
 
@@ -107,18 +133,17 @@ void VxSIMDMultiplyMatrix4_SSE(VxMatrix *result, const VxMatrix *a, const VxMatr
 
     alignas(16) float out[16];
 
+    // Unrolled loop for all 4 rows with FMA
     for (int i = 0; i < 4; ++i) {
         const __m128 bRow = _mm_loadu_ps(bp + i * 4);
-
         const __m128 b_x = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(0, 0, 0, 0));
         const __m128 b_y = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(1, 1, 1, 1));
         const __m128 b_z = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(2, 2, 2, 2));
         const __m128 b_w = _mm_shuffle_ps(bRow, bRow, _MM_SHUFFLE(3, 3, 3, 3));
 
-        const __m128 res = _mm_add_ps(
-            _mm_add_ps(_mm_mul_ps(a0, b_x), _mm_mul_ps(a1, b_y)),
-            _mm_add_ps(_mm_mul_ps(a2, b_z), _mm_mul_ps(a3, b_w)));
-
+        __m128 res = VX_FMADD_PS(a2, b_z, _mm_mul_ps(a3, b_w));
+        res = VX_FMADD_PS(a1, b_y, res);
+        res = VX_FMADD_PS(a0, b_x, res);
         _mm_storeu_ps(out + i * 4, res);
     }
 
@@ -160,8 +185,10 @@ void VxSIMDMultiplyMatrixVector4_SSE(VxVector4 *result, const VxMatrix *mat, con
     __m128 v_z = _mm_shuffle_ps(vec, vec, _MM_SHUFFLE(2, 2, 2, 2));
     __m128 v_w = _mm_shuffle_ps(vec, vec, _MM_SHUFFLE(3, 3, 3, 3));
 
-    __m128 res = _mm_add_ps(_mm_add_ps(_mm_mul_ps(m0, v_x), _mm_mul_ps(m1, v_y)),
-                            _mm_add_ps(_mm_mul_ps(m2, v_z), _mm_mul_ps(m3, v_w)));
+    // Using FMA chain for better performance
+    __m128 res = VX_FMADD_PS(m2, v_z, _mm_mul_ps(m3, v_w));
+    res = VX_FMADD_PS(m1, v_y, res);
+    res = VX_FMADD_PS(m0, v_x, res);
     VxSIMDStoreFloat4((float*)result, res);
 }
 
@@ -204,42 +231,34 @@ void VxSIMDRotateVectorMany_SSE(VxVector *results, const VxMatrix *mat, const Vx
 }
 
 void VxSIMDNormalizeQuaternion_SSE(VxQuaternion *q) {
-    // Optimized SSE quaternion normalization using rsqrt with Newton-Raphson
-    // Load all 4 components (x, y, z, w)
+    // Match scalar VxQuaternion::Normalize() exactly:
+    // - If norm == 0: set to identity (0,0,0,1)
+    // - Otherwise: normalize by 1/norm
     __m128 quat = _mm_loadu_ps(&q->x);
 
-    // Compute dot product: x*x + y*y + z*z + w*w
-    __m128 mul = _mm_mul_ps(quat, quat);
-    // Sum all 4 components
-    __m128 sum = _mm_add_ps(mul, _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 3, 0, 1)));
-    sum = _mm_add_ps(sum, _mm_shuffle_ps(sum, sum, _MM_SHUFFLE(1, 0, 3, 2)));
-    // Now sum has magSq broadcast to all lanes
+    // Compute dot product: x*x + y*y + z*z + w*w using optimized helper
+    __m128 magSq = VxSIMDDotProduct4(quat, quat);
 
-    float magSqScalar;
-    _mm_store_ss(&magSqScalar, sum);
+    // Use movemask for branchless zero check
+    __m128 isZero = _mm_cmpeq_ps(magSq, VX_SIMD_ZERO);
+    int zeroMask = _mm_movemask_ps(isZero);
 
-    const float epsilonSq = EPSILON * EPSILON;
-    if (magSqScalar <= epsilonSq) {
-        return; // Below threshold, keep original quaternion to match scalar behavior
+    if (zeroMask & 1) {
+        // Match scalar: set to identity quaternion
+        _mm_storeu_ps(&q->x, VX_SIMD_QUAT_IDENTITY);
+        return;
     }
 
-    // Use rsqrt with Newton-Raphson for fast, accurate 1/sqrt
-    __m128 rsqrt = _mm_rsqrt_ps(sum);
-    // Newton-Raphson iteration: rsqrt' = rsqrt * (1.5 - 0.5 * magSq * rsqrt^2)
-    __m128 half = _mm_set1_ps(0.5f);
-    __m128 three_half = _mm_set1_ps(1.5f);
-    __m128 rsqrt_sq = _mm_mul_ps(rsqrt, rsqrt);
-    __m128 half_sum = _mm_mul_ps(half, sum);
-    __m128 correction = _mm_sub_ps(three_half, _mm_mul_ps(half_sum, rsqrt_sq));
-    rsqrt = _mm_mul_ps(rsqrt, correction);
+    // Use rsqrt with Newton-Raphson for fast, accurate 1/norm
+    __m128 invNorm = VxSIMDReciprocalSqrtAccurate(magSq);
 
     // Normalize
-    __m128 result = _mm_mul_ps(quat, rsqrt);
+    __m128 result = _mm_mul_ps(quat, invNorm);
     _mm_storeu_ps(&q->x, result);
 }
 
 void VxSIMDMultiplyQuaternion_SSE(VxQuaternion *result, const VxQuaternion *a, const VxQuaternion *b) {
-    // Optimized SSE quaternion multiplication using minimal shuffles
+    // Optimized SSE quaternion multiplication using global sign masks and FMA
     // Load quaternions as {x, y, z, w}
     __m128 qa = _mm_loadu_ps(&a->x);
     __m128 qb = _mm_loadu_ps(&b->x);
@@ -256,50 +275,28 @@ void VxSIMDMultiplyQuaternion_SSE(VxQuaternion *result, const VxQuaternion *a, c
     // Term 0: aw * {bx, by, bz, bw}
     __m128 t0 = _mm_mul_ps(aw, qb);
 
-    // Shuffle b for subsequent terms
     // For ax: need {bw, bz, by, bx} permuted with signs +,-,+,-
     __m128 ax = _mm_shuffle_ps(qa, qa, _MM_SHUFFLE(0, 0, 0, 0));
     __m128 b_perm1 = _mm_shuffle_ps(qb, qb, _MM_SHUFFLE(0, 1, 2, 3)); // {w, z, y, x}
     __m128 t1 = _mm_mul_ps(ax, b_perm1);
+    t1 = _mm_mul_ps(t1, VX_SIMD_QUAT_SIGN1);  // Signs: +,-,+,-
 
     // For ay: need {bz, bw, bx, by} permuted with signs +,+,-,-
     __m128 ay = _mm_shuffle_ps(qa, qa, _MM_SHUFFLE(1, 1, 1, 1));
     __m128 b_perm2 = _mm_shuffle_ps(qb, qb, _MM_SHUFFLE(1, 0, 3, 2)); // {y, x, w, z}
     __m128 t2 = _mm_mul_ps(ay, b_perm2);
+    t2 = _mm_mul_ps(t2, VX_SIMD_QUAT_SIGN2);  // Signs: +,+,-,-
 
     // For az: need {by, bx, bw, bz} permuted with signs -,+,+,-
     __m128 az = _mm_shuffle_ps(qa, qa, _MM_SHUFFLE(2, 2, 2, 2));
     __m128 b_perm3 = _mm_shuffle_ps(qb, qb, _MM_SHUFFLE(2, 3, 0, 1)); // {z, w, x, y}
     __m128 t3 = _mm_mul_ps(az, b_perm3);
+    t3 = _mm_mul_ps(t3, VX_SIMD_QUAT_SIGN3);  // Signs: -,+,+,-
 
-    // Apply signs using efficient add/sub pattern
-    // t0 signs: +,+,+,+ (all positive)
-    // t1 signs: +,-,+,- -> addsub pattern
-    // t2 signs: +,+,-,- -> add for xy, sub for zw
-    // t3 signs: -,+,+,- -> sub for x, add for yz, sub for w
-
-    // Use SSE3 addsub if available, otherwise use explicit sign masks
-#if defined(VX_SIMD_SSE3)
-    // t0 + t1 with alternating sign: (t0 +- t1) but pattern is wrong
-    // Manually handle for correctness
-    __m128 sign1 = _mm_set_ps(-1.0f, 1.0f, -1.0f, 1.0f);
-    t1 = _mm_mul_ps(t1, sign1);
-    __m128 sign2 = _mm_set_ps(-1.0f, -1.0f, 1.0f, 1.0f);
-    t2 = _mm_mul_ps(t2, sign2);
-    __m128 sign3 = _mm_set_ps(-1.0f, 1.0f, 1.0f, -1.0f);
-    t3 = _mm_mul_ps(t3, sign3);
-#else
-    // Pre-computed sign masks
-    __m128 sign1 = _mm_set_ps(-1.0f, 1.0f, -1.0f, 1.0f);
-    t1 = _mm_mul_ps(t1, sign1);
-    __m128 sign2 = _mm_set_ps(-1.0f, -1.0f, 1.0f, 1.0f);
-    t2 = _mm_mul_ps(t2, sign2);
-    __m128 sign3 = _mm_set_ps(-1.0f, 1.0f, 1.0f, -1.0f);
-    t3 = _mm_mul_ps(t3, sign3);
-#endif
-
-    // Sum all terms
-    __m128 r = _mm_add_ps(_mm_add_ps(t0, t1), _mm_add_ps(t2, t3));
+    // Sum all terms using FMA chain
+    __m128 r = _mm_add_ps(t0, t1);
+    r = _mm_add_ps(r, t2);
+    r = _mm_add_ps(r, t3);
 
     _mm_storeu_ps(&result->x, r);
 }
@@ -308,148 +305,44 @@ void VxSIMDSlerpQuaternion_SSE(VxQuaternion *result, float t, const VxQuaternion
     __m128 qa = _mm_loadu_ps(&a->x);
     __m128 qb = _mm_loadu_ps(&b->x);
 
+    // Compute dot product using optimized helper
     __m128 cosOmegaVec = VxSIMDDotProduct4(qa, qb);
     float cosOmega;
     _mm_store_ss(&cosOmega, cosOmegaVec);
 
-    float k0;
-    float k1;
+    float k0, k1;
+    float sign = 1.0f;
 
-    if (cosOmega >= 0.0f) {
-        float oneMinusCos = 1.0f - cosOmega;
-        if (oneMinusCos < 0.01f) {
-            k0 = 1.0f - t;
-            k1 = t;
-        } else {
-            float omega = acosf(cosOmega);
-            float invSinOmega = 1.0f / sinf(omega);
-            k0 = sinf((1.0f - t) * omega) * invSinOmega;
-            k1 = sinf(t * omega) * invSinOmega;
-        }
-    } else {
-        float oneMinusCosNeg = 1.0f - (-cosOmega);
-        if (oneMinusCosNeg < 0.01f) {
-            k0 = 1.0f - t;
-            k1 = -t;
-        } else {
-            float omega = acosf(-cosOmega);
-            float invSinOmega = 1.0f / sinf(omega);
-            k0 = sinf((1.0f - t) * omega) * invSinOmega;
-            k1 = -sinf(t * omega) * invSinOmega;
-        }
+    // Ensure we take the shorter path
+    if (cosOmega < 0.0f) {
+        cosOmega = -cosOmega;
+        sign = -1.0f;
     }
 
+    // Use linear interpolation for nearly identical quaternions
+    float oneMinusCos = 1.0f - cosOmega;
+    if (oneMinusCos < 0.01f) {
+        k0 = 1.0f - t;
+        k1 = t * sign;
+    } else {
+        // Standard slerp - still using scalar trig, but the rest is SIMD
+        float omega = acosf(cosOmega);
+        float invSinOmega = 1.0f / sinf(omega);
+        k0 = sinf((1.0f - t) * omega) * invSinOmega;
+        k1 = sinf(t * omega) * invSinOmega * sign;
+    }
+
+    // Use FMA for the weighted sum: qa * k0 + qb * k1
     __m128 k0Vec = _mm_set1_ps(k0);
     __m128 k1Vec = _mm_set1_ps(k1);
-    __m128 r = _mm_add_ps(_mm_mul_ps(qa, k0Vec), _mm_mul_ps(qb, k1Vec));
+    __m128 r = VX_FMADD_PS(qb, k1Vec, _mm_mul_ps(qa, k0Vec));
     _mm_storeu_ps(&result->x, r);
-}
-
-int VxSIMDConvertPixelBatch32_SSE(const XULONG* srcPixels, XULONG* dstPixels, int count, const VxPixelSimdConfig& config) {
-    if (!config.enabled) {
-        return 0;
-    }
-
-    const int simdCount = count & ~3;
-    if (simdCount <= 0) {
-        return 0;
-    }
-
-    const __m128i alphaVec = config.alphaFill ? _mm_set1_epi32(static_cast<int>(config.alphaFillComponent)) : _mm_setzero_si128();
-    __m128i srcMaskVec[4];
-    __m128i dstMaskVec[4];
-    for (int c = 0; c < 4; ++c) {
-        srcMaskVec[c] = _mm_set1_epi32(static_cast<int>(config.srcMasks[c]));
-        dstMaskVec[c] = _mm_set1_epi32(static_cast<int>(config.dstMasks[c]));
-    }
-
-    for (int i = 0; i < simdCount; i += 4) {
-        __m128i srcVec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(srcPixels + i));
-        __m128i dstVec = alphaVec;
-
-        for (int c = 0; c < 4; ++c) {
-            if (!config.channelCopy[c]) {
-                continue;
-            }
-
-            __m128i channel = _mm_and_si128(srcVec, srcMaskVec[c]);
-            if (config.srcShiftRight[c]) {
-                __m128i shift = _mm_cvtsi32_si128(config.srcShiftRight[c]);
-                channel = _mm_srl_epi32(channel, shift);
-            }
-            if (config.dstShiftLeft[c]) {
-                __m128i shift = _mm_cvtsi32_si128(config.dstShiftLeft[c]);
-                channel = _mm_sll_epi32(channel, shift);
-            }
-            channel = _mm_and_si128(channel, dstMaskVec[c]);
-            dstVec = _mm_or_si128(dstVec, channel);
-        }
-
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(dstPixels + i), dstVec);
-    }
-
-    return simdCount;
-}
-
-int VxSIMDApplyAlphaBatch32_SSE(XULONG* pixels, int count, XBYTE alphaValue, XULONG alphaMask, XULONG alphaShift) {
-    const int simdCount = count & ~3;
-    if (simdCount <= 0) {
-        return 0;
-    }
-
-    const XULONG alphaComponent = (static_cast<XULONG>(alphaValue) << alphaShift) & alphaMask;
-    const XULONG colorMask = ~alphaMask;
-
-    const __m128i alphaMaskVec = _mm_set1_epi32(static_cast<int>(alphaMask));
-    const __m128i colorMaskVec = _mm_set1_epi32(static_cast<int>(colorMask));
-    __m128i alphaVec = _mm_set1_epi32(static_cast<int>(alphaComponent));
-    alphaVec = _mm_and_si128(alphaVec, alphaMaskVec);
-
-    for (int i = 0; i < simdCount; i += 4) {
-        __m128i src = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pixels + i));
-        __m128i masked = _mm_and_si128(src, colorMaskVec);
-        __m128i result = _mm_or_si128(masked, alphaVec);
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(pixels + i), result);
-    }
-
-    return simdCount;
-}
-
-int VxSIMDApplyVariableAlphaBatch32_SSE(XULONG* pixels, const XBYTE* alphaValues, int count, XULONG alphaMask, XULONG alphaShift) {
-    const int simdCount = count & ~3;
-    if (simdCount <= 0) {
-        return 0;
-    }
-
-    const XULONG colorMask = ~alphaMask;
-    const __m128i alphaMaskVec = _mm_set1_epi32(static_cast<int>(alphaMask));
-    const __m128i colorMaskVec = _mm_set1_epi32(static_cast<int>(colorMask));
-    const __m128i zero = _mm_setzero_si128();
-    const __m128i alphaShiftVec = _mm_cvtsi32_si128(alphaShift);
-
-    for (int i = 0; i < simdCount; i += 4) {
-        unsigned int packedAlpha = 0;
-        memcpy(&packedAlpha, alphaValues + i, sizeof(packedAlpha));
-
-        __m128i alphaBytes = _mm_cvtsi32_si128(static_cast<int>(packedAlpha));
-        alphaBytes = _mm_unpacklo_epi8(alphaBytes, zero);
-        alphaBytes = _mm_unpacklo_epi16(alphaBytes, zero);
-
-        __m128i alphaVec = _mm_sll_epi32(alphaBytes, alphaShiftVec);
-        alphaVec = _mm_and_si128(alphaVec, alphaMaskVec);
-
-        __m128i src = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pixels + i));
-        __m128i masked = _mm_and_si128(src, colorMaskVec);
-        __m128i result = _mm_or_si128(masked, alphaVec);
-        _mm_storeu_si128(reinterpret_cast<__m128i*>(pixels + i), result);
-    }
-
-    return simdCount;
 }
 
 void VxSIMDInterpolateFloatArray_SSE(float *result, const float *a, const float *b, float factor, int count) {
     // Match scalar VxMath::InterpolateFloatArray semantics and evaluation order:
     // result = a + (b - a) * factor
+    // Using FMA: result = (b - a) * factor + a
     const __m128 factorVec = _mm_set1_ps(factor);
 
     const int simdCount = count & ~3; // Process 4 at a time
@@ -457,7 +350,7 @@ void VxSIMDInterpolateFloatArray_SSE(float *result, const float *a, const float 
         const __m128 aVec = _mm_loadu_ps(a + i);
         const __m128 bVec = _mm_loadu_ps(b + i);
         const __m128 diff = _mm_sub_ps(bVec, aVec);
-        const __m128 resultVec = _mm_add_ps(aVec, _mm_mul_ps(diff, factorVec));
+        const __m128 resultVec = VX_FMADD_PS(diff, factorVec, aVec);
         _mm_storeu_ps(result + i, resultVec);
     }
 
@@ -467,10 +360,12 @@ void VxSIMDInterpolateFloatArray_SSE(float *result, const float *a, const float 
 }
 
 void VxSIMDInterpolateVectorArray_SSE(void *result, const void *a, const void *b, float factor, int count, XULONG strideResult, XULONG strideInput) {
-    // Simple implementation - process vectors one by one
+    // Process vectors one by one with efficient lerp using FMA: (b - a) * factor + a
     const char* srcA = static_cast<const char*>(a);
     const char* srcB = static_cast<const char*>(b);
     char* dst = static_cast<char*>(result);
+
+    const __m128 factorVec = _mm_set1_ps(factor);
 
     for (int i = 0; i < count; ++i) {
         const VxVector* vecA = reinterpret_cast<const VxVector*>(srcA + i * strideInput);
@@ -479,9 +374,8 @@ void VxSIMDInterpolateVectorArray_SSE(void *result, const void *a, const void *b
 
         __m128 aVec = VxSIMDLoadFloat3(&vecA->x);
         __m128 bVec = VxSIMDLoadFloat3(&vecB->x);
-        __m128 factorVec = _mm_set1_ps(factor);
-        __m128 oneMinusFactor = _mm_set1_ps(1.0f - factor);
-        __m128 resultVec = _mm_add_ps(_mm_mul_ps(aVec, oneMinusFactor), _mm_mul_ps(bVec, factorVec));
+        __m128 diff = _mm_sub_ps(bVec, aVec);
+        __m128 resultVec = VX_FMADD_PS(diff, factorVec, aVec);
         VxSIMDStoreFloat3(&vecResult->x, resultVec);
     }
 }
@@ -539,45 +433,47 @@ XBOOL VxSIMDTransformBox2D_SSE(const VxMatrix *worldProjection, const VxBbox *bo
     XULONG allOr = 0;
     XULONG allAnd = 0xFFFFFFFFu;
 
-    // SSE clip test in homogeneous coordinates - process 2 vertices at a time
-    // Using SSE comparison and mask generation similar to original binary
-    for (int i = 0; i < vertexCount; i += 2) {
-        __m128 v0 = verts[i];
-        __m128 v1 = (i + 1 < vertexCount) ? verts[i + 1] : v0;
+    // SIMD clip test in homogeneous coordinates using SSE compares + movemask
+    // Test conditions: x < -w (LEFT), x > w (RIGHT), y < -w (BOTTOM), y > w (TOP), z < 0 (FRONT), z > w (BACK)
+    const __m128 zero = _mm_setzero_ps();
 
-        // Extract components - x,y,z,w for each vertex
-        alignas(16) float v0f[4], v1f[4];
-        _mm_store_ps(v0f, v0);
-        _mm_store_ps(v1f, v1);
+    for (int i = 0; i < vertexCount; ++i) {
+        __m128 v = verts[i];
 
-        XULONG flags0 = 0, flags1 = 0;
+        // Broadcast w to all lanes for comparisons
+        __m128 w = _mm_shuffle_ps(v, v, _MM_SHUFFLE(3, 3, 3, 3));
+        __m128 negW = _mm_sub_ps(zero, w);
 
-        // Test vertex 0
-        {
-            const float x = v0f[0], y = v0f[1], z = v0f[2], w = v0f[3];
-            if (-w > x) flags0 |= VXCLIP_LEFT;
-            if (x > w) flags0 |= VXCLIP_RIGHT;
-            if (-w > y) flags0 |= VXCLIP_BOTTOM;
-            if (y > w) flags0 |= VXCLIP_TOP;
-            if (z < 0.0f) flags0 |= VXCLIP_FRONT;
-            if (z > w) flags0 |= VXCLIP_BACK;
-        }
+        // x < -w  => LEFT
+        // x > w   => RIGHT
+        // y < -w  => BOTTOM
+        // y > w   => TOP
+        // z < 0   => FRONT
+        // z > w   => BACK
 
-        // Test vertex 1 (only if valid)
-        if (i + 1 < vertexCount) {
-            const float x = v1f[0], y = v1f[1], z = v1f[2], w = v1f[3];
-            if (-w > x) flags1 |= VXCLIP_LEFT;
-            if (x > w) flags1 |= VXCLIP_RIGHT;
-            if (-w > y) flags1 |= VXCLIP_BOTTOM;
-            if (y > w) flags1 |= VXCLIP_TOP;
-            if (z < 0.0f) flags1 |= VXCLIP_FRONT;
-            if (z > w) flags1 |= VXCLIP_BACK;
-        } else {
-            flags1 = flags0; // Duplicate for correct AND
-        }
+        // Extract x, y, z as broadcasts for lane-wise comparison
+        __m128 x = _mm_shuffle_ps(v, v, _MM_SHUFFLE(0, 0, 0, 0));
+        __m128 y = _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 1, 1, 1));
+        __m128 z = _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 2, 2, 2));
 
-        allOr |= flags0 | flags1;
-        allAnd &= flags0 & flags1;
+        // Use _mm_cmplt_ss for single-lane comparisons, extract with movemask
+        XULONG flags = 0;
+
+        // LEFT: x < -w
+        if (_mm_comilt_ss(x, negW)) flags |= VXCLIP_LEFT;
+        // RIGHT: x > w
+        if (_mm_comigt_ss(x, w)) flags |= VXCLIP_RIGHT;
+        // BOTTOM: y < -w
+        if (_mm_comilt_ss(y, negW)) flags |= VXCLIP_BOTTOM;
+        // TOP: y > w
+        if (_mm_comigt_ss(y, w)) flags |= VXCLIP_TOP;
+        // FRONT: z < 0
+        if (_mm_comilt_ss(z, zero)) flags |= VXCLIP_FRONT;
+        // BACK: z > w
+        if (_mm_comigt_ss(z, w)) flags |= VXCLIP_BACK;
+
+        allOr |= flags;
+        allAnd &= flags;
     }
 
     if (extents && screenSize && (allAnd & VXCLIP_ALL) == 0) {
@@ -642,6 +538,7 @@ XBOOL VxSIMDTransformBox2D_SSE(const VxMatrix *worldProjection, const VxBbox *bo
 }
 
 void VxSIMDProjectBoxZExtents_SSE(const VxMatrix *worldProjection, const VxBbox *box, float *zhMin, float *zhMax) {
+    // Match scalar VxProjectBoxZExtents() exactly
     if (!zhMin || !zhMax) return;
     *zhMin = 1.0e10f;
     *zhMax = -1.0e10f;
@@ -662,27 +559,19 @@ void VxSIMDProjectBoxZExtents_SSE(const VxMatrix *worldProjection, const VxBbox 
     const __m128 col2 = _mm_loadu_ps((const float*)&(*worldProjection)[2][0]);
     const __m128 deltaX = _mm_mul_ps(col0, _mm_set1_ps(dx));
     const __m128 deltaY = _mm_mul_ps(col1, _mm_set1_ps(dy));
-
     const __m128 deltaZ = _mm_mul_ps(col2, _mm_set1_ps(dz));
 
-    // Match the scalar/binary degeneracy handling (FLT_EPSILON thresholds).
-    int vertexCount = 8;
-    if (dz <= FLT_EPSILON) {
+    // Match scalar: only check dz for flatness (uses XAbs(dz) < EPSILON)
+    int vertexCount;
+    if (fabsf(dz) < EPSILON) {
+        // Box is flat in Z dimension - only need 4 corners
         vertexCount = 4;
         corners[1] = _mm_add_ps(corners[0], deltaX);
         corners[2] = _mm_add_ps(corners[0], deltaY);
         corners[3] = _mm_add_ps(corners[1], deltaY);
-    } else if (dx <= FLT_EPSILON) {
-        vertexCount = 4;
-        corners[1] = _mm_add_ps(corners[0], deltaZ);
-        corners[2] = _mm_add_ps(corners[0], deltaY);
-        corners[3] = _mm_add_ps(corners[1], deltaY);
-    } else if (dy <= FLT_EPSILON) {
-        vertexCount = 4;
-        corners[1] = _mm_add_ps(corners[0], deltaZ);
-        corners[2] = _mm_add_ps(corners[0], deltaX);
-        corners[3] = _mm_add_ps(corners[1], deltaX);
     } else {
+        // Full 3D box - need all 8 corners
+        vertexCount = 8;
         corners[1] = _mm_add_ps(corners[0], deltaZ);
         corners[2] = _mm_add_ps(corners[0], deltaY);
         corners[3] = _mm_add_ps(corners[1], deltaY);
@@ -695,17 +584,19 @@ void VxSIMDProjectBoxZExtents_SSE(const VxMatrix *worldProjection, const VxBbox 
     for (int i = 0; i < vertexCount; ++i) {
         alignas(16) float v[4];
         _mm_storeu_ps(v, corners[i]);
-        float z = v[2];
+        const float z = v[2];
         const float w = v[3];
 
-        if (w < 0.0f) {
-            z = 0.0f;
-        } else {
-            z = z / w; // matches original behavior (w==0 produces inf)
-        }
+        // Match scalar: skip if w <= EPSILON (behind viewer)
+        if (w <= EPSILON)
+            continue;
 
-        if (z < *zhMin) *zhMin = z;
-        if (z >= *zhMax) *zhMax = z;
+        // Calculate perspective-divided Z
+        const float projZ = z / w;
+
+        // Update min/max
+        if (projZ < *zhMin) *zhMin = projZ;
+        if (projZ > *zhMax) *zhMax = projZ;
     }
 }
 
@@ -1286,22 +1177,23 @@ float VxSIMDDistanceVector_SSE(const VxVector *a, const VxVector *b) {
 }
 
 void VxSIMDLerpVector_SSE(VxVector *result, const VxVector *a, const VxVector *b, float t) {
+    // result = a + t * (b - a)  using FMA: (b - a) * t + a
     __m128 aVec = VxSIMDLoadFloat3(&a->x);
     __m128 bVec = VxSIMDLoadFloat3(&b->x);
     __m128 tVec = _mm_set1_ps(t);
-    __m128 oneMinusTVec = _mm_set1_ps(1.0f - t);
-    __m128 resultVec = _mm_add_ps(_mm_mul_ps(aVec, oneMinusTVec), _mm_mul_ps(bVec, tVec));
+    __m128 diff = _mm_sub_ps(bVec, aVec);
+    __m128 resultVec = VX_FMADD_PS(diff, tVec, aVec);
     VxSIMDStoreFloat3(&result->x, resultVec);
 }
 
 void VxSIMDReflectVector_SSE(VxVector *result, const VxVector *incident, const VxVector *normal) {
-    // r = i - 2.0 * (i·n) * n
+    // r = i - 2.0 * (i·n) * n  using FMA: -2*dot*n + i
     __m128 iVec = VxSIMDLoadFloat3(&incident->x);
     __m128 nVec = VxSIMDLoadFloat3(&normal->x);
     __m128 dotVec = VxSIMDDotProduct3(iVec, nVec);
-    __m128 twoVec = _mm_set1_ps(2.0f);
+    __m128 twoVec = VX_SIMD_TWO;
     __m128 factor = _mm_mul_ps(twoVec, dotVec);
-    __m128 reflection = _mm_sub_ps(iVec, _mm_mul_ps(factor, nVec));
+    __m128 reflection = VX_FNMADD_PS(factor, nVec, iVec);  // i - factor * n
     VxSIMDStoreFloat3(&result->x, reflection);
 }
 
@@ -1317,6 +1209,74 @@ void VxSIMDMaximizeVector_SSE(VxVector *result, const VxVector *a, const VxVecto
     __m128 bVec = VxSIMDLoadFloat3(&b->x);
     __m128 resultVec = _mm_max_ps(aVec, bVec);
     VxSIMDStoreFloat3(&result->x, resultVec);
+}
+
+// =============================================================================
+// Batch Vector Operations - Amortize function call overhead
+// =============================================================================
+
+void VxSIMDNormalizeVectorMany_SSE(VxVector *vectors, int count) {
+    if (count <= 0) return;
+
+    for (int i = 0; i < count; ++i) {
+        VxVector *v = &vectors[i];
+        __m128 vec = VxSIMDLoadFloat3(&v->x);
+        __m128 dot = VxSIMDDotProduct3(vec, vec);
+
+        // SIMD epsilon check and safe normalization
+        __m128 mask = _mm_cmpgt_ps(dot, VX_SIMD_EPSILON);
+        __m128 safeDot = _mm_max_ps(dot, VX_SIMD_EPSILON);
+        __m128 invLen = VxSIMDReciprocalSqrtAccurate(safeDot);
+        __m128 normalized = _mm_mul_ps(vec, invLen);
+
+        // Branchless select: keep original if dot <= epsilon
+        __m128 keepOriginal = _mm_andnot_ps(mask, vec);
+        __m128 useNormalized = _mm_and_ps(mask, normalized);
+        vec = _mm_or_ps(keepOriginal, useNormalized);
+
+        VxSIMDStoreFloat3(&v->x, vec);
+    }
+}
+
+void VxSIMDDotVectorMany_SSE(float *results, const VxVector *a, const VxVector *b, int count) {
+    if (count <= 0) return;
+
+    for (int i = 0; i < count; ++i) {
+        const __m128 aVec = VxSIMDLoadFloat3(&a[i].x);
+        const __m128 bVec = VxSIMDLoadFloat3(&b[i].x);
+        const __m128 mul = _mm_mul_ps(aVec, bVec);
+
+        __m128 y = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(1, 1, 1, 1));
+        __m128 sum = _mm_add_ss(mul, y);
+        __m128 z = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 2, 2, 2));
+        sum = _mm_add_ss(sum, z);
+
+        _mm_store_ss(&results[i], sum);
+    }
+}
+
+void VxSIMDCrossVectorMany_SSE(VxVector *results, const VxVector *a, const VxVector *b, int count) {
+    if (count <= 0) return;
+
+    for (int i = 0; i < count; ++i) {
+        __m128 aVec = VxSIMDLoadFloat3(&a[i].x);
+        __m128 bVec = VxSIMDLoadFloat3(&b[i].x);
+        __m128 resultVec = VxSIMDCrossProduct3(aVec, bVec);
+        VxSIMDStoreFloat3(&results[i].x, resultVec);
+    }
+}
+
+void VxSIMDLerpVectorMany_SSE(VxVector *results, const VxVector *a, const VxVector *b, float t, int count) {
+    if (count <= 0) return;
+
+    __m128 tVec = _mm_set1_ps(t);
+    for (int i = 0; i < count; ++i) {
+        __m128 aVec = VxSIMDLoadFloat3(&a[i].x);
+        __m128 bVec = VxSIMDLoadFloat3(&b[i].x);
+        __m128 diff = _mm_sub_ps(bVec, aVec);
+        __m128 resultVec = VX_FMADD_PS(diff, tVec, aVec);
+        VxSIMDStoreFloat3(&results[i].x, resultVec);
+    }
 }
 
 // Vector4 operations
@@ -1351,11 +1311,12 @@ float VxSIMDDotVector4_SSE(const VxVector4 *a, const VxVector4 *b) {
 }
 
 void VxSIMDLerpVector4_SSE(VxVector4 *result, const VxVector4 *a, const VxVector4 *b, float t) {
+    // result = a + t * (b - a)  using FMA: (b - a) * t + a
     __m128 aVec = VxSIMDLoadFloat4((const float*)a);
     __m128 bVec = VxSIMDLoadFloat4((const float*)b);
     __m128 tVec = _mm_set1_ps(t);
-    __m128 oneMinusTVec = _mm_set1_ps(1.0f - t);
-    __m128 resultVec = _mm_add_ps(_mm_mul_ps(aVec, oneMinusTVec), _mm_mul_ps(bVec, tVec));
+    __m128 diff = _mm_sub_ps(bVec, aVec);
+    __m128 resultVec = VX_FMADD_PS(diff, tVec, aVec);
     VxSIMDStoreFloat4((float*)result, resultVec);
 }
 
@@ -1389,16 +1350,10 @@ void VxSIMDRotateVectorStrided_SSE(VxStridedData *dest, VxStridedData *src, cons
 
 // Matrix utility operations (basic implementations)
 void VxSIMDMatrixIdentity_SSE(VxMatrix *mat) {
-    __m128 zero = _mm_setzero_ps();
-    __m128 row0 = _mm_setr_ps(1.0f, 0.0f, 0.0f, 0.0f);
-    __m128 row1 = _mm_setr_ps(0.0f, 1.0f, 0.0f, 0.0f);
-    __m128 row2 = _mm_setr_ps(0.0f, 0.0f, 1.0f, 0.0f);
-    __m128 row3 = _mm_setr_ps(0.0f, 0.0f, 0.0f, 1.0f);
-
-    _mm_storeu_ps(&(*mat)[0][0], row0);
-    _mm_storeu_ps(&(*mat)[1][0], row1);
-    _mm_storeu_ps(&(*mat)[2][0], row2);
-    _mm_storeu_ps(&(*mat)[3][0], row3);
+    _mm_storeu_ps(&(*mat)[0][0], VX_SIMD_IDENTITY_R0);
+    _mm_storeu_ps(&(*mat)[1][0], VX_SIMD_IDENTITY_R1);
+    _mm_storeu_ps(&(*mat)[2][0], VX_SIMD_IDENTITY_R2);
+    _mm_storeu_ps(&(*mat)[3][0], VX_SIMD_IDENTITY_R3);
 }
 
 void VxSIMDMatrixInverse_SSE(VxMatrix *result, const VxMatrix *mat) {

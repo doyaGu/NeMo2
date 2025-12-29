@@ -19,24 +19,8 @@
  */
 
 void VxSIMDNormalizeVector_AVX(VxVector *v) {
-    // Match VxVector::Normalize() semantics (sqrt-based, epsilon guard)
-    __m128 vec = VxSIMDLoadFloat3(&v->x);
-
-    const __m128 mul = _mm_mul_ps(vec, vec);
-    __m128 sum = _mm_add_ss(mul, _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(1, 1, 1, 1)));
-    sum = _mm_add_ss(sum, _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 2, 2, 2)));
-
-    float magSqScalar;
-    _mm_store_ss(&magSqScalar, sum);
-    if (magSqScalar > EPSILON) {
-        const __m128 mag = _mm_sqrt_ss(sum);
-        const __m128 invMag = _mm_div_ss(_mm_set_ss(1.0f), mag);
-        const __m128 invMag4 = _mm_shuffle_ps(invMag, invMag, _MM_SHUFFLE(0, 0, 0, 0));
-        vec = _mm_mul_ps(vec, invMag4);
-    }
-
-    VxSIMDStoreFloat3(&v->x, vec);
-    _mm256_zeroupper();
+    // Delegate to optimized SSE implementation - no 256-bit AVX used
+    VxSIMDNormalizeVector_SSE(v);
 }
 
 void VxSIMDRotateVector_AVX(VxVector *result, const VxMatrix *mat, const VxVector *v) {
@@ -389,105 +373,6 @@ void VxSIMDSlerpQuaternion_AVX(VxQuaternion *result, float t, const VxQuaternion
     _mm256_zeroupper();
 }
 
-int VxSIMDConvertPixelBatch32_AVX(const XULONG* srcPixels, XULONG* dstPixels, int count, const VxPixelSimdConfig& config) {
-    if (!config.enabled) {
-        return 0;
-    }
-
-    const int simdCount = count & ~7;
-    if (simdCount <= 0) {
-        return 0;
-    }
-
-    __m256i alphaVec = config.alphaFill ? _mm256_set1_epi32(static_cast<int>(config.alphaFillComponent)) : _mm256_setzero_si256();
-    __m256i srcMaskVec[4];
-    __m256i dstMaskVec[4];
-    for (int c = 0; c < 4; ++c) {
-        srcMaskVec[c] = _mm256_set1_epi32(static_cast<int>(config.srcMasks[c]));
-        dstMaskVec[c] = _mm256_set1_epi32(static_cast<int>(config.dstMasks[c]));
-    }
-
-    for (int i = 0; i < simdCount; i += 8) {
-        __m256i srcVec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(srcPixels + i));
-        __m256i dstVec = alphaVec;
-
-        for (int c = 0; c < 4; ++c) {
-            if (!config.channelCopy[c]) {
-                continue;
-            }
-
-            __m256i channel = _mm256_and_si256(srcVec, srcMaskVec[c]);
-            if (config.srcShiftRight[c]) {
-                __m128i shift = _mm_cvtsi32_si128(config.srcShiftRight[c]);
-                channel = _mm256_srl_epi32(channel, shift);
-            }
-            if (config.dstShiftLeft[c]) {
-                __m128i shift = _mm_cvtsi32_si128(config.dstShiftLeft[c]);
-                channel = _mm256_sll_epi32(channel, shift);
-            }
-            channel = _mm256_and_si256(channel, dstMaskVec[c]);
-            dstVec = _mm256_or_si256(dstVec, channel);
-        }
-
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dstPixels + i), dstVec);
-    }
-
-    _mm256_zeroupper();
-    return simdCount;
-}
-
-int VxSIMDApplyAlphaBatch32_AVX(XULONG* pixels, int count, XBYTE alphaValue, XULONG alphaMask, XULONG alphaShift) {
-    const int simdCount = count & ~7;
-    if (simdCount <= 0) {
-        return 0;
-    }
-
-    const XULONG alphaComponent = (static_cast<XULONG>(alphaValue) << alphaShift) & alphaMask;
-    const XULONG colorMask = ~alphaMask;
-
-    const __m256i alphaMaskVec = _mm256_set1_epi32(static_cast<int>(alphaMask));
-    const __m256i colorMaskVec = _mm256_set1_epi32(static_cast<int>(colorMask));
-    __m256i alphaVec = _mm256_set1_epi32(static_cast<int>(alphaComponent));
-    alphaVec = _mm256_and_si256(alphaVec, alphaMaskVec);
-
-    for (int i = 0; i < simdCount; i += 8) {
-        __m256i src = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(pixels + i));
-        __m256i masked = _mm256_and_si256(src, colorMaskVec);
-        __m256i result = _mm256_or_si256(masked, alphaVec);
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels + i), result);
-    }
-
-    _mm256_zeroupper();
-    return simdCount;
-}
-
-int VxSIMDApplyVariableAlphaBatch32_AVX(XULONG* pixels, const XBYTE* alphaValues, int count, XULONG alphaMask, XULONG alphaShift) {
-    const int simdCount = count & ~7;
-    if (simdCount <= 0) {
-        return 0;
-    }
-
-    const XULONG colorMask = ~alphaMask;
-    const __m256i alphaMaskVec = _mm256_set1_epi32(static_cast<int>(alphaMask));
-    const __m256i colorMaskVec = _mm256_set1_epi32(static_cast<int>(colorMask));
-    const __m128i shift = _mm_cvtsi32_si128(alphaShift);
-
-    for (int i = 0; i < simdCount; i += 8) {
-        __m128i alphaBytes128 = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(alphaValues + i));
-        __m256i alphaBytes = _mm256_cvtepu8_epi32(alphaBytes128);
-        __m256i alphaVec = _mm256_sll_epi32(alphaBytes, shift);
-        alphaVec = _mm256_and_si256(alphaVec, alphaMaskVec);
-
-        __m256i src = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(pixels + i));
-        __m256i masked = _mm256_and_si256(src, colorMaskVec);
-        __m256i result = _mm256_or_si256(masked, alphaVec);
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(pixels + i), result);
-    }
-
-    _mm256_zeroupper();
-    return simdCount;
-}
-
 void VxSIMDInterpolateFloatArray_AVX(float *result, const float *a, const float *b, float factor, int count) {
     if (count <= 0) {
         return;
@@ -614,74 +499,64 @@ void VxSIMDAddVector_AVX(VxVector *result, const VxVector *a, const VxVector *b)
 
 void VxSIMDSubtractVector_AVX(VxVector *result, const VxVector *a, const VxVector *b) {
     VxSIMDSubtractVector_SSE(result, a, b);
-    _mm256_zeroupper();
 }
 
 void VxSIMDScaleVector_AVX(VxVector *result, const VxVector *v, float scalar) {
     VxSIMDScaleVector_SSE(result, v, scalar);
-    _mm256_zeroupper();
 }
 
 float VxSIMDDotVector_AVX(const VxVector *a, const VxVector *b) {
-    // Implement directly (avoid calling SSE variant + vzeroupper cost).
-    // Compiled with AVX enabled, so these are VEX-encoded XMM ops (no AVX<->SSE transition penalty).
-    const __m128 aVec = VxSIMDLoadFloat3(&a->x);
-    const __m128 bVec = VxSIMDLoadFloat3(&b->x);
-    const __m128 mul = _mm_mul_ps(aVec, bVec);
-
-    __m128 y = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(1, 1, 1, 1));
-    __m128 sum = _mm_add_ss(mul, y);
-    __m128 z = _mm_shuffle_ps(mul, mul, _MM_SHUFFLE(2, 2, 2, 2));
-    sum = _mm_add_ss(sum, z);
-
-    float result;
-    _mm_store_ss(&result, sum);
-    return result;
+    // Delegate to SSE - compiled with AVX, so VEX-encoded (no transition penalty)
+    return VxSIMDDotVector_SSE(a, b);
 }
 
 void VxSIMDCrossVector_AVX(VxVector *result, const VxVector *a, const VxVector *b) {
-    const __m128 aVec = VxSIMDLoadFloat3(&a->x);
-    const __m128 bVec = VxSIMDLoadFloat3(&b->x);
-    const __m128 r = VxSIMDCrossProduct3(aVec, bVec);
-    VxSIMDStoreFloat3(&result->x, r);
+    VxSIMDCrossVector_SSE(result, a, b);
 }
 
 float VxSIMDLengthVector_AVX(const VxVector *v) {
-    float result = VxSIMDLengthVector_SSE(v);
-    _mm256_zeroupper();
-    return result;
+    return VxSIMDLengthVector_SSE(v);
 }
 
 float VxSIMDLengthSquaredVector_AVX(const VxVector *v) {
-    float result = VxSIMDLengthSquaredVector_SSE(v);
-    _mm256_zeroupper();
-    return result;
+    return VxSIMDLengthSquaredVector_SSE(v);
 }
 
 float VxSIMDDistanceVector_AVX(const VxVector *a, const VxVector *b) {
-    float result = VxSIMDDistanceVector_SSE(a, b);
-    _mm256_zeroupper();
-    return result;
+    return VxSIMDDistanceVector_SSE(a, b);
 }
 
 void VxSIMDLerpVector_AVX(VxVector *result, const VxVector *a, const VxVector *b, float t) {
     VxSIMDLerpVector_SSE(result, a, b, t);
-    _mm256_zeroupper();
 }
 
 void VxSIMDReflectVector_AVX(VxVector *result, const VxVector *incident, const VxVector *normal) {
     VxSIMDReflectVector_SSE(result, incident, normal);
-    _mm256_zeroupper();
 }
 
 void VxSIMDMinimizeVector_AVX(VxVector *result, const VxVector *a, const VxVector *b) {
     VxSIMDMinimizeVector_SSE(result, a, b);
-    _mm256_zeroupper();
 }
 
 void VxSIMDMaximizeVector_AVX(VxVector *result, const VxVector *a, const VxVector *b) {
     VxSIMDMaximizeVector_SSE(result, a, b);
-    _mm256_zeroupper();
+}
+
+// Batch vector operations - delegate to SSE (no zeroupper needed - VEX-encoded)
+void VxSIMDNormalizeVectorMany_AVX(VxVector *vectors, int count) {
+    VxSIMDNormalizeVectorMany_SSE(vectors, count);
+}
+
+void VxSIMDDotVectorMany_AVX(float *results, const VxVector *a, const VxVector *b, int count) {
+    VxSIMDDotVectorMany_SSE(results, a, b, count);
+}
+
+void VxSIMDCrossVectorMany_AVX(VxVector *results, const VxVector *a, const VxVector *b, int count) {
+    VxSIMDCrossVectorMany_SSE(results, a, b, count);
+}
+
+void VxSIMDLerpVectorMany_AVX(VxVector *results, const VxVector *a, const VxVector *b, float t, int count) {
+    VxSIMDLerpVectorMany_SSE(results, a, b, t, count);
 }
 
 // Vector4 operations stubs

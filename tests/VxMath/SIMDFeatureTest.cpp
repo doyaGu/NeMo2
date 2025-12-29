@@ -295,15 +295,6 @@ TEST(SIMDDispatchTable, QuaternionOpsAreValid) {
     EXPECT_NE(dispatch->Quaternion.Squad, nullptr);
 }
 
-TEST(SIMDDispatchTable, PixelOpsAreValid) {
-    const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
-    ASSERT_NE(dispatch, nullptr);
-
-    EXPECT_NE(dispatch->Pixel.ConvertPixelBatch32, nullptr);
-    EXPECT_NE(dispatch->Pixel.ApplyAlphaBatch32, nullptr);
-    EXPECT_NE(dispatch->Pixel.ApplyVariableAlphaBatch32, nullptr);
-}
-
 TEST(SIMDDispatchTable, GeometryOpsAreValid) {
     const VxSIMDDispatch* dispatch = VxGetSIMDDispatch();
     ASSERT_NE(dispatch, nullptr);
