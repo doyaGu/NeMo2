@@ -9,6 +9,7 @@
 
 #include <cstdlib>
 #include <cmath>
+#include <cstring>
 
 // Platform detection
 #if defined(_MSC_VER)
@@ -168,55 +169,8 @@ VX_EXPORT const char *VxGetSIMDInfo();
 // SIMD Helper Macros
 // ============================================================================
 
-// Alignment macros for SIMD data
-#if defined(VX_SIMD_MSVC)
-#define VX_ALIGN(x) __declspec(align(x))
-#elif defined(VX_SIMD_GCC)
-#define VX_ALIGN(x) __attribute__((aligned(x)))
-#else
-#define VX_ALIGN(x)
-#endif
-
-static inline void *VxAlignedMalloc(size_t size, size_t alignment) {
-#if defined(VX_SIMD_MSVC)
-    return _aligned_malloc(size, alignment);
-#else
-    if (alignment < sizeof(void *)) {
-        alignment = sizeof(void *);
-    }
-    if ((alignment & (alignment - 1)) != 0) {
-        size_t pow2 = sizeof(void *);
-        while (pow2 < alignment) {
-            pow2 <<= 1;
-        }
-        alignment = pow2;
-    }
-    const size_t totalSize = size + alignment - 1 + sizeof(void *);
-    void *raw = malloc(totalSize);
-    if (!raw) {
-        return nullptr;
-    }
-    const uintptr_t rawAddr = reinterpret_cast<uintptr_t>(raw) + sizeof(void *);
-    const uintptr_t alignedAddr = (rawAddr + (alignment - 1)) & ~(static_cast<uintptr_t>(alignment) - 1);
-    reinterpret_cast<void **>(alignedAddr)[-1] = raw;
-    return reinterpret_cast<void *>(alignedAddr);
-#endif
-}
-
-static inline void VxAlignedFree(void *ptr) {
-#if defined(VX_SIMD_MSVC)
-    _aligned_free(ptr);
-#else
-    if (!ptr) {
-        return;
-    }
-    void *raw = reinterpret_cast<void **>(ptr)[-1];
-    free(raw);
-#endif
-}
-
-#define VX_ALIGNED_MALLOC(size, alignment) VxAlignedMalloc(size, alignment)
-#define VX_ALIGNED_FREE(ptr) VxAlignedFree(ptr)
+#define VX_ALIGNED_MALLOC(size, alignment) VxNewAligned(size, alignment)
+#define VX_ALIGNED_FREE(ptr) VxDeleteAligned(ptr)
 
 // Common SIMD alignments
 #define VX_ALIGN_SSE VX_ALIGN(16)

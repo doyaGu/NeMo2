@@ -2,22 +2,7 @@
 #define VXMEMORYPOOL_H
 
 #include "VxMathDefines.h"
-
-/**
- * @brief Allocates a block of memory aligned to a specified boundary.
- * @param size The size of the memory block to allocate, in bytes.
- * @param align The alignment boundary, which must be a power of two.
- * @return A pointer to the allocated aligned memory, or NULL if allocation fails.
- * @see VxDeleteAligned
- */
-VX_EXPORT void *VxNewAligned(int size, int align);
-
-/**
- * @brief Frees a block of memory that was allocated with VxNewAligned.
- * @param ptr A pointer to the memory block to be freed.
- * @see VxNewAligned
- */
-VX_EXPORT void VxDeleteAligned(void *ptr);
+#include "VxMemory.h"
 
 /**
  * @brief A simple memory buffer manager that ensures aligned memory allocation.

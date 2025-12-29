@@ -57,7 +57,6 @@ set(VXMATH_SOURCES
         VxProcessor.cpp
         VxSharedLibraryWin32.cpp
         VxMemoryMappedFileWin32.cpp
-        VxMemoryPool.cpp
         CKPathSplitter.cpp
         CKDirectoryParser.cpp
         VxWindowFunctionsWin32.cpp
