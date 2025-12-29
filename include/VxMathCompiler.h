@@ -1,8 +1,76 @@
 #ifndef VXMATHCOMPILER_H
 #define VXMATHCOMPILER_H
 
-// Compiler-specific macros for VxMath.
+#include "VxPlatform.h"
 
+/**
+ * @file VxMathCompiler.h
+ * @brief Compiler-specific macros for VxMath.
+ *
+ * This header provides compiler-specific macros for:
+ * - DLL export/import declarations
+ * - Calling conventions
+ * - Alignment and attributes
+ * - C++ standard detection
+ */
+
+// ---------------------------------------------------------------------------
+// Compiler / platform / arch detection
+//
+// Preferred source: CMake add_compile_definitions(...) provides VX_* macros.
+// Fallback: detect from standard predefined macros to keep headers usable
+// outside the CMake build.
+// ---------------------------------------------------------------------------
+
+#ifndef VX_COMPILER_MSVC
+#   if defined(_MSC_VER) && !defined(__clang__)
+#       define VX_COMPILER_MSVC 1
+#   else
+#       define VX_COMPILER_MSVC 0
+#   endif
+#endif
+
+#ifndef VX_COMPILER_CLANG
+#   if defined(__clang__)
+#       define VX_COMPILER_CLANG 1
+#   else
+#       define VX_COMPILER_CLANG 0
+#   endif
+#endif
+
+#ifndef VX_COMPILER_GCC
+#   if defined(__GNUC__) && !defined(__clang__)
+#       define VX_COMPILER_GCC 1
+#   else
+#       define VX_COMPILER_GCC 0
+#   endif
+#endif
+
+#ifndef VX_PLATFORM_WINDOWS
+#   if defined(_WIN32)
+#       define VX_PLATFORM_WINDOWS 1
+#   else
+#       define VX_PLATFORM_WINDOWS 0
+#   endif
+#endif
+
+#ifndef VX_ARCH_X86
+#   if defined(_M_IX86) || defined(__i386__)
+#       define VX_ARCH_X86 1
+#   else
+#       define VX_ARCH_X86 0
+#   endif
+#endif
+
+#ifndef VX_ARCH_X64
+#   if defined(_M_X64) || defined(__x86_64__) || defined(__amd64__)
+#       define VX_ARCH_X64 1
+#   else
+#       define VX_ARCH_X64 0
+#   endif
+#endif
+
+// Legacy helper macros (keep for existing code that might rely on them)
 #if defined(_MSC_VER)
 #   define VX_MSVC _MSC_VER
 #elif defined(__GNUC__)
@@ -21,19 +89,16 @@
 #   ifdef VX_LIB
 #       define VX_EXPORT
 #   else
-#       ifdef VX_API
-#           if defined(WIN32)
+#       if VX_PLATFORM_WINDOWS
+#           ifdef VX_API
 #               define VX_EXPORT __declspec(dllexport)
 #           else
-#               define VX_EXPORT
+#               define VX_EXPORT __declspec(dllimport)
 #           endif
 #       else
-#           if defined(WIN32)
-#               define VX_EXPORT __declspec(dllimport)
-#           else
-#               define VX_EXPORT
-#           endif
-#       endif // VX_API
+            // GCC/Clang visibility attribute for shared libraries
+#           define VX_EXPORT __attribute__((visibility("default")))
+#       endif
 #   endif // VX_LIB
 #endif // !VX_EXPORT
 
@@ -42,7 +107,11 @@
 // EXPORT DEFINES FOR LIB / DLL VERSIONS
 #ifndef CK_LIB
 #   ifdef CK_PRIVATE_VERSION_VIRTOOLS
-#       define DLL_EXPORT __declspec(dllexport)	// VC++ export option
+#       if VX_PLATFORM_WINDOWS
+#           define DLL_EXPORT __declspec(dllexport)
+#       else
+#           define DLL_EXPORT __attribute__((visibility("default")))
+#       endif
 #   else
 #       define DLL_EXPORT
 #   endif
@@ -51,7 +120,11 @@
 #endif
 
 #ifndef CK_LIB
-#   define PLUGIN_EXPORT extern "C" __declspec(dllexport)
+#   if VX_PLATFORM_WINDOWS
+#       define PLUGIN_EXPORT extern "C" __declspec(dllexport)
+#   else
+#       define PLUGIN_EXPORT extern "C" __attribute__((visibility("default")))
+#   endif
 #else
 #   define PLUGIN_EXPORT
 #endif // CK_LIB
@@ -73,12 +146,21 @@
 #endif
 
 #ifndef VX_DEPRECATED
-#   if defined(_MSC_VER)
-#       define VX_DEPRECATED deprecated
-#   elif defined(__GNUC__)
-#       define VX_DEPRECATED __attribute__((__deprecated__))
-#   else
-#       define VX_DEPRECATED
+#   if defined(__cplusplus)
+#       if defined(__has_cpp_attribute)
+#           if __has_cpp_attribute(deprecated)
+#               define VX_DEPRECATED [[deprecated]]
+#           endif
+#       endif
+#   endif
+#   if !defined(VX_DEPRECATED)
+#       if VX_COMPILER_MSVC
+#           define VX_DEPRECATED __declspec(deprecated)
+#       elif VX_COMPILER_GCC || VX_COMPILER_CLANG
+#           define VX_DEPRECATED __attribute__((deprecated))
+#       else
+#           define VX_DEPRECATED
+#       endif
 #   endif
 #endif
 
@@ -92,41 +174,35 @@
 #   endif
 #endif
 
+// Calling conventions - only meaningful on Windows x86
+// On 64-bit and non-Windows platforms, these are typically ignored
 #ifndef VX_CDECL
-#   if defined(_MSC_VER)
+#   if VX_PLATFORM_WINDOWS && VX_ARCH_X86
 #       define VX_CDECL __cdecl
-#   elif defined(__GNUC__)
-#       define VX_CDECL __attribute__((cdecl))
 #   else
 #       define VX_CDECL
 #   endif
 #endif
 
 #ifndef VX_FASTCALL
-#   if defined(_MSC_VER)
+#   if VX_PLATFORM_WINDOWS && VX_ARCH_X86
 #       define VX_FASTCALL __fastcall
-#   elif defined(__GNUC__)
-#       define VX_FASTCALL __attribute__((fastcall))
 #   else
 #       define VX_FASTCALL
 #   endif
 #endif
 
 #ifndef VX_STDCALL
-#   if defined(_MSC_VER)
+#   if VX_PLATFORM_WINDOWS && VX_ARCH_X86
 #       define VX_STDCALL __stdcall
-#   elif defined(__GNUC__)
-#       define VX_STDCALL __attribute__((stdcall))
 #   else
 #       define VX_STDCALL
 #   endif
 #endif
 
 #ifndef VX_THISCALL
-#   if defined(_MSC_VER)
+#   if VX_PLATFORM_WINDOWS && VX_ARCH_X86
 #       define VX_THISCALL __thiscall
-#   elif defined(__GNUC__)
-#       define VX_THISCALL __attribute__((thiscall))
 #   else
 #       define VX_THISCALL
 #   endif
@@ -144,7 +220,7 @@
 #   if defined(_MSC_VER)
 #       define VX_SECTION(x) __declspec(code_seg(x))
 #   elif defined(__GNUC__)
-#       define VX_SECTION(x) __attribute__(__section__(x)))
+#       define VX_SECTION(x) __attribute__((section(x)))
 #   endif
 #endif
 

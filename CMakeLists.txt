@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.12)
 
+# Track whether we are the top-level project.
+set(NEMO_IS_TOP_LEVEL OFF)
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(NEMO_IS_TOP_LEVEL ON)
+endif ()
+
 # Prevent in-tree builds
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+if (NEMO_IS_TOP_LEVEL AND CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "In-tree builds are not supported. Run CMake from a separate directory: cmake -B build")
 endif ()
 
@@ -15,27 +21,41 @@ project(NeMo2
 # ==================== Global Settings ====================
 # C++ Standard
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED NO)
+set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS YES)
 
 # Use folders to organize targets in an IDE
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMakeTargets")
 
-# Platform check
-if (NOT WIN32)
-    message(FATAL_ERROR "Only Windows is supported.")
-endif ()
+# ==================== Platform Detection ====================
+if(WIN32)
+    set(NEMO_PLATFORM_WINDOWS TRUE)
+    set(NEMO_PLATFORM_POSIX FALSE)
+    message(STATUS "Target platform: Windows")
+elseif(APPLE)
+    set(NEMO_PLATFORM_WINDOWS FALSE)
+    set(NEMO_PLATFORM_MACOS TRUE)
+    set(NEMO_PLATFORM_POSIX TRUE)
+    message(STATUS "Target platform: macOS")
+elseif(UNIX)
+    set(NEMO_PLATFORM_WINDOWS FALSE)
+    set(NEMO_PLATFORM_LINUX TRUE)
+    set(NEMO_PLATFORM_POSIX TRUE)
+    message(STATUS "Target platform: Linux/Unix")
+else()
+    message(WARNING "Unknown platform")
+endif()
 
 # Use relative paths (reduce path size for command-line limits on Windows)
-if (WIN32)
+if(WIN32)
     set(CMAKE_USE_RELATIVE_PATHS TRUE)
     set(CMAKE_SUPPRESS_REGENERATION TRUE)
-endif ()
+endif()
 
 # ==================== Build Type Configuration ====================
 # Set default build type
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+if (NEMO_IS_TOP_LEVEL AND NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to 'Release' as no build type was specified")
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type (Debug/Release)" FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
@@ -43,14 +63,79 @@ endif ()
 
 # ==================== Installation Configuration ====================
 # Set default install prefix
-if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+include(GNUInstallDirs)
+
+set(NEMO_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/NeMo2")
+
+if (NEMO_IS_TOP_LEVEL AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/install" CACHE PATH "The root directory of the installation" FORCE)
     message(STATUS "Setting default install directory to ${CMAKE_INSTALL_PREFIX}")
 endif ()
 
+# ==================== Platform Detection ====================
+# Detect endianness
+include(TestBigEndian)
+test_big_endian(NEMO_BIG_ENDIAN)
+if(NEMO_BIG_ENDIAN)
+    message(STATUS "Target architecture: Big Endian")
+    add_compile_definitions(VX_BIG_ENDIAN=1)
+else()
+    message(STATUS "Target architecture: Little Endian")
+    add_compile_definitions(VX_BIG_ENDIAN=0)
+endif()
+
+# Detect pointer size (32-bit vs 64-bit)
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(STATUS "Target pointer size: 64-bit")
+    add_compile_definitions(VX_64BIT=1)
+else()
+    message(STATUS "Target pointer size: 32-bit")
+    add_compile_definitions(VX_64BIT=0)
+endif()
+
+# Detect x86/x64 specifically (pointer-size alone is not sufficient: ARM64 is also 64-bit)
+set(NEMO_ARCH_X86 0)
+set(NEMO_ARCH_X64 0)
+
+# VS generator provides an explicit target platform (Win32/x64/ARM64...).
+if(MSVC AND DEFINED CMAKE_GENERATOR_PLATFORM)
+    if(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+        set(NEMO_ARCH_X64 1)
+    elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
+        set(NEMO_ARCH_X86 1)
+    endif()
+endif()
+
+# Fallback for non-VS generators / toolchains.
+if(NOT NEMO_ARCH_X86 AND NOT NEMO_ARCH_X64)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+        set(NEMO_ARCH_X64 1)
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86|i[3-6]86)$")
+        set(NEMO_ARCH_X86 1)
+    endif()
+endif()
+
+add_compile_definitions(
+    VX_ARCH_X86=${NEMO_ARCH_X86}
+    VX_ARCH_X64=${NEMO_ARCH_X64}
+)
+
+# Propagate platform/compiler/arch flags to the preprocessor.
+# These are consumed by several public headers (e.g. include/VxMathCompiler.h).
+add_compile_definitions(
+    VX_PLATFORM_WINDOWS=$<IF:$<PLATFORM_ID:Windows>,1,0>
+    VX_PLATFORM_POSIX=$<IF:$<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Darwin>>,1,0>
+
+    VX_COMPILER_MSVC=$<IF:$<OR:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,1,0>
+    VX_COMPILER_GCC=$<IF:$<OR:$<C_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:GNU>>,1,0>
+    VX_COMPILER_CLANG=$<IF:$<OR:$<C_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:Clang>,$<C_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:AppleClang>>,1,0>
+)
+
 # ==================== Compiler Settings ====================
 # Generate compile_commands.json for IDEs
-set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+if (NEMO_IS_TOP_LEVEL)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+endif ()
 
 # Disable strict const-qualification conformance for pointers initialized by using string literals
 add_compile_options(
@@ -65,8 +150,23 @@ add_compile_definitions(
     $<$<C_COMPILER_ID:MSVC>:_CRT_NONSTDC_NO_WARNINGS>
 )
 
+# POSIX-specific settings
+if(NEMO_PLATFORM_POSIX)
+    # Enable threading support
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+
+    # Set default visibility for shared libraries
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
+    # Add position-independent code for shared libraries
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 # ==================== Build Options ====================
 option(NEMO_BUILD_TESTS "Build the test suite" ON)
+option(NEMO_BUILD_BENCHMARKS "Build the benchmark suite" OFF)
 
 # ==================== CMake Modules ====================
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -84,6 +184,10 @@ if (NEMO_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
 
+if (NEMO_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif ()
+
 # ==================== Package Configuration ====================
 include(CMakePackageConfigHelpers)
 
@@ -93,12 +197,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/NeMo2Config.cmake.in")
     configure_package_config_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/NeMo2Config.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/NeMo2Config.cmake"
-        INSTALL_DESTINATION lib/cmake/NeMo2
+        INSTALL_DESTINATION "${NEMO_INSTALL_CMAKEDIR}"
     )
 
     # Install package config file
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NeMo2Config.cmake"
-        DESTINATION lib/cmake/NeMo2
+        DESTINATION "${NEMO_INSTALL_CMAKEDIR}"
     )
 endif()
 
@@ -111,14 +215,31 @@ write_basic_package_version_file(
 
 # Install package version file
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NeMo2ConfigVersion.cmake"
-    DESTINATION lib/cmake/NeMo2
+    DESTINATION "${NEMO_INSTALL_CMAKEDIR}"
 )
 
 # ==================== Summary ====================
+if(WIN32)
+    set(NEMO_PLATFORM_NAME "Windows")
+elseif(APPLE)
+    set(NEMO_PLATFORM_NAME "macOS")
+elseif(UNIX)
+    set(NEMO_PLATFORM_NAME "Linux/Unix")
+else()
+    set(NEMO_PLATFORM_NAME "Unknown")
+endif()
+
 message(STATUS "")
 message(STATUS "========== NeMo2 Build Configuration ==========")
 message(STATUS "Version:           ${PROJECT_VERSION}")
-message(STATUS "Build Type:        ${CMAKE_BUILD_TYPE}")
+message(STATUS "Platform:          ${NEMO_PLATFORM_NAME}")
+if (CMAKE_CONFIGURATION_TYPES)
+    set(NEMO_BUILD_TYPE_LABEL "${CMAKE_CONFIGURATION_TYPES}")
+else ()
+    set(NEMO_BUILD_TYPE_LABEL "${CMAKE_BUILD_TYPE}")
+endif ()
+
+message(STATUS "Build Type:        ${NEMO_BUILD_TYPE_LABEL}")
 message(STATUS "Install Prefix:    ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "Build Tests:       ${NEMO_BUILD_TESTS}")
 message(STATUS "C++ Compiler:      ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")

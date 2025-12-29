@@ -2,8 +2,11 @@
 #define VXMATHDEFINES_H
 
 #include "VxMathCompiler.h"
-
 #include "VxMemory.h"
+
+#include <stddef.h>
+#include <stdint.h>
+#include <limits.h>
 
 /// @brief Internal helper macro to stringify a token.
 #define _QUOTE(x) #x
@@ -81,13 +84,125 @@
 #define NULL 0
 #endif
 
+#if !VX_PLATFORM_WINDOWS
+#include <stdio.h>
+#include <strings.h>
+
+#ifndef stricmp
+#define stricmp strcasecmp
+#endif
+
+#ifndef strcmpi
+#define strcmpi strcasecmp
+#endif
+
+#ifndef strnicmp
+#define strnicmp strncasecmp
+#endif
+
+#ifndef _stricmp
+#define _stricmp strcasecmp
+#endif
+
+#ifndef _strnicmp
+#define _strnicmp strncasecmp
+#endif
+
+#ifndef _snprintf
+#define _snprintf snprintf
+#endif
+
+#ifndef _TRUNCATE
+#define _TRUNCATE ((size_t)-1)
+#endif
+
+#ifndef _snprintf_s
+#define _snprintf_s(buffer, size, count, format, ...) \
+    snprintf((buffer), (size), (format), __VA_ARGS__)
+#endif
+
+#ifndef strcpy_s
+#define strcpy_s(dest, size, src) \
+    snprintf((dest), (size), "%s", (src))
+#endif
+
+#ifndef _MAX_PATH
+#   ifdef PATH_MAX
+#       define _MAX_PATH PATH_MAX
+#   else
+#       define _MAX_PATH 260
+#   endif
+#endif
+
+#ifndef MAX_PATH
+#define MAX_PATH _MAX_PATH
+#endif
+
+#ifndef _MAX_DRIVE
+#define _MAX_DRIVE 3
+#endif
+
+#ifndef _MAX_DIR
+#define _MAX_DIR 256
+#endif
+
+#ifndef _MAX_FNAME
+#define _MAX_FNAME 256
+#endif
+
+#ifndef _MAX_EXT
+#define _MAX_EXT 256
+#endif
+#endif
+
+// ============================================================================
+// Legacy Types (for backwards compatibility)
+// ============================================================================
+
 typedef char *XSTRING;
 typedef char XCHAR;
 typedef int XBOOL;
 typedef unsigned char XBYTE;
 typedef unsigned short XWORD;
 typedef unsigned int XDWORD;
+
+/// @note XULONG is `unsigned long` for API compatibility.
+/// On Windows (32/64-bit), this is 4 bytes.
+/// On Linux/macOS 64-bit, this is 8 bytes.
+/// For serialization, use XUINT32 or XUINT64 instead.
 typedef unsigned long XULONG;
+
+// ============================================================================
+// Portable Fixed-Width Types (for serialization and cross-platform code)
+// ============================================================================
+
+/// @brief 8-bit signed integer (guaranteed 1 byte)
+typedef int8_t XINT8;
+/// @brief 8-bit unsigned integer (guaranteed 1 byte)
+typedef uint8_t XUINT8;
+
+/// @brief 16-bit signed integer (guaranteed 2 bytes)
+typedef int16_t XINT16;
+/// @brief 16-bit unsigned integer (guaranteed 2 bytes)
+typedef uint16_t XUINT16;
+
+/// @brief 32-bit signed integer (guaranteed 4 bytes)
+typedef int32_t XINT32;
+/// @brief 32-bit unsigned integer (guaranteed 4 bytes)
+typedef uint32_t XUINT32;
+
+/// @brief 64-bit signed integer (guaranteed 8 bytes)
+typedef int64_t XINT64;
+/// @brief 64-bit unsigned integer (guaranteed 8 bytes)
+typedef uint64_t XUINT64;
+
+/// @brief Pointer-sized signed integer
+typedef intptr_t XINTPTR;
+/// @brief Pointer-sized unsigned integer
+typedef uintptr_t XUINTPTR;
+
+/// @brief Size type for memory sizes and array indices
+typedef size_t XSIZE;
 
 /// @brief Generic function pointer type.
 typedef int (VX_STDCALL *FUNC_PTR)();
