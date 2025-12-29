@@ -174,10 +174,9 @@
 #   endif
 #endif
 
-// Calling conventions - only meaningful on Windows x86
-// On 64-bit and non-Windows platforms, these are typically ignored
+// Calling conventions
 #ifndef VX_CDECL
-#   if VX_PLATFORM_WINDOWS && VX_ARCH_X86
+#   if VX_PLATFORM_WINDOWS
 #       define VX_CDECL __cdecl
 #   else
 #       define VX_CDECL
@@ -185,7 +184,7 @@
 #endif
 
 #ifndef VX_FASTCALL
-#   if VX_PLATFORM_WINDOWS && VX_ARCH_X86
+#   if VX_PLATFORM_WINDOWS
 #       define VX_FASTCALL __fastcall
 #   else
 #       define VX_FASTCALL
@@ -193,7 +192,7 @@
 #endif
 
 #ifndef VX_STDCALL
-#   if VX_PLATFORM_WINDOWS && VX_ARCH_X86
+#   if VX_PLATFORM_WINDOWS
 #       define VX_STDCALL __stdcall
 #   else
 #       define VX_STDCALL
@@ -201,7 +200,7 @@
 #endif
 
 #ifndef VX_THISCALL
-#   if VX_PLATFORM_WINDOWS && VX_ARCH_X86
+#   if VX_PLATFORM_WINDOWS
 #       define VX_THISCALL __thiscall
 #   else
 #       define VX_THISCALL
