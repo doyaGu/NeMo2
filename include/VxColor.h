@@ -22,23 +22,23 @@ struct VxColor;
  * @param g Green component (0.0f to 1.0f).
  * @param b Blue component (0.0f to 1.0f).
  * @param a Alpha component (0.0f to 1.0f).
- * @return A 32-bit unsigned long representing the color in ARGB format.
+ * @return A 32-bit XDWORD representing the color in ARGB format.
  */
-VX_EXPORT unsigned long RGBAFTOCOLOR(float r, float g, float b, float a);
+VX_EXPORT XDWORD RGBAFTOCOLOR(float r, float g, float b, float a);
 
 /**
  * @brief Converts a VxColor object to a 32-bit DWORD ARGB color.
  * @param col Pointer to the VxColor object to convert.
- * @return A 32-bit unsigned long representing the color in ARGB format.
+ * @return A 32-bit XDWORD representing the color in ARGB format.
  */
-VX_EXPORT unsigned long RGBAFTOCOLOR(const VxColor *col);
+VX_EXPORT XDWORD RGBAFTOCOLOR(const VxColor *col);
 
 /**
  * @brief Converts a VxColor object to a 32-bit DWORD BGRA color.
  * @param col Pointer to the VxColor object to convert.
- * @return A 32-bit unsigned long representing the color in BGRA format.
+ * @return A 32-bit XDWORD representing the color in BGRA format.
  */
-// VX_EXPORT unsigned long BGRAFTOCOLOR(const VxColor *col);
+// VX_EXPORT XDWORD BGRAFTOCOLOR(const VxColor *col);
 
 /**
  * @def RGBAITOCOLOR(r, g, b, a)
@@ -47,7 +47,7 @@ VX_EXPORT unsigned long RGBAFTOCOLOR(const VxColor *col);
  * @param g Green component (0 to 255).
  * @param b Blue component (0 to 255).
  * @param a Alpha component (0 to 255).
- * @return A 32-bit unsigned long representing the color in ARGB format.
+ * @return A 32-bit XDWORD representing the color in ARGB format.
  */
 #define RGBAITOCOLOR(r, g, b, a) (((a) << A_SHIFT) | ((r) << R_SHIFT) | ((g) << G_SHIFT) | ((b) << B_SHIFT))
 
@@ -158,8 +158,8 @@ public:
     VxColor(float _r, float _g, float _b);
     /// @brief Constructs a grayscale color, setting r, g, b to the given value and alpha to 1.0.
     VxColor(float _r);
-    /// @brief Constructs a color from a 32-bit ARGB unsigned long value.
-    VxColor(unsigned long col);
+    /// @brief Constructs a color from a 32-bit ARGB XDWORD value.
+    VxColor(XDWORD col);
     /// @brief Constructs a color from four integer components (0-255).
     VxColor(int _r, int _g, int _b, int _a);
     /// @brief Constructs a color from three integer components (0-255), setting alpha to 255.
@@ -184,17 +184,17 @@ public:
     void Set(float _r, float _g, float _b);
     /// @brief Sets a grayscale color, setting r, g, b to the given value and alpha to 1.0.
     void Set(float _r);
-    /// @brief Sets the color from a 32-bit ARGB unsigned long value.
-    void Set(unsigned long col);
+    /// @brief Sets the color from a 32-bit ARGB XDWORD value.
+    void Set(XDWORD col);
     /// @brief Sets the color from four integer components (0-255).
     void Set(int _r, int _g, int _b, int _a);
     /// @brief Sets the color from three integer components (0-255), setting alpha to 255.
     void Set(int _r, int _g, int _b);
 
     /// @brief Converts the color to a 32-bit DWORD in ARGB format.
-    unsigned long GetRGBA() const;
+    XDWORD GetRGBA() const;
     /// @brief Converts the color to a 32-bit DWORD in ARGB format, with alpha forced to 255.
-    unsigned long GetRGB() const;
+    XDWORD GetRGB() const;
 
     /// @brief Calculates the squared Euclidean distance between two colors in RGB space (ignores alpha).
     float GetSquareDistance(const VxColor &color) const;
@@ -236,7 +236,7 @@ public:
      * @param _a Alpha component (0.0f-1.0f), clamped to range. Defaults to 1.0f.
      * @return 32-bit ARGB color.
      */
-    static unsigned long Convert(float _r, float _g, float _b, float _a = 1.0f) {
+    static XDWORD Convert(float _r, float _g, float _b, float _a = 1.0f) {
         XThreshold(_r, 0.0f, 1.0f);
         XThreshold(_g, 0.0f, 1.0f);
         XThreshold(_b, 0.0f, 1.0f);
@@ -252,7 +252,7 @@ public:
      * @param _a Alpha component (0-255), clamped to range. Defaults to 255.
      * @return 32-bit ARGB color.
      */
-    static unsigned long Convert(int _r, int _g, int _b, int _a = 255) {
+    static XDWORD Convert(int _r, int _g, int _b, int _a = 255) {
         XThreshold(_r, 0, 255);
         XThreshold(_g, 0, 255);
         XThreshold(_b, 0, 255);
@@ -285,7 +285,7 @@ inline VxColor::VxColor(float _r) {
     r = _r; g = _r; b = _r; a = 1.0f;
 }
 
-inline VxColor::VxColor(unsigned long colz) {
+inline VxColor::VxColor(XDWORD colz) {
     r = (float) (ColorGetRed(colz)) * 0.003921568627f; // 1/255
     g = (float) (ColorGetGreen(colz)) * 0.003921568627f;
     b = (float) (ColorGetBlue(colz)) * 0.003921568627f;
@@ -321,7 +321,7 @@ inline void VxColor::Set(float _r) {
     r = _r; g = _r; b = _r; a = 1.0f;
 }
 
-inline void VxColor::Set(unsigned long colz) {
+inline void VxColor::Set(XDWORD colz) {
     r = (float) (ColorGetRed(colz)) / 255.0f; g = (float) (ColorGetGreen(colz)) / 255.0f; b = (float) (ColorGetBlue(colz)) / 255.0f; a = (float) (ColorGetAlpha(colz)) / 255.0f;
 }
 
@@ -377,11 +377,11 @@ inline int operator!=(const VxColor &col1, const VxColor &col2) {
     return (col1.r != col2.r || col1.g != col2.g || col1.b != col2.b || col1.a != col2.a);
 }
 
-inline unsigned long VxColor::GetRGBA() const {
+inline XDWORD VxColor::GetRGBA() const {
     return RGBAFTOCOLOR(this);
 }
 
-inline unsigned long VxColor::GetRGB() const {
+inline XDWORD VxColor::GetRGB() const {
     return RGBAFTOCOLOR(this) | A_MASK;
 }
 

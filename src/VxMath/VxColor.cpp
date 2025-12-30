@@ -1,6 +1,6 @@
 #include "VxColor.h"
 
-unsigned long RGBAFTOCOLOR(float r, float g, float b, float a) {
+XDWORD RGBAFTOCOLOR(float r, float g, float b, float a) {
     // Convert floats to integers in range 0-255
     // Use truncation instead of rounding to match expected behavior
     unsigned int red = static_cast<unsigned int>(r * 255.0f);
@@ -18,7 +18,7 @@ unsigned long RGBAFTOCOLOR(float r, float g, float b, float a) {
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
-unsigned long RGBAFTOCOLOR(const VxColor *col) {
+XDWORD RGBAFTOCOLOR(const VxColor *col) {
     unsigned int red = static_cast<unsigned int>(col->r * 255.0f);
     unsigned int green = static_cast<unsigned int>(col->g * 255.0f);
     unsigned int blue = static_cast<unsigned int>(col->b * 255.0f);
@@ -34,7 +34,7 @@ unsigned long RGBAFTOCOLOR(const VxColor *col) {
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
-unsigned long BGRAFTOCOLOR(const VxColor *col) {
+XDWORD BGRAFTOCOLOR(const VxColor *col) {
     unsigned int red = static_cast<unsigned int>(col->r * 255.0f);
     unsigned int green = static_cast<unsigned int>(col->g * 255.0f);
     unsigned int blue = static_cast<unsigned int>(col->b * 255.0f);
