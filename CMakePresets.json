@@ -1,0 +1,281 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "installDir": "${sourceDir}/install/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "debug",
+            "inherits": "base",
+            "displayName": "Debug",
+            "description": "Debug build with full debugging information",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "NEMO_BUILD_TESTS": "ON",
+                "NEMO_BUILD_BENCHMARKS": "OFF"
+            }
+        },
+        {
+            "name": "release",
+            "inherits": "base",
+            "displayName": "Release",
+            "description": "Optimized release build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "NEMO_BUILD_TESTS": "OFF",
+                "NEMO_BUILD_BENCHMARKS": "OFF"
+            }
+        },
+        {
+            "name": "relwithdebinfo",
+            "inherits": "base",
+            "displayName": "Release with Debug Info",
+            "description": "Optimized build with debugging symbols",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "NEMO_BUILD_TESTS": "ON",
+                "NEMO_BUILD_BENCHMARKS": "OFF"
+            }
+        },
+        {
+            "name": "windows-msvc",
+            "inherits": "base",
+            "hidden": true,
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "generator": "Visual Studio 17 2022",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl",
+                "CMAKE_CXX_COMPILER": "cl"
+            }
+        },
+        {
+            "name": "windows-msvc-x64",
+            "inherits": ["windows-msvc", "debug"],
+            "displayName": "Windows MSVC x64 Debug",
+            "description": "MSVC x64 Debug build",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            },
+            "binaryDir": "${sourceDir}/build/msvc-x64-debug"
+        },
+        {
+            "name": "windows-msvc-x64-release",
+            "inherits": ["windows-msvc", "release"],
+            "displayName": "Windows MSVC x64 Release",
+            "description": "MSVC x64 Release build",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            },
+            "binaryDir": "${sourceDir}/build/msvc-x64-release"
+        },
+        {
+            "name": "windows-msvc-x86",
+            "inherits": ["windows-msvc", "debug"],
+            "displayName": "Windows MSVC x86 Debug",
+            "description": "MSVC x86 Debug build",
+            "architecture": {
+                "value": "Win32",
+                "strategy": "set"
+            },
+            "binaryDir": "${sourceDir}/build/msvc-x86-debug"
+        },
+        {
+            "name": "windows-msvc-x86-release",
+            "inherits": ["windows-msvc", "release"],
+            "displayName": "Windows MSVC x86 Release",
+            "description": "MSVC x86 Release build",
+            "architecture": {
+                "value": "Win32",
+                "strategy": "set"
+            },
+            "binaryDir": "${sourceDir}/build/msvc-x86-release"
+        },
+        {
+            "name": "linux-gcc",
+            "inherits": "debug",
+            "displayName": "Linux GCC Debug",
+            "description": "GCC Debug build for Linux",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++"
+            },
+            "binaryDir": "${sourceDir}/build/linux-gcc-debug"
+        },
+        {
+            "name": "linux-gcc-release",
+            "inherits": "release",
+            "displayName": "Linux GCC Release",
+            "description": "GCC Release build for Linux",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++"
+            },
+            "binaryDir": "${sourceDir}/build/linux-gcc-release"
+        },
+        {
+            "name": "linux-clang",
+            "inherits": "debug",
+            "displayName": "Linux Clang Debug",
+            "description": "Clang Debug build for Linux",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            },
+            "binaryDir": "${sourceDir}/build/linux-clang-debug"
+        },
+        {
+            "name": "macos",
+            "inherits": "debug",
+            "displayName": "macOS Debug",
+            "description": "macOS Debug build",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            },
+            "binaryDir": "${sourceDir}/build/macos-debug"
+        },
+        {
+            "name": "macos-release",
+            "inherits": "release",
+            "displayName": "macOS Release",
+            "description": "macOS Release build",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            },
+            "binaryDir": "${sourceDir}/build/macos-release"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release"
+        },
+        {
+            "name": "windows-msvc-x64",
+            "configurePreset": "windows-msvc-x64",
+            "configuration": "Debug"
+        },
+        {
+            "name": "windows-msvc-x64-release",
+            "configurePreset": "windows-msvc-x64-release",
+            "configuration": "Release"
+        },
+        {
+            "name": "windows-msvc-x86",
+            "configurePreset": "windows-msvc-x86",
+            "configuration": "Debug"
+        },
+        {
+            "name": "windows-msvc-x86-release",
+            "configurePreset": "windows-msvc-x86-release",
+            "configuration": "Release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "output": {
+                "outputOnFailure": true,
+                "verbosity": "default"
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": false
+            }
+        },
+        {
+            "name": "windows-msvc-x64",
+            "configurePreset": "windows-msvc-x64",
+            "configuration": "Debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "windows-msvc-x64-release",
+            "configurePreset": "windows-msvc-x64-release",
+            "configuration": "Release",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "debug-workflow",
+            "displayName": "Debug Build and Test",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "debug"
+                },
+                {
+                    "type": "build",
+                    "name": "debug"
+                },
+                {
+                    "type": "test",
+                    "name": "debug"
+                }
+            ]
+        },
+        {
+            "name": "windows-x64-workflow",
+            "displayName": "Windows MSVC x64 Build and Test",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "windows-msvc-x64"
+                },
+                {
+                    "type": "build",
+                    "name": "windows-msvc-x64"
+                },
+                {
+                    "type": "test",
+                    "name": "windows-msvc-x64"
+                }
+            ]
+        }
+    ]
+}

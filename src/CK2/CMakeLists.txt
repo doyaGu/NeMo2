@@ -1,231 +1,209 @@
+# =============================================================================
+# CK2 Library
+# =============================================================================
+
 set(CK2_PUBLIC_HEADERS
-        ${NEMO_INCLUDE_DIR}/CKAll.h
-
-        # Defines and Global Functions
-        ${NEMO_INCLUDE_DIR}/CKDefines2.h
-        ${NEMO_INCLUDE_DIR}/CKGlobals.h
-        ${NEMO_INCLUDE_DIR}/CKBaseManager.h
-        ${NEMO_INCLUDE_DIR}/CKContext.h
-        ${NEMO_INCLUDE_DIR}/CKInterfaceObjectManager.h
-
-        # Managers
-        ${NEMO_INCLUDE_DIR}/CKParameterManager.h
-        ${NEMO_INCLUDE_DIR}/CKTimeManager.h
-        ${NEMO_INCLUDE_DIR}/CKMessageManager.h
-        ${NEMO_INCLUDE_DIR}/CKRenderManager.h
-        ${NEMO_INCLUDE_DIR}/CKBehaviorManager.h
-        ${NEMO_INCLUDE_DIR}/CKAttributeManager.h
-        ${NEMO_INCLUDE_DIR}/CKPluginManager.h
-        ${NEMO_INCLUDE_DIR}/CKPathManager.h
-
-        # External Managers
-        ${NEMO_INCLUDE_DIR}/CKFloorManager.h
-        ${NEMO_INCLUDE_DIR}/CKGridManager.h
-        ${NEMO_INCLUDE_DIR}/CKSoundManager.h
-        ${NEMO_INCLUDE_DIR}/CKMidiManager.h
-        ${NEMO_INCLUDE_DIR}/CKInputManager.h
-        ${NEMO_INCLUDE_DIR}/CKCollisionManager.h
-
-        # Misc
-        ${NEMO_INCLUDE_DIR}/CKMaterial.h
-        ${NEMO_INCLUDE_DIR}/CKTexture.h
-        ${NEMO_INCLUDE_DIR}/CKRenderContext.h
-        ${NEMO_INCLUDE_DIR}/CKSynchroObject.h
-
-        # Parameters
-        ${NEMO_INCLUDE_DIR}/CKParameter.h
-        ${NEMO_INCLUDE_DIR}/CKParameterIn.h
-        ${NEMO_INCLUDE_DIR}/CKParameterOut.h
-        ${NEMO_INCLUDE_DIR}/CKParameterLocal.h
-        ${NEMO_INCLUDE_DIR}/CKParameterOperation.h
-
-        # Behaviors
-        ${NEMO_INCLUDE_DIR}/CKBehaviorIO.h
-        ${NEMO_INCLUDE_DIR}/CKBehaviorLink.h
-        ${NEMO_INCLUDE_DIR}/CKBehaviorPrototype.h
-        ${NEMO_INCLUDE_DIR}/CKBehavior.h
-        ${NEMO_INCLUDE_DIR}/CKMessage.h
-        ${NEMO_INCLUDE_DIR}/CKObjectDeclaration.h
-
-        # Level/Scene/place
-        ${NEMO_INCLUDE_DIR}/CKLevel.h
-        ${NEMO_INCLUDE_DIR}/CKPlace.h
-        ${NEMO_INCLUDE_DIR}/CKGroup.h
-        ${NEMO_INCLUDE_DIR}/CKScene.h
-
-        # Save/load
-        ${NEMO_INCLUDE_DIR}/CKStateChunk.h
-        ${NEMO_INCLUDE_DIR}/CKFile.h
-
-        # Sound
-        ${NEMO_INCLUDE_DIR}/CKSound.h
-        ${NEMO_INCLUDE_DIR}/CKWaveSound.h
-        ${NEMO_INCLUDE_DIR}/CKMidiSound.h
-        ${NEMO_INCLUDE_DIR}/CKSoundReader.h
-
-        # Curves
-        ${NEMO_INCLUDE_DIR}/CK2dCurve.h
-        ${NEMO_INCLUDE_DIR}/CK2dCurvePoint.h
-        ${NEMO_INCLUDE_DIR}/CKCurve.h
-        ${NEMO_INCLUDE_DIR}/CKCurvePoint.h
-
-        # Character and Animation
-        ${NEMO_INCLUDE_DIR}/CKAnimation.h
-        ${NEMO_INCLUDE_DIR}/CKKeyedAnimation.h
-        ${NEMO_INCLUDE_DIR}/CKObjectAnimation.h
-        ${NEMO_INCLUDE_DIR}/CKKinematicChain.h
-        ${NEMO_INCLUDE_DIR}/CKCharacter.h
-
-        # Base Objects
-        ${NEMO_INCLUDE_DIR}/CKObject.h
-        ${NEMO_INCLUDE_DIR}/CKSceneObject.h
-        ${NEMO_INCLUDE_DIR}/CKRenderObject.h
-        ${NEMO_INCLUDE_DIR}/CKBeObject.h
-        ${NEMO_INCLUDE_DIR}/CKDependencies.h
-
-        # 2d Objects
-        ${NEMO_INCLUDE_DIR}/CK2dEntity.h
-        ${NEMO_INCLUDE_DIR}/CKSprite.h
-        ${NEMO_INCLUDE_DIR}/CKSpriteText.h
-
-        # 3d Objects
-        ${NEMO_INCLUDE_DIR}/CKMesh.h
-        ${NEMO_INCLUDE_DIR}/CKPatchMesh.h
-        ${NEMO_INCLUDE_DIR}/CK3dEntity.h
-        ${NEMO_INCLUDE_DIR}/CKCamera.h
-        ${NEMO_INCLUDE_DIR}/CKTargetCamera.h
-        ${NEMO_INCLUDE_DIR}/CKSprite3D.h
-        ${NEMO_INCLUDE_DIR}/CKLight.h
-        ${NEMO_INCLUDE_DIR}/CKTargetLight.h
-        ${NEMO_INCLUDE_DIR}/CK3dObject.h
-        ${NEMO_INCLUDE_DIR}/CKBodyPart.h
-        ${NEMO_INCLUDE_DIR}/CKSkin.h
-
-        # Containers
-        ${NEMO_INCLUDE_DIR}/XObjectArray.h
-        ${NEMO_INCLUDE_DIR}/CKDataArray.h
-        ${NEMO_INCLUDE_DIR}/CKDebugContext.h
-        ${NEMO_INCLUDE_DIR}/CKMemoryPool.h
+    ${NEMO_INCLUDE_DIR}/CKAll.h
+    # Defines and Global Functions
+    ${NEMO_INCLUDE_DIR}/CKDefines2.h
+    ${NEMO_INCLUDE_DIR}/CKGlobals.h
+    ${NEMO_INCLUDE_DIR}/CKBaseManager.h
+    ${NEMO_INCLUDE_DIR}/CKContext.h
+    ${NEMO_INCLUDE_DIR}/CKInterfaceObjectManager.h
+    # Managers
+    ${NEMO_INCLUDE_DIR}/CKParameterManager.h
+    ${NEMO_INCLUDE_DIR}/CKTimeManager.h
+    ${NEMO_INCLUDE_DIR}/CKMessageManager.h
+    ${NEMO_INCLUDE_DIR}/CKRenderManager.h
+    ${NEMO_INCLUDE_DIR}/CKBehaviorManager.h
+    ${NEMO_INCLUDE_DIR}/CKAttributeManager.h
+    ${NEMO_INCLUDE_DIR}/CKPluginManager.h
+    ${NEMO_INCLUDE_DIR}/CKPathManager.h
+    # External Managers
+    ${NEMO_INCLUDE_DIR}/CKFloorManager.h
+    ${NEMO_INCLUDE_DIR}/CKGridManager.h
+    ${NEMO_INCLUDE_DIR}/CKSoundManager.h
+    ${NEMO_INCLUDE_DIR}/CKMidiManager.h
+    ${NEMO_INCLUDE_DIR}/CKInputManager.h
+    ${NEMO_INCLUDE_DIR}/CKCollisionManager.h
+    # Misc
+    ${NEMO_INCLUDE_DIR}/CKMaterial.h
+    ${NEMO_INCLUDE_DIR}/CKTexture.h
+    ${NEMO_INCLUDE_DIR}/CKRenderContext.h
+    ${NEMO_INCLUDE_DIR}/CKSynchroObject.h
+    # Parameters
+    ${NEMO_INCLUDE_DIR}/CKParameter.h
+    ${NEMO_INCLUDE_DIR}/CKParameterIn.h
+    ${NEMO_INCLUDE_DIR}/CKParameterOut.h
+    ${NEMO_INCLUDE_DIR}/CKParameterLocal.h
+    ${NEMO_INCLUDE_DIR}/CKParameterOperation.h
+    # Behaviors
+    ${NEMO_INCLUDE_DIR}/CKBehaviorIO.h
+    ${NEMO_INCLUDE_DIR}/CKBehaviorLink.h
+    ${NEMO_INCLUDE_DIR}/CKBehaviorPrototype.h
+    ${NEMO_INCLUDE_DIR}/CKBehavior.h
+    ${NEMO_INCLUDE_DIR}/CKMessage.h
+    ${NEMO_INCLUDE_DIR}/CKObjectDeclaration.h
+    # Level/Scene/Place
+    ${NEMO_INCLUDE_DIR}/CKLevel.h
+    ${NEMO_INCLUDE_DIR}/CKPlace.h
+    ${NEMO_INCLUDE_DIR}/CKGroup.h
+    ${NEMO_INCLUDE_DIR}/CKScene.h
+    # Save/Load
+    ${NEMO_INCLUDE_DIR}/CKStateChunk.h
+    ${NEMO_INCLUDE_DIR}/CKFile.h
+    # Sound
+    ${NEMO_INCLUDE_DIR}/CKSound.h
+    ${NEMO_INCLUDE_DIR}/CKWaveSound.h
+    ${NEMO_INCLUDE_DIR}/CKMidiSound.h
+    ${NEMO_INCLUDE_DIR}/CKSoundReader.h
+    # Curves
+    ${NEMO_INCLUDE_DIR}/CK2dCurve.h
+    ${NEMO_INCLUDE_DIR}/CK2dCurvePoint.h
+    ${NEMO_INCLUDE_DIR}/CKCurve.h
+    ${NEMO_INCLUDE_DIR}/CKCurvePoint.h
+    # Character and Animation
+    ${NEMO_INCLUDE_DIR}/CKAnimation.h
+    ${NEMO_INCLUDE_DIR}/CKKeyedAnimation.h
+    ${NEMO_INCLUDE_DIR}/CKObjectAnimation.h
+    ${NEMO_INCLUDE_DIR}/CKKinematicChain.h
+    ${NEMO_INCLUDE_DIR}/CKCharacter.h
+    # Base Objects
+    ${NEMO_INCLUDE_DIR}/CKObject.h
+    ${NEMO_INCLUDE_DIR}/CKSceneObject.h
+    ${NEMO_INCLUDE_DIR}/CKRenderObject.h
+    ${NEMO_INCLUDE_DIR}/CKBeObject.h
+    ${NEMO_INCLUDE_DIR}/CKDependencies.h
+    # 2D Objects
+    ${NEMO_INCLUDE_DIR}/CK2dEntity.h
+    ${NEMO_INCLUDE_DIR}/CKSprite.h
+    ${NEMO_INCLUDE_DIR}/CKSpriteText.h
+    # 3D Objects
+    ${NEMO_INCLUDE_DIR}/CKMesh.h
+    ${NEMO_INCLUDE_DIR}/CKPatchMesh.h
+    ${NEMO_INCLUDE_DIR}/CK3dEntity.h
+    ${NEMO_INCLUDE_DIR}/CKCamera.h
+    ${NEMO_INCLUDE_DIR}/CKTargetCamera.h
+    ${NEMO_INCLUDE_DIR}/CKSprite3D.h
+    ${NEMO_INCLUDE_DIR}/CKLight.h
+    ${NEMO_INCLUDE_DIR}/CKTargetLight.h
+    ${NEMO_INCLUDE_DIR}/CK3dObject.h
+    ${NEMO_INCLUDE_DIR}/CKBodyPart.h
+    ${NEMO_INCLUDE_DIR}/CKSkin.h
+    # Containers
+    ${NEMO_INCLUDE_DIR}/XObjectArray.h
+    ${NEMO_INCLUDE_DIR}/CKDataArray.h
+    ${NEMO_INCLUDE_DIR}/CKDebugContext.h
+    ${NEMO_INCLUDE_DIR}/CKMemoryPool.h
 )
 
 set(CK2_PRIVATE_HEADERS)
 
 set(CK2_SOURCES
-        # Global Functions and Base Classes
-        CKGlobals.cpp
-        CKBaseManager.cpp
-        CKContext.cpp
-
-        # Managers
-        CKObjectManager.cpp
-        CKParameterManager.cpp
-        CKTimeManager.cpp
-        CKMessageManager.cpp
-        CKBehaviorManager.cpp
-        CKAttributeManager.cpp
-        CKPluginManager.cpp
-        CKPathManager.cpp
-        CKGridManager.cpp
-
-        # Misc
-        CKDebugContext.cpp
-        CKSynchroObject.cpp
-        CKRenderContext.cpp
-        CKBitmapData.cpp
-        CKMemoryPool.cpp
-
-        # Parameters
-        CKParameter.cpp
-        CKParameterIn.cpp
-        CKParameterOut.cpp
-        CKParameterLocal.cpp
-        CKParameterOperation.cpp
-        CKCallbackFunctions.cpp
-
-        # Behaviors
-        CKBehaviorIO.cpp
-        CKBehaviorLink.cpp
-        CKBehaviorPrototype.cpp
-        CKBehavior.cpp
-        CKMessage.cpp
-        CKObjectDeclaration.cpp
-
-        # Level/Scene/place
-        CKLevel.cpp
-        CKGroup.cpp
-        CKScene.cpp
-
-        # Save/load
-        CKStateChunk.cpp
-        CKJpegDecoder.cpp
-        CKFile.cpp
-
-        # Sound
-        CKSound.cpp
-        CKSoundManager.cpp
-        CKWaveSound.cpp
-        CKMidiSound.cpp
-
-        # Curves
-        CK2dCurve.cpp
-        CK2dCurvePoint.cpp
-
-        # Base Objects
-        CKObject.cpp
-        CKSceneObject.cpp
-        CKSceneObjectDesc.cpp
-        CKBeObject.cpp
-        CKDependencies.cpp
-        CKInterfaceObjectManager.cpp
-
-        CKRenderContext.cpp
-
-        # Containers
-        XObjectArray.cpp
-        CKDataArray.cpp
-        CKObjectArray.cpp
+    # Global Functions and Base Classes
+    CKGlobals.cpp
+    CKBaseManager.cpp
+    CKContext.cpp
+    # Managers
+    CKObjectManager.cpp
+    CKParameterManager.cpp
+    CKTimeManager.cpp
+    CKMessageManager.cpp
+    CKBehaviorManager.cpp
+    CKAttributeManager.cpp
+    CKPluginManager.cpp
+    CKPathManager.cpp
+    CKGridManager.cpp
+    # Misc
+    CKDebugContext.cpp
+    CKSynchroObject.cpp
+    CKRenderContext.cpp
+    CKBitmapData.cpp
+    CKMemoryPool.cpp
+    # Parameters
+    CKParameter.cpp
+    CKParameterIn.cpp
+    CKParameterOut.cpp
+    CKParameterLocal.cpp
+    CKParameterOperation.cpp
+    CKCallbackFunctions.cpp
+    # Behaviors
+    CKBehaviorIO.cpp
+    CKBehaviorLink.cpp
+    CKBehaviorPrototype.cpp
+    CKBehavior.cpp
+    CKMessage.cpp
+    CKObjectDeclaration.cpp
+    # Level/Scene/Place
+    CKLevel.cpp
+    CKGroup.cpp
+    CKScene.cpp
+    # Save/Load
+    CKStateChunk.cpp
+    CKJpegDecoder.cpp
+    CKFile.cpp
+    # Sound
+    CKSound.cpp
+    CKSoundManager.cpp
+    CKWaveSound.cpp
+    CKMidiSound.cpp
+    # Curves
+    CK2dCurve.cpp
+    CK2dCurvePoint.cpp
+    # Base Objects
+    CKObject.cpp
+    CKSceneObject.cpp
+    CKSceneObjectDesc.cpp
+    CKBeObject.cpp
+    CKDependencies.cpp
+    CKInterfaceObjectManager.cpp
+    CKRenderContext.cpp
+    # Containers
+    XObjectArray.cpp
+    CKDataArray.cpp
+    CKObjectArray.cpp
 )
 
 # Platform-specific sources
 if(WIN32)
-    list(APPEND CK2_SOURCES
-        CK2Win32.cpp
-    )
+    list(APPEND CK2_SOURCES CK2Win32.cpp)
 else()
-    list(APPEND CK2_SOURCES
-        CK2Posix.cpp
-    )
+    list(APPEND CK2_SOURCES CK2Posix.cpp)
 endif()
 
-# ==================== CK2 Library ====================
+# =============================================================================
+# Library Target
+# =============================================================================
+
 add_library(CK2 SHARED
     ${CK2_SOURCES}
     ${CK2_PUBLIC_HEADERS}
     ${CK2_PRIVATE_HEADERS}
 )
-
-# Add library alias for consistent usage
 add_library(NeMo2::CK2 ALIAS CK2)
 
 set_target_properties(CK2 PROPERTIES
-        OUTPUT_NAME "CK2"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    OUTPUT_NAME "CK2"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    FOLDER "Libraries"
 )
 
-# Compile definitions
 target_compile_definitions(CK2 PRIVATE CK_API)
 
-# Include directories
 target_include_directories(CK2
     PUBLIC
         $<BUILD_INTERFACE:${NEMO_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${STB_INCLUDE_DIR}
 )
 
-# Link libraries
+if(TARGET stb)
+    target_link_libraries(CK2 PRIVATE stb)
+endif()
+
 target_link_libraries(CK2
     PUBLIC
         VxMath
@@ -233,35 +211,22 @@ target_link_libraries(CK2
         miniz
 )
 
-# Platform-specific settings
-if(WIN32)
-    target_compile_definitions(CK2 PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
-elseif(UNIX)
+if(UNIX)
     target_link_libraries(CK2 PRIVATE dl pthread)
 endif()
 
-# ==================== Installation ====================
-# Install runtime libraries
+# =============================================================================
+# Installation
+# =============================================================================
+
 install(TARGETS CK2
     EXPORT NeMo2Targets
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    INCLUDES DESTINATION include
-)
-
-# Install public headers
-install(FILES ${VXMATH_PUBLIC_HEADERS}
-    DESTINATION include
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
 install(FILES ${CK2_PUBLIC_HEADERS}
-    DESTINATION include
-)
-
-# Export targets for use by other projects
-install(EXPORT NeMo2Targets
-    FILE NeMo2Targets.cmake
-    NAMESPACE NeMo2::
-    DESTINATION lib/cmake/NeMo2
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
