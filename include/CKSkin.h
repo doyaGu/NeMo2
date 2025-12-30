@@ -230,7 +230,7 @@ public:
     See Also:CalcPoints
     **********************************************/
     virtual void ConstructBoneTransfoMatrices(CKContext *context) = 0;
-    
+
     /*********************************************
     Summary: Computes the transformed vertices positions and Normals.
 
@@ -248,7 +248,7 @@ public:
         + ConstructBoneTransfoMatrices must have been called before evaluating the vertices transformed positions.
     See Also:ConstructBoneTransfoMatrices
     **********************************************/
-    virtual CKBOOL CalcPoints(int VertexCount, CKBYTE *VertexPtr, CKDWORD VStride, CKBYTE *NormalPtr, CKDWORD NStride) = 0;
+    virtual CKBOOL CalcPointsEx(int VertexCount, CKBYTE *VertexPtr, CKDWORD VStride, CKBYTE *NormalPtr, CKDWORD NStride) = 0;
 
     /*********************************************
     Summary: Computes the transformed vertices positions.

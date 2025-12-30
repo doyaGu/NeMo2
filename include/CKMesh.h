@@ -479,7 +479,7 @@ public:
     See Also: TranslateVertices,RotateVertices
     *************************************************/
     virtual void ScaleVertices(VxVector *Vector, VxVector *Pivot = NULL) = 0;
-    virtual void ScaleVertices(float X, float Y, float Z, VxVector *Pivot = NULL) = 0;
+    virtual void ScaleVertices3f(float X, float Y, float Z, VxVector *Pivot = NULL) = 0;
 
     /*************************************************
     Summary: Rotates all vertices of the mesh by given angle.
@@ -703,8 +703,8 @@ public:
         of runtime specific structures each time a face have its material changed.
     See Also: GetFaceMaterial,ReplaceMaterial
     *************************************************/
+    virtual void SetFaceMaterialEx(int *FaceIndices, int FaceCount, CKMaterial *Mat) = 0;
     virtual void SetFaceMaterial(int FaceIndex, CKMaterial *Mat) = 0;
-    virtual void SetFaceMaterial(int *FaceIndices, int FaceCount, CKMaterial *Mat) = 0;
 
     virtual void SetFaceChannelMask(int FaceIndex, CKWORD ChannelMask) = 0;
 

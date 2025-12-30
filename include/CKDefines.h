@@ -357,7 +357,6 @@ typedef CK_LOADMODE (*CK_LOADRENAMECALLBACK)(CK_CLASSID Cid, CKSTRING OldName, C
     #define CKCID_INTERFACEOBJECTMANAGER	48
     #define CKCID_CRITICALSECTION			49
     #define CKCID_LAYER						51
-    #define CKCID_PROGRESSIVEMESH			54
     #define CKCID_MAXCLASSID				55
     #define CKCID_SYNCHRO					20
 
@@ -434,6 +433,29 @@ struct DLL_EXPORT CKClassDesc
         DependsCountFct = NULL;
     }
 };
+
+inline bool operator==(const CKClassDesc &lhs, const CKClassDesc &rhs)
+{
+    return lhs.Done == rhs.Done &&
+           lhs.Parent == rhs.Parent &&
+           lhs.RegisterFct == rhs.RegisterFct &&
+           lhs.CreationFct == rhs.CreationFct &&
+           lhs.NameFct == rhs.NameFct &&
+           lhs.DependsFct == rhs.DependsFct &&
+           lhs.DependsCountFct == rhs.DependsCountFct &&
+           lhs.DefaultOptions == rhs.DefaultOptions &&
+           lhs.DefaultCopyDependencies == rhs.DefaultCopyDependencies &&
+           lhs.DefaultDeleteDependencies == rhs.DefaultDeleteDependencies &&
+           lhs.DefaultReplaceDependencies == rhs.DefaultReplaceDependencies &&
+           lhs.DefaultSaveDependencies == rhs.DefaultSaveDependencies &&
+           lhs.Parameter == rhs.Parameter &&
+           lhs.DerivationLevel == rhs.DerivationLevel &&
+           lhs.Parents.Size() == rhs.Parents.Size() &&
+           lhs.Children.Size() == rhs.Children.Size() &&
+           lhs.ToBeNotify.Size() == rhs.ToBeNotify.Size() &&
+           lhs.CommonToBeNotify.Size() == rhs.CommonToBeNotify.Size() &&
+           lhs.ToNotify.Size() == rhs.ToNotify.Size();
+}
 
 #define CKCID_MAXMAXCLASSID 128
 

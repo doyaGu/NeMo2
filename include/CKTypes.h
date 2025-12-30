@@ -91,7 +91,6 @@ class CKObject;
             class CKTexture;
             class CKMesh;
                 class CKPatchMesh;
-                class CKProgressiveMesh;
             class CKDataArray;
             class CKSound;
                 class CKMidiSound;

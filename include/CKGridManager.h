@@ -39,7 +39,7 @@ the corresponding grid. The Grid Manager, also manages the Layer Types (eg: fire
 
 See also: CKGrid
 *************************************************/
-class DLL_EXPORT CKGridManager : public CKBaseManager
+class CKGridManager : public CKBaseManager
 {
 public:
     //____________________________________________________
@@ -181,7 +181,7 @@ public:
 
     See also: GetClassificationFromName,GetClassificationName,RegisterClassification,CKAttributeManager
     *************************************************/
-    virtual int GetGridClassificationCatego() = 0;
+    virtual int GetGridClassificationCategory() = 0;
 
     //____________________________________________________
     //      GRID FINDING

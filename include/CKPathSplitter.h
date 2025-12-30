@@ -139,7 +139,7 @@ struct CKFileExtension {
         else {
             if (s[0] == '.')
                 s = &s[1];
-            int len = strlen(s);
+            size_t len = strlen(s);
             if (len > 3)
                 len = 3;
             memcpy(m_Data, s, len);

@@ -206,8 +206,8 @@ public:
     + These attribute must have been create with the CKGridManager::RegisterClassification method which will create the attribute with the attribute manager.
     See also: RemoveClassification,HasCompatibleClass
     ************************************************/
+    virtual CKERROR AddClassificationByName(CKSTRING ClassificationName) CK_PURE;
     virtual CKERROR AddClassification(int classification) CK_PURE;
-    virtual CKERROR AddClassification(CKSTRING ClassificationName) CK_PURE;
 
     /************************************************
     Summary: Removes a classification from the grid
@@ -223,8 +223,8 @@ public:
     + These attribute must have been create with the CKGridManager::RegisterClassification method which will create the attribute with the attribute manager.
     See also: AddClassification,HasCompatibleClass
     ************************************************/
+    virtual CKERROR RemoveClassificationByName(CKSTRING ClassificationName) CK_PURE;
     virtual CKERROR RemoveClassification(int classification) CK_PURE;
-    virtual CKERROR RemoveClassification(CKSTRING ClassificationName) CK_PURE;
 
     /************************************************
     Summary: Check if the grid has a shared Classification.
@@ -306,8 +306,8 @@ public:
       + SetDimensions must have been called before using this method.
     See also: GetLayer, GetLayerCount, RemoveLayer, RemoveAllLayers
     ************************************************/
+    virtual CKLayer *AddLayerByName(CKSTRING TypeName = NULL, int Format = CKGRID_LAYER_FORMAT_NORMAL) CK_PURE;
     virtual CKLayer *AddLayer(int type, int Format = CKGRID_LAYER_FORMAT_NORMAL) CK_PURE;
-    virtual CKLayer *AddLayer(CKSTRING TypeName = NULL, int Format = CKGRID_LAYER_FORMAT_NORMAL) CK_PURE;
 
     /************************************************
     Summary: Gets a layer by its type number, or by its type name
@@ -319,8 +319,8 @@ public:
     Remarks:
     See also: AddLayer, GetLayerCount, RemoveLayer, RemoveAllLayers
     ************************************************/
+    virtual CKLayer *GetLayerByName(CKSTRING TypeName) CK_PURE;
     virtual CKLayer *GetLayer(int type) CK_PURE;
-    virtual CKLayer *GetLayer(CKSTRING TypeName) CK_PURE;
 
     /************************************************
     Summary: Gets the number of layers in the grid
@@ -352,8 +352,8 @@ public:
     Remarks:
     See also: RemoveAllLayers, AddLayer, GetLayer, GetLayerCount
     ************************************************/
+    virtual CKERROR RemoveLayerByName(CKSTRING TypeName) CK_PURE;
     virtual CKERROR RemoveLayer(int type) CK_PURE;
-    virtual CKERROR RemoveLayer(CKSTRING TypeName) CK_PURE;
 
     /************************************************
     Summary: Removes all the layers from the grid
@@ -363,6 +363,8 @@ public:
     See also: RemoveLayer, AddLayer, GetLayer, GetLayerCount
     ************************************************/
     virtual CKERROR RemoveAllLayers() CK_PURE;
+
+#ifndef CK_3DIMPLEMENTATION
 
     /*************************************************
     Summary: Dynamic cast operator.
@@ -380,7 +382,6 @@ public:
     {
         return CKIsChildClassOf(iO, CKCID_GRID) ? (CKGrid *)iO : NULL;
     }
-#ifndef CK_3DIMPLEMENTATION
 };
 #endif
 

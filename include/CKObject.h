@@ -221,7 +221,7 @@ public:
 
     //--------------------------------------------
     // Dependencies functions
-    virtual CKERROR PrepareDependencies(CKDependenciesContext& context);
+    virtual CKERROR PrepareDependencies(CKDependenciesContext &context);
     virtual CKERROR RemapDependencies(CKDependenciesContext &context);
     virtual CKERROR Copy(CKObject &o, CKDependenciesContext &context);
 

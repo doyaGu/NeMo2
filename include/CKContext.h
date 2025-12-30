@@ -5,10 +5,10 @@
 #include "CKDefines.h"
 #include "XObjectArray.h"
 #include "CKDependencies.h"
+#include "CKObjectManager.h"
 #include "XHashTable.h"
 #include "VxTimeProfiler.h"
 #include "VxMemoryPool.h"
-#include "CKObjectManager.h"
 
 //-------------------------------------------------------------------------
 
