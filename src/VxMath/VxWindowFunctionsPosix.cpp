@@ -23,14 +23,14 @@
 // Keyboard Functions (stubs on POSIX)
 // ============================================================================
 
-char VxScanCodeToAscii(XULONG scancode, unsigned char keystate[256]) {
+char VxScanCodeToAscii(XDWORD scancode, unsigned char keystate[256]) {
     // POSIX: No direct equivalent, return null character
     (void)scancode;
     (void)keystate;
     return '\0';
 }
 
-int VxScanCodeToName(XULONG scancode, char *keyName) {
+int VxScanCodeToName(XDWORD scancode, char *keyName) {
     // POSIX: No direct equivalent
     (void)scancode;
     if (keyName)
@@ -249,9 +249,9 @@ XBOOL VxMakePath(char *fullpath, char *path, char *file) {
         return FALSE;
 
     strcpy(fullpath, path);
-    int pathLen = strlen(path);
+    size_t pathLen = strlen(path);
 
-    if (pathLen >= PATH_MAX - (int)strlen(file) - 1) return FALSE;
+    if (pathLen >= PATH_MAX - strlen(file) - 1) return FALSE;
 
     // Check if we need to add a path separator
     if (pathLen > 0 && fullpath[pathLen - 1] != '/') {
@@ -263,7 +263,7 @@ XBOOL VxMakePath(char *fullpath, char *path, char *file) {
     return TRUE;
 }
 
-XBOOL VxTestDiskSpace(const char *dir, XULONG size) {
+XBOOL VxTestDiskSpace(const char *dir, size_t size) {
     struct statvfs st;
     if (statvfs(dir, &st) != 0)
         return FALSE;
@@ -271,7 +271,7 @@ XBOOL VxTestDiskSpace(const char *dir, XULONG size) {
     return size <= freeBytes;
 }
 
-int VxMessageBox(WIN_HANDLE hWnd, char *lpText, char *lpCaption, XULONG uType) {
+int VxMessageBox(WIN_HANDLE hWnd, char *lpText, char *lpCaption, XDWORD uType) {
     // POSIX: Print to stderr and return 0
     (void)hWnd;
     (void)uType;
@@ -279,7 +279,7 @@ int VxMessageBox(WIN_HANDLE hWnd, char *lpText, char *lpCaption, XULONG uType) {
     return 0;
 }
 
-XULONG VxGetModuleFileName(INSTANCE_HANDLE Handle, char *string, XULONG StringSize) {
+XDWORD VxGetModuleFileName(INSTANCE_HANDLE Handle, char *string, size_t StringSize) {
 #if defined(__APPLE__)
     if (Handle == NULL) {
         uint32_t size = StringSize;
@@ -336,7 +336,7 @@ XBOOL VxCreateFileTree(char *file) {
     return TRUE;
 }
 
-XULONG VxURLDownloadToCacheFile(char *File, char *CachedFile, int szCachedFile) {
+XDWORD VxURLDownloadToCacheFile(char *File, char *CachedFile, int szCachedFile) {
     // POSIX: Not implemented - would require libcurl or similar
     (void)File;
     if (CachedFile && szCachedFile > 0)
@@ -419,7 +419,7 @@ XBOOL VxGetFontInfo(FONT_HANDLE Font, VXFONTINFO &desc) {
     return FALSE;
 }
 
-XBOOL VxDrawBitmapText(BITMAP_HANDLE Bitmap, FONT_HANDLE Font, char *string, CKRECT *rect, XULONG Align, XULONG BkColor, XULONG FontColor) {
+XBOOL VxDrawBitmapText(BITMAP_HANDLE Bitmap, FONT_HANDLE Font, char *string, CKRECT *rect, XDWORD Align, XDWORD BkColor, XDWORD FontColor) {
     (void)Bitmap;
     (void)Font;
     (void)string;

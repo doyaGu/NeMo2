@@ -462,7 +462,7 @@ TEST_F(BlitEnginePixelFormatContractTest, ConvertPixelFormat_AllKnownFormats) {
     };
 
     for (VX_PIXELFORMAT fmt : formats) {
-        XULONG aMask, rMask, gMask, bMask;
+        XDWORD aMask, rMask, gMask, bMask;
         EXPECT_NO_THROW(BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask))
             << "ConvertPixelFormat failed for format " << static_cast<int>(fmt);
     }

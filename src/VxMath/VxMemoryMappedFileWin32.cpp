@@ -17,7 +17,14 @@ VxMemoryMappedFile::VxMemoryMappedFile(char *pszFileName)
         return;
     }
 
-    m_cbFile = ::GetFileSize(m_hFile, NULL);
+    LARGE_INTEGER fileSize;
+    if (!GetFileSizeEx(m_hFile, &fileSize)) {
+        CloseHandle(m_hFile);
+        m_hFile = INVALID_HANDLE_VALUE;
+        m_errCode = VxMMF_FileOpen;
+        return;
+    }
+    m_cbFile = static_cast<size_t>(fileSize.QuadPart);
     m_hFileMapping = CreateFileMappingA(m_hFile, NULL, PAGE_READONLY, 0, 0, NULL);
     if (!m_hFileMapping) {
         CloseHandle(m_hFile);
@@ -63,7 +70,7 @@ void *VxMemoryMappedFile::GetBase() {
 /***********************************************************************
 Summary: Returns the file size in bytes.
 ***********************************************************************/
-XULONG VxMemoryMappedFile::GetFileSize() {
+size_t VxMemoryMappedFile::GetFileSize() {
     return m_cbFile;
 }
 

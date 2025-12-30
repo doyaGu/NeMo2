@@ -61,7 +61,7 @@ TEST_F(PalettedBlitTest, Paletted8To32_SolidColor) {
     ImageWriter::SaveFromDesc("paletted8_to_32_solidcolor", dst, "Paletted");
     
     // All pixels should be red
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFFFF0000, pixels[i]) << "Pixel " << i << " should be red";
     }
@@ -87,10 +87,10 @@ TEST_F(PalettedBlitTest, Paletted8To32_StandardPalette) {
     ImageWriter::SaveFromDesc("paletted8_to_32_standardpalette", dst, "Paletted");
     
     // Check that pixels match palette colors
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int y = 0; y < height; ++y) {
         XBYTE index = static_cast<XBYTE>(y % 256);
-        XULONG expected = palette.GetColor(index);
+        XDWORD expected = palette.GetColor(index);
         EXPECT_EQ(expected, pixels[y * width]) 
             << "Row " << y << " should match palette index " << (int)index;
     }
@@ -117,7 +117,7 @@ TEST_F(PalettedBlitTest, Paletted8To32_AllIndices) {
 
     ImageWriter::SaveFromDesc("paletted8_to_32_allindices", dst, "Paletted");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < 256; ++i) {
         EXPECT_EQ(palette.GetColor(i), pixels[i]) 
             << "Pixel " << i << " should match palette entry " << i;
@@ -273,7 +273,7 @@ TEST_F(PalettedBlitTest, ARGB32ToPaletted_WithExistingPalette) {
         // Check that black maps to a black palette entry
         double maxDist = 0;
         for (int i = 0; i < width * height; ++i) {
-            XULONG palColor = palette.GetColor(dstBuffer[i]);
+            XDWORD palColor = palette.GetColor(dstBuffer[i]);
             int r = (palColor >> 16) & 0xFF;
             int g = (palColor >> 8) & 0xFF;
             int b = palColor & 0xFF;
@@ -303,11 +303,11 @@ TEST_F(PalettedBlitTest, EmptyPalette_AllBlack) {
 
     ImageWriter::SaveFromDesc("paletted8_empty_palette_allblack", dst, "Paletted");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         // Zero palette with alpha=0 means fully transparent black (or opaque if A is set to 0xFF)
         // Our PaletteBuffer initializes all to 0, including alpha
-        XULONG got = pixels[i];
+        XDWORD got = pixels[i];
         // Just check RGB is 0; alpha depends on how blitter handles it
         EXPECT_EQ(0, got & 0x00FFFFFF) << "Should be black for zero palette";
     }
@@ -331,7 +331,7 @@ TEST_F(PalettedBlitTest, SinglePaletteEntry_AllSameColor) {
 
     ImageWriter::SaveFromDesc("paletted8_singlepaletteentry_allsamecolor", dst, "Paletted");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFFABCDEF, pixels[i]);
     }
@@ -353,7 +353,7 @@ TEST_F(PalettedBlitTest, Index255_CorrectlyMapped) {
 
     ImageWriter::SaveFromDesc("paletted8_index255_correctlymapped", dst, "Paletted");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     EXPECT_EQ(0xFFDEADBE, pixels[0]) << "Index 255 should map correctly";
 }
 
@@ -376,7 +376,7 @@ TEST_F(PalettedBlitTest, SinglePixel) {
 
     ImageWriter::SaveFromDesc("paletted8_singlepixel", dst, "Paletted");
     
-    EXPECT_EQ(0xFF123456, *reinterpret_cast<XULONG*>(dstBuffer.Data()));
+    EXPECT_EQ(0xFF123456, *reinterpret_cast<XDWORD*>(dstBuffer.Data()));
 }
 
 TEST_F(PalettedBlitTest, LargeImage) {
@@ -396,7 +396,7 @@ TEST_F(PalettedBlitTest, LargeImage) {
     ImageWriter::SaveFromDesc("paletted8_largeimage", dst, "Paletted");
     
     // Sample check
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int y = 0; y < height; y += 32) {
         XBYTE index = static_cast<XBYTE>(y % 256);
         EXPECT_EQ(palette.GetColor(index), pixels[y * width]);
@@ -419,7 +419,7 @@ TEST_F(PalettedBlitTest, NonSquare_WidthLarger) {
 
     ImageWriter::SaveFromDesc("paletted8_nonsquare_widthlarger", dst, "Paletted");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFF998877, pixels[i]);
     }
@@ -441,7 +441,7 @@ TEST_F(PalettedBlitTest, NonSquare_HeightLarger) {
 
     ImageWriter::SaveFromDesc("paletted8_nonsquare_heightlarger", dst, "Paletted");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFFAABBCC, pixels[i]);
     }
@@ -478,7 +478,7 @@ TEST_F(PalettedBlitTest, ColorAccuracy_PrimaryColors) {
 
     ImageWriter::SaveFromDesc("paletted8_coloraccuracy_primarycolors", dst, "Paletted");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < 8; ++i) {
         EXPECT_EQ(palette.GetColor(i), pixels[i]) 
             << "Color " << i << " should match exactly";
@@ -506,10 +506,10 @@ TEST_F(PalettedBlitTest, ColorAccuracy_GrayScale) {
 
     ImageWriter::SaveFromDesc("paletted8_coloraccuracy_grayscale", dst, "Paletted");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < 256; ++i) {
         XBYTE gray = static_cast<XBYTE>(i);
-        XULONG expected = 0xFF000000 | (gray << 16) | (gray << 8) | gray;
+        XDWORD expected = 0xFF000000 | (gray << 16) | (gray << 8) | gray;
         EXPECT_EQ(expected, pixels[i]) << "Grayscale value " << i;
     }
 }
@@ -576,7 +576,7 @@ TEST_F(PalettedBlitTest, Paletted8_to_ARGB32_AllWidths) {
         
         blitter.DoBlit(src, dst);
         
-        const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+        const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             XBYTE idx = srcBuffer[i];
             EXPECT_EQ(palette.GetColor(idx), pixels[i]) 
@@ -644,7 +644,7 @@ TEST_F(PalettedBlitTest, PalettedAlpha_PreservedToARGB32) {
     
     blitter.DoBlit(src, dst);
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         XBYTE expectedAlpha = static_cast<XBYTE>(srcBuffer[i]);
         XBYTE actualAlpha = static_cast<XBYTE>((pixels[i] >> 24) & 0xFF);
@@ -680,12 +680,12 @@ TEST_F(PalettedBlitTest, LargePaletted_CorrectConversion) {
     blitter.DoBlit(src, dst);
     
     // Spot check
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int y = 0; y < height; y += 100) {
         for (int x = 0; x < width; x += 100) {
             int idx = y * width + x;
             XBYTE expectedGray = static_cast<XBYTE>((x + y) & 0xFF);
-            XULONG expected = 0xFF000000 | (expectedGray << 16) | (expectedGray << 8) | expectedGray;
+            XDWORD expected = 0xFF000000 | (expectedGray << 16) | (expectedGray << 8) | expectedGray;
             EXPECT_EQ(expected, pixels[idx]) << "Mismatch at " << x << "," << y;
         }
     }

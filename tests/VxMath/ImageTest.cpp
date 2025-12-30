@@ -432,8 +432,8 @@ TEST(PixelFormatTests, FormatStringConversion) {
 TEST(PixelFormatTests, BitCountsAndShifts) {
     struct FormatTest {
         VX_PIXELFORMAT format;
-        XULONG expected_rbits, expected_gbits, expected_bbits, expected_abits;
-        XULONG expected_rshift, expected_gshift, expected_bshift, expected_ashift;
+        XDWORD expected_rbits, expected_gbits, expected_bbits, expected_abits;
+        XDWORD expected_rshift, expected_gshift, expected_bshift, expected_ashift;
     };
 
     FormatTest tests[] = {
@@ -451,7 +451,7 @@ TEST(PixelFormatTests, BitCountsAndShifts) {
         VxImageDescEx desc;
         VxPixelFormat2ImageDesc(test.format, desc);
 
-        XULONG r, g, b, a;
+        XDWORD r, g, b, a;
         VxGetBitCounts(desc, r, g, b, a);
         EXPECT_EQ(r, test.expected_rbits) << "Red bits failed for " << VxPixelFormat2String(test.format);
         EXPECT_EQ(g, test.expected_gbits) << "Green bits failed for " << VxPixelFormat2String(test.format);

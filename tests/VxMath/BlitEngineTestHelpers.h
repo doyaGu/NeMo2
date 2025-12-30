@@ -75,9 +75,9 @@ public:
         
         // Convert ARGB to RGBA for stb_image_write
         std::vector<XBYTE> rgba(width * height * 4);
-        const XULONG* src = reinterpret_cast<const XULONG*>(data);
+        const XDWORD* src = reinterpret_cast<const XDWORD*>(data);
         for (int i = 0; i < width * height; ++i) {
-            XULONG pixel = src[i];
+            XDWORD pixel = src[i];
             rgba[i * 4 + 0] = (pixel >> 16) & 0xFF; // R
             rgba[i * 4 + 1] = (pixel >> 8) & 0xFF;  // G
             rgba[i * 4 + 2] = pixel & 0xFF;         // B
@@ -221,8 +221,8 @@ public:
     int BytesPerEntry() const { return bytesPerEntry_; }
     size_t Size() const { return data_.size(); }
     
-    // Access a palette entry as XULONG (assumes BGRA format)
-    XULONG GetColor(int index) const {
+    // Access a palette entry as XDWORD (assumes BGRA format)
+    XDWORD GetColor(int index) const {
         const XBYTE* entry = data_.data() + index * bytesPerEntry_;
         if (bytesPerEntry_ >= 4) {
             return (entry[3] << 24) | (entry[2] << 16) | (entry[1] << 8) | entry[0]; // ARGB from BGRA
@@ -232,7 +232,7 @@ public:
     }
     
     // Set a palette entry from ARGB color (stores as BGRA)
-    void SetColor(int index, XULONG argb) {
+    void SetColor(int index, XDWORD argb) {
         XBYTE* entry = data_.data() + index * bytesPerEntry_;
         entry[0] = static_cast<XBYTE>(argb & 0xFF);         // B
         entry[1] = static_cast<XBYTE>((argb >> 8) & 0xFF);  // G
@@ -499,8 +499,8 @@ public:
      */
     static void FillSolid32(XBYTE* buffer, int width, int height,
                             XBYTE r, XBYTE g, XBYTE b, XBYTE a = 255) {
-        XULONG* pixels = reinterpret_cast<XULONG*>(buffer);
-        XULONG color = (a << 24) | (r << 16) | (g << 8) | b;
+        XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer);
+        XDWORD color = (a << 24) | (r << 16) | (g << 8) | b;
         for (int i = 0; i < width * height; ++i) {
             pixels[i] = color;
         }
@@ -522,7 +522,7 @@ public:
      * @brief Creates a gradient pattern in 32-bit ARGB format.
      */
     static void FillGradient32(XBYTE* buffer, int width, int height, bool horizontal = true) {
-        XULONG* pixels = reinterpret_cast<XULONG*>(buffer);
+        XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer);
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
                 int val = horizontal ? (x * 255 / (width > 1 ? width - 1 : 1))
@@ -537,9 +537,9 @@ public:
      */
     static void FillCheckerboard32(XBYTE* buffer, int width, int height,
                                    int squareSize = 8,
-                                   XULONG color1 = 0xFFFFFFFF,
-                                   XULONG color2 = 0xFF000000) {
-        XULONG* pixels = reinterpret_cast<XULONG*>(buffer);
+                                   XDWORD color1 = 0xFFFFFFFF,
+                                   XDWORD color2 = 0xFF000000) {
+        XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer);
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
                 bool isWhite = ((x / squareSize) + (y / squareSize)) % 2 == 0;
@@ -552,8 +552,8 @@ public:
      * @brief Creates RGB color bars pattern in 32-bit ARGB format.
      */
     static void FillColorBars32(XBYTE* buffer, int width, int height) {
-        XULONG* pixels = reinterpret_cast<XULONG*>(buffer);
-        const XULONG colors[] = {
+        XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer);
+        const XDWORD colors[] = {
             0xFFFF0000, // Red
             0xFF00FF00, // Green
             0xFF0000FF, // Blue
@@ -577,7 +577,7 @@ public:
      * @brief Creates a unique pattern where each pixel has unique RGB values.
      */
     static void FillUniquePixels32(XBYTE* buffer, int width, int height) {
-        XULONG* pixels = reinterpret_cast<XULONG*>(buffer);
+        XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer);
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
                 int idx = y * width + x;
@@ -639,8 +639,8 @@ public:
      */
     static int Compare32(const XBYTE* img1, const XBYTE* img2,
                          int width, int height, int tolerance = 0) {
-        const XULONG* p1 = reinterpret_cast<const XULONG*>(img1);
-        const XULONG* p2 = reinterpret_cast<const XULONG*>(img2);
+        const XDWORD* p1 = reinterpret_cast<const XDWORD*>(img1);
+        const XDWORD* p2 = reinterpret_cast<const XDWORD*>(img2);
         int diffCount = 0;
 
         for (int i = 0; i < width * height; ++i) {
@@ -654,7 +654,7 @@ public:
     /**
      * @brief Checks if two 32-bit pixels match within tolerance.
      */
-    static bool PixelsMatch32(XULONG p1, XULONG p2, int tolerance) {
+    static bool PixelsMatch32(XDWORD p1, XDWORD p2, int tolerance) {
         int a1 = (p1 >> 24) & 0xFF, a2 = (p2 >> 24) & 0xFF;
         int r1 = (p1 >> 16) & 0xFF, r2 = (p2 >> 16) & 0xFF;
         int g1 = (p1 >> 8) & 0xFF, g2 = (p2 >> 8) & 0xFF;
@@ -671,8 +671,8 @@ public:
      */
     static double CalcMSE32(const XBYTE* img1, const XBYTE* img2,
                             int width, int height, bool includeAlpha = true) {
-        const XULONG* p1 = reinterpret_cast<const XULONG*>(img1);
-        const XULONG* p2 = reinterpret_cast<const XULONG*>(img2);
+        const XDWORD* p1 = reinterpret_cast<const XDWORD*>(img1);
+        const XDWORD* p2 = reinterpret_cast<const XDWORD*>(img2);
         double sum = 0.0;
         int numChannels = includeAlpha ? 4 : 3;
 
@@ -707,7 +707,7 @@ public:
     /**
      * @brief Extracts a specific channel from a 32-bit ARGB pixel.
      */
-    static XBYTE ExtractChannel(XULONG pixel, char channel) {
+    static XBYTE ExtractChannel(XDWORD pixel, char channel) {
         switch (channel) {
             case 'a': case 'A': return (pixel >> 24) & 0xFF;
             case 'r': case 'R': return (pixel >> 16) & 0xFF;
@@ -757,7 +757,7 @@ public:
         return TheBlitter.QuantizeImage(src, dst) ? CK_OK : CKERR_INVALIDPARAMETER;
     }
 
-    void FillImage(VxImageDescEx& desc, XULONG color) {
+    void FillImage(VxImageDescEx& desc, XDWORD color) {
         TheBlitter.FillImage(desc, color);
     }
 
@@ -797,8 +797,8 @@ public:
         return VxImageDesc2PixelFormat(desc);
     }
     
-    static void ConvertPixelFormat(VX_PIXELFORMAT fmt, XULONG& aMask, 
-                                    XULONG& rMask, XULONG& gMask, XULONG& bMask) {
+    static void ConvertPixelFormat(VX_PIXELFORMAT fmt, XDWORD& aMask, 
+                                    XDWORD& rMask, XDWORD& gMask, XDWORD& bMask) {
         VxImageDescEx desc;
         VxPixelFormat2ImageDesc(fmt, desc);
         aMask = desc.AlphaMask;

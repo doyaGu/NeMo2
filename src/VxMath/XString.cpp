@@ -14,7 +14,7 @@ XString::XString(const char *iString, int iLength) : XBaseString() {
         return;
     }
 
-    m_Length = (iLength > 0) ? iLength : strlen(iString);
+    m_Length = (iLength > 0) ? static_cast<XWORD>(iLength) : static_cast<XWORD>(strlen(iString));
     m_Allocated = m_Length + 1;
     m_Buffer = new char[m_Allocated];
     strncpy(m_Buffer, iString, m_Length);
@@ -81,7 +81,7 @@ XString &XString::operator=(const XString &iSrc) {
 // operator =
 XString &XString::operator=(const char *iSrc) {
     if (iSrc) {
-        Assign(iSrc, strlen(iSrc));
+        Assign(iSrc, static_cast<int>(strlen(iSrc)));
     } else {
         m_Length = 0;
         if (m_Buffer)
@@ -230,7 +230,7 @@ XWORD XString::Find(char iCar, XWORD iStart) const {
 
     char *str = strchr(&m_Buffer[iStart], iCar);
     if (str)
-        return str - m_Buffer;
+        return static_cast<XWORD>(str - m_Buffer);
     else
         return NOTFOUND;
 }
@@ -242,7 +242,7 @@ XWORD XString::Find(const XBaseString &iStr, XWORD iStart) const {
 
     char *str = strstr(&m_Buffer[iStart], iStr.m_Buffer);
     if (str)
-        return str - m_Buffer;
+        return static_cast<XWORD>(str - m_Buffer);
     else
         return NOTFOUND;
 }
@@ -406,7 +406,7 @@ int XString::Replace(const XBaseString &iSrc, const XBaseString &iDest) {
 
 XString &XString::operator<<(const char *iString) {
     if (iString) {
-        XWORD len = strlen(iString);
+        XWORD len = static_cast<XWORD>(strlen(iString));
         if (len > 0) {
             CheckSize(m_Length + len);
             strcpy(&m_Buffer[m_Length], iString);

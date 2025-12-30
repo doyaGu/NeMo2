@@ -324,7 +324,7 @@ protected:
     }
 
     void* AllocAndTrack(size_t size, size_t alignment) {
-        void* ptr = VxNewAligned(size, alignment);
+        void* ptr = VxNewAligned(size, static_cast<int>(alignment));
         if (ptr) m_allocatedPtrs.push_back(ptr);
         return ptr;
     }

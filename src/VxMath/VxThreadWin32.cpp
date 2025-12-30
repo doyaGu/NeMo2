@@ -118,7 +118,7 @@ const GENERIC_HANDLE VxThread::GetHandle() const {
     return m_Thread;
 }
 
-XULONG VxThread::GetID() const {
+XDWORD VxThread::GetID() const {
     return m_ThreadID;
 }
 
@@ -138,7 +138,7 @@ XBOOL VxThread::Terminate(unsigned int *status) {
         return ::TerminateThread((HANDLE) m_Thread, 0);
 }
 
-XULONG VxThread::GetCurrentVxThreadId() {
+XDWORD VxThread::GetCurrentVxThreadId() {
     return ::GetCurrentThreadId();
 }
 
@@ -179,14 +179,14 @@ XHashTable<VxThread *, GENERIC_HANDLE> &VxThread::GetHashThread() {
     return hashThread;
 }
 
-XULONG VX_STDCALL VxThread::ThreadFunc(void *args) {
+unsigned long __stdcall VxThread::ThreadFunc(void *args) {
     if (!args)
         return VXTERROR_NULLTHREAD;
 
     VxThread *thread = (VxThread *) args;
     thread->m_State |= VXTS_STARTED;
 
-    XULONG ret;
+    XDWORD ret;
     if (thread->m_Func)
         ret = thread->m_Func(thread->m_Args);
     else

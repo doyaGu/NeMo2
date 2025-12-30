@@ -14,7 +14,7 @@ struct VxImageDescEx;
  * @param keystate An array of 256 bytes representing the state of all keys (pressed/unpressed).
  * @return The corresponding ASCII character, or 0 if no direct mapping exists.
  */
-VX_EXPORT char VxScanCodeToAscii(XULONG scancode, unsigned char keystate[256]);
+VX_EXPORT char VxScanCodeToAscii(XDWORD scancode, unsigned char keystate[256]);
 
 /**
  * @brief Retrieves the descriptive name of a key from its scan code.
@@ -22,7 +22,7 @@ VX_EXPORT char VxScanCodeToAscii(XULONG scancode, unsigned char keystate[256]);
  * @param keyName A character buffer to receive the name of the key (e.g., "SHIFT", "A").
  * @return The length of the key name string.
  */
-VX_EXPORT int VxScanCodeToName(XULONG scancode, char *keyName);
+VX_EXPORT int VxScanCodeToName(XDWORD scancode, char *keyName);
 
 // Cursor function
 
@@ -70,7 +70,7 @@ VX_EXPORT XBOOL VxGetEnvironmentVariable(char *envName, XString &envValue);
 VX_EXPORT XBOOL VxSetEnvironmentVariable(char *envName, char *envValue);
 
 /// @brief Converts a URL string into its escaped format (e.g., replacing spaces with %20).
-VX_EXPORT XULONG VxEscapeURL(char *InURL, XString &OutURL);
+VX_EXPORT XDWORD VxEscapeURL(char *InURL, XString &OutURL);
 /// @brief Converts an escaped URL string back to its original format.
 VX_EXPORT void VxUnEscapeUrl(XString &str);
 
@@ -111,14 +111,14 @@ VX_EXPORT XBOOL VxSetCurrentDirectory(char *path);
 /// @brief Combines a path and a filename into a full path string.
 VX_EXPORT XBOOL VxMakePath(char *fullpath, char *path, char *file);
 /// @brief Checks if a specified amount of disk space is available in a directory.
-VX_EXPORT XBOOL VxTestDiskSpace(const char *dir, XULONG size);
+VX_EXPORT XBOOL VxTestDiskSpace(const char *dir, size_t size);
 
 /// @brief Displays a standard message box.
-VX_EXPORT int VxMessageBox(WIN_HANDLE hWnd, char *lpText, char *lpCaption, XULONG uType);
+VX_EXPORT int VxMessageBox(WIN_HANDLE hWnd, char *lpText, char *lpCaption, XDWORD uType);
 
 //------ Process access {secret}
 /// @brief Retrieves the full path of the file for the specified module.
-VX_EXPORT XULONG VxGetModuleFileName(INSTANCE_HANDLE Handle, char *string, XULONG StringSize);
+VX_EXPORT XDWORD VxGetModuleFileName(INSTANCE_HANDLE Handle, char *string, size_t StringSize);
 /// @brief Retrieves a module handle for the specified module name.
 VX_EXPORT INSTANCE_HANDLE VxGetModuleHandle(const char *filename);
 
@@ -128,7 +128,7 @@ VX_EXPORT XBOOL VxCreateFileTree(char *file);
 
 //------ URL Download {secret}
 /// @brief Downloads a file from a URL and stores it in the browser's cache.
-VX_EXPORT XULONG VxURLDownloadToCacheFile(char *File, char *CachedFile, int szCachedFile);
+VX_EXPORT XDWORD VxURLDownloadToCacheFile(char *File, char *CachedFile, int szCachedFile);
 
 //------ Bitmap Functions
 /// @brief Creates a device-dependent bitmap from an image description.
@@ -197,7 +197,7 @@ VX_EXPORT XBOOL VxGetFontInfo(FONT_HANDLE Font, VXFONTINFO &desc);
  * @param FontColor The color of the font.
  * @return TRUE on success, FALSE on failure.
  */
-VX_EXPORT XBOOL VxDrawBitmapText(BITMAP_HANDLE Bitmap, FONT_HANDLE Font, char *string, CKRECT *rect, XULONG Align, XULONG BkColor, XULONG FontColor);
+VX_EXPORT XBOOL VxDrawBitmapText(BITMAP_HANDLE Bitmap, FONT_HANDLE Font, char *string, CKRECT *rect, XDWORD Align, XDWORD BkColor, XDWORD FontColor);
 
 /// @brief Deletes a font handle and releases its resources.
 VX_EXPORT void VxDeleteFont(FONT_HANDLE Font);

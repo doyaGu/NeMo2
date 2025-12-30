@@ -20,10 +20,10 @@ VxBlitEngine TheBlitter;
 // Standard pixel format definitions
 struct PixelFormatDef {
     XWORD BitsPerPixel;
-    XULONG RedMask;
-    XULONG GreenMask;
-    XULONG BlueMask;
-    XULONG AlphaMask;
+    XDWORD RedMask;
+    XDWORD GreenMask;
+    XDWORD BlueMask;
+    XDWORD AlphaMask;
     const char *Description;
 };
 
@@ -67,7 +67,7 @@ static const int NUM_PIXEL_FORMATS = sizeof(s_PixelFormats) / sizeof(s_PixelForm
 //------------------------------------------------------------------------------
 
 // Get bit shift for a mask (position of least significant bit)
-static inline XULONG GetBitShiftLocal(XULONG dwMask) {
+static inline XDWORD GetBitShiftLocal(XDWORD dwMask) {
     if (!dwMask) return 0;
 #if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
     unsigned long index;
@@ -76,7 +76,7 @@ static inline XULONG GetBitShiftLocal(XULONG dwMask) {
 #elif defined(__GNUC__) || defined(__clang__)
     return __builtin_ctz(dwMask);
 #else
-    XULONG shift = 0;
+    XDWORD shift = 0;
     while ((dwMask & 1) == 0) {
         dwMask >>= 1;
         ++shift;
@@ -86,14 +86,14 @@ static inline XULONG GetBitShiftLocal(XULONG dwMask) {
 }
 
 // Get bit count for a mask (number of set bits)
-static inline XULONG GetBitCountLocal(XULONG dwMask) {
+static inline XDWORD GetBitCountLocal(XDWORD dwMask) {
     if (!dwMask) return 0;
 #if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
     return __popcnt(dwMask);
 #elif defined(__GNUC__) || defined(__clang__)
     return __builtin_popcount(dwMask);
 #else
-    XULONG count = 0;
+    XDWORD count = 0;
     while (dwMask) {
         count += dwMask & 1;
         dwMask >>= 1;
@@ -103,18 +103,18 @@ static inline XULONG GetBitCountLocal(XULONG dwMask) {
 }
 
 // Read a pixel of variable size
-static inline XULONG ReadPixel(const XBYTE *ptr, int bpp) {
+static inline XDWORD ReadPixel(const XBYTE *ptr, int bpp) {
     switch (bpp) {
     case 1: return *ptr;
     case 2: return *(const XWORD *)ptr;
     case 3: return ptr[0] | (ptr[1] << 8) | (ptr[2] << 16);
-    case 4: return *(const XULONG *)ptr;
+    case 4: return *(const XDWORD *)ptr;
     default: return 0;
     }
 }
 
 // Write a pixel of variable size
-static inline void WritePixel(XBYTE *ptr, int bpp, XULONG pixel) {
+static inline void WritePixel(XBYTE *ptr, int bpp, XDWORD pixel) {
     switch (bpp) {
     case 1: *ptr = (XBYTE)pixel; break;
     case 2: *(XWORD *)ptr = (XWORD)pixel; break;
@@ -123,7 +123,7 @@ static inline void WritePixel(XBYTE *ptr, int bpp, XULONG pixel) {
         ptr[1] = (XBYTE)(pixel >> 8);
         ptr[2] = (XBYTE)(pixel >> 16);
         break;
-    case 4: *(XULONG *)ptr = pixel; break;
+    case 4: *(XDWORD *)ptr = pixel; break;
     }
 }
 
@@ -137,7 +137,7 @@ static void CopyLineSame(const VxBlitInfo *info) {
 }
 
 // Helper to convert a component from one bit width to another
-static inline XULONG ConvertComponent(XULONG value, int srcBits, int dstBits, int dstShift) {
+static inline XDWORD ConvertComponent(XDWORD value, int srcBits, int dstBits, int dstShift) {
     if (srcBits == 0) return 0;
     if (dstBits == 0) return 0;
     
@@ -149,10 +149,10 @@ static inline XULONG ConvertComponent(XULONG value, int srcBits, int dstBits, in
         // Expand: replicate bits to fill
         // E.g., 5-bit 0x1F to 8-bit should give 0xFF
         int shift = dstBits - srcBits;
-        XULONG expanded = value << shift;
+        XDWORD expanded = value << shift;
         // Replicate lower bits for proper expansion
         if (srcBits > 0 && shift > 0) {
-            XULONG rep = value >> (srcBits - std::min(srcBits, shift));
+            XDWORD rep = value >> (srcBits - std::min(srcBits, shift));
             expanded |= rep;
         }
         value = expanded;
@@ -169,17 +169,17 @@ static void CopyLineGeneric(const VxBlitInfo *info) {
     const int width = info->width;
 
     for (int x = 0; x < width; ++x) {
-        XULONG pixel = ReadPixel(src, SrcBpp);
+        XDWORD pixel = ReadPixel(src, SrcBpp);
 
         // Extract components (shift to bit 0)
-        XULONG r = info->srcRedMask ? ((pixel & info->srcRedMask) >> info->redShiftSrc) : 0;
-        XULONG g = info->srcGreenMask ? ((pixel & info->srcGreenMask) >> info->greenShiftSrc) : 0;
-        XULONG b = info->srcBlueMask ? ((pixel & info->srcBlueMask) >> info->blueShiftSrc) : 0;
-        XULONG a = info->srcAlphaMask ? ((pixel & info->srcAlphaMask) >> info->alphaShiftSrc) : 
+        XDWORD r = info->srcRedMask ? ((pixel & info->srcRedMask) >> info->redShiftSrc) : 0;
+        XDWORD g = info->srcGreenMask ? ((pixel & info->srcGreenMask) >> info->greenShiftSrc) : 0;
+        XDWORD b = info->srcBlueMask ? ((pixel & info->srcBlueMask) >> info->blueShiftSrc) : 0;
+        XDWORD a = info->srcAlphaMask ? ((pixel & info->srcAlphaMask) >> info->alphaShiftSrc) : 
                    (info->alphaBitsDst > 0 ? ((1u << info->alphaBitsDst) - 1) : 0); // Default to full alpha
 
         // Convert bit widths and position
-        XULONG dstPixel = ConvertComponent(r, info->redBitsSrc, info->redBitsDst, info->redShiftDst) |
+        XDWORD dstPixel = ConvertComponent(r, info->redBitsSrc, info->redBitsDst, info->redShiftDst) |
                           ConvertComponent(g, info->greenBitsSrc, info->greenBitsDst, info->greenShiftDst) |
                           ConvertComponent(b, info->blueBitsSrc, info->blueBitsDst, info->blueShiftDst) |
                           ConvertComponent(a, info->alphaBitsSrc, info->alphaBitsDst, info->alphaShiftDst);
@@ -215,8 +215,8 @@ static void CopyLineGeneric_32_32(const VxBlitInfo *info) { CopyLineGeneric<4, 4
 
 // 32-bit ARGB to 32-bit RGB (just clear alpha)
 static void CopyLine_32ARGB_32RGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Process 4 pixels at a time with loop unrolling
@@ -234,8 +234,8 @@ static void CopyLine_32ARGB_32RGB(const VxBlitInfo *info) {
 
 // 32-bit RGB to 32-bit ARGB (add full alpha)
 static void CopyLine_32RGB_32ARGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Process 4 pixels at a time with loop unrolling
@@ -284,54 +284,54 @@ static void CopyLine_24RGB_32ARGB(const VxBlitInfo *info) {
 
 // 32-bit ARGB to 16-bit 565
 static void CopyLine_32ARGB_565RGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XWORD *dst = (XWORD *)info->dstLine;
     const int width = info->width;
 
     // Process 4 pixels at a time with loop unrolling
     int x = 0;
     for (; x + 4 <= width; x += 4) {
-        XULONG p0 = src[x + 0], p1 = src[x + 1], p2 = src[x + 2], p3 = src[x + 3];
+        XDWORD p0 = src[x + 0], p1 = src[x + 1], p2 = src[x + 2], p3 = src[x + 3];
         dst[x + 0] = (XWORD)(((p0 >> 8) & 0xF800) | ((p0 >> 5) & 0x07E0) | ((p0 >> 3) & 0x001F));
         dst[x + 1] = (XWORD)(((p1 >> 8) & 0xF800) | ((p1 >> 5) & 0x07E0) | ((p1 >> 3) & 0x001F));
         dst[x + 2] = (XWORD)(((p2 >> 8) & 0xF800) | ((p2 >> 5) & 0x07E0) | ((p2 >> 3) & 0x001F));
         dst[x + 3] = (XWORD)(((p3 >> 8) & 0xF800) | ((p3 >> 5) & 0x07E0) | ((p3 >> 3) & 0x001F));
     }
     for (; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         dst[x] = (XWORD)(((pixel >> 8) & 0xF800) | ((pixel >> 5) & 0x07E0) | ((pixel >> 3) & 0x001F));
     }
 }
 
 // 32-bit ARGB to 16-bit 555
 static void CopyLine_32ARGB_555RGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XWORD *dst = (XWORD *)info->dstLine;
     const int width = info->width;
 
     // Process 4 pixels at a time with loop unrolling
     int x = 0;
     for (; x + 4 <= width; x += 4) {
-        XULONG p0 = src[x + 0], p1 = src[x + 1], p2 = src[x + 2], p3 = src[x + 3];
+        XDWORD p0 = src[x + 0], p1 = src[x + 1], p2 = src[x + 2], p3 = src[x + 3];
         dst[x + 0] = (XWORD)(((p0 >> 9) & 0x7C00) | ((p0 >> 6) & 0x03E0) | ((p0 >> 3) & 0x001F));
         dst[x + 1] = (XWORD)(((p1 >> 9) & 0x7C00) | ((p1 >> 6) & 0x03E0) | ((p1 >> 3) & 0x001F));
         dst[x + 2] = (XWORD)(((p2 >> 9) & 0x7C00) | ((p2 >> 6) & 0x03E0) | ((p2 >> 3) & 0x001F));
         dst[x + 3] = (XWORD)(((p3 >> 9) & 0x7C00) | ((p3 >> 6) & 0x03E0) | ((p3 >> 3) & 0x001F));
     }
     for (; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         dst[x] = (XWORD)(((pixel >> 9) & 0x7C00) | ((pixel >> 6) & 0x03E0) | ((pixel >> 3) & 0x001F));
     }
 }
 
 // 32-bit ARGB to 16-bit 1555 ARGB
 static void CopyLine_32ARGB_1555ARGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XWORD *dst = (XWORD *)info->dstLine;
     const int width = info->width;
 
     for (int x = 0; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         XWORD a = ((pixel >> 16) & 0x8000);
         XWORD r = ((pixel >> 9) & 0x7C00);
         XWORD g = ((pixel >> 6) & 0x03E0);
@@ -342,12 +342,12 @@ static void CopyLine_32ARGB_1555ARGB(const VxBlitInfo *info) {
 
 // 32-bit ARGB to 16-bit 4444 ARGB
 static void CopyLine_32ARGB_4444ARGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XWORD *dst = (XWORD *)info->dstLine;
     const int width = info->width;
 
     for (int x = 0; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         XWORD a = ((pixel >> 16) & 0xF000);
         XWORD r = ((pixel >> 12) & 0x0F00);
         XWORD g = ((pixel >> 8) & 0x00F0);
@@ -359,7 +359,7 @@ static void CopyLine_32ARGB_4444ARGB(const VxBlitInfo *info) {
 // 16-bit 565 to 32-bit ARGB
 static void CopyLine_565RGB_32ARGB(const VxBlitInfo *info) {
     const XWORD *src = (const XWORD *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Process 4 pixels at a time with loop unrolling
@@ -373,9 +373,9 @@ static void CopyLine_565RGB_32ARGB(const VxBlitInfo *info) {
     }
     for (; x < width; ++x) {
         XWORD pixel = src[x];
-        XULONG r = ((pixel & 0xF800) << 8) | ((pixel & 0xE000) << 3);
-        XULONG g = ((pixel & 0x07E0) << 5) | ((pixel & 0x0600) >> 1);
-        XULONG b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
+        XDWORD r = ((pixel & 0xF800) << 8) | ((pixel & 0xE000) << 3);
+        XDWORD g = ((pixel & 0x07E0) << 5) | ((pixel & 0x0600) >> 1);
+        XDWORD b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
         dst[x] = 0xFF000000 | r | g | b;
     }
 }
@@ -383,7 +383,7 @@ static void CopyLine_565RGB_32ARGB(const VxBlitInfo *info) {
 // 16-bit 555 to 32-bit ARGB
 static void CopyLine_555RGB_32ARGB(const VxBlitInfo *info) {
     const XWORD *src = (const XWORD *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Process 4 pixels at a time with loop unrolling
@@ -397,9 +397,9 @@ static void CopyLine_555RGB_32ARGB(const VxBlitInfo *info) {
     }
     for (; x < width; ++x) {
         XWORD pixel = src[x];
-        XULONG r = ((pixel & 0x7C00) << 9) | ((pixel & 0x7000) << 4);
-        XULONG g = ((pixel & 0x03E0) << 6) | ((pixel & 0x0380) << 1);
-        XULONG b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
+        XDWORD r = ((pixel & 0x7C00) << 9) | ((pixel & 0x7000) << 4);
+        XDWORD g = ((pixel & 0x03E0) << 6) | ((pixel & 0x0380) << 1);
+        XDWORD b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
         dst[x] = 0xFF000000 | r | g | b;
     }
 }
@@ -407,15 +407,15 @@ static void CopyLine_555RGB_32ARGB(const VxBlitInfo *info) {
 // 16-bit 1555 to 32-bit ARGB
 static void CopyLine_1555ARGB_32ARGB(const VxBlitInfo *info) {
     const XWORD *src = (const XWORD *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     for (int x = 0; x < width; ++x) {
         XWORD pixel = src[x];
-        XULONG a = (pixel & 0x8000) ? 0xFF000000 : 0x00000000;
-        XULONG r = ((pixel & 0x7C00) << 9) | ((pixel & 0x7000) << 4);
-        XULONG g = ((pixel & 0x03E0) << 6) | ((pixel & 0x0380) << 1);
-        XULONG b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
+        XDWORD a = (pixel & 0x8000) ? 0xFF000000 : 0x00000000;
+        XDWORD r = ((pixel & 0x7C00) << 9) | ((pixel & 0x7000) << 4);
+        XDWORD g = ((pixel & 0x03E0) << 6) | ((pixel & 0x0380) << 1);
+        XDWORD b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
         dst[x] = a | r | g | b;
     }
 }
@@ -423,15 +423,15 @@ static void CopyLine_1555ARGB_32ARGB(const VxBlitInfo *info) {
 // 16-bit 4444 to 32-bit ARGB
 static void CopyLine_4444ARGB_32ARGB(const VxBlitInfo *info) {
     const XWORD *src = (const XWORD *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     for (int x = 0; x < width; ++x) {
         XWORD pixel = src[x];
-        XULONG a = ((pixel & 0xF000) << 16) | ((pixel & 0xF000) << 12);
-        XULONG r = ((pixel & 0x0F00) << 12) | ((pixel & 0x0F00) << 8);
-        XULONG g = ((pixel & 0x00F0) << 8) | ((pixel & 0x00F0) << 4);
-        XULONG b = ((pixel & 0x000F) << 4) | (pixel & 0x000F);
+        XDWORD a = ((pixel & 0xF000) << 16) | ((pixel & 0xF000) << 12);
+        XDWORD r = ((pixel & 0x0F00) << 12) | ((pixel & 0x0F00) << 8);
+        XDWORD g = ((pixel & 0x00F0) << 8) | ((pixel & 0x00F0) << 4);
+        XDWORD b = ((pixel & 0x000F) << 4) | (pixel & 0x000F);
         dst[x] = a | r | g | b;
     }
 }
@@ -443,7 +443,7 @@ static void CopyLine_4444ARGB_32ARGB(const VxBlitInfo *info) {
 // 8-bit paletted to 32-bit ARGB
 static void CopyLine_Paletted8_32ARGB(const VxBlitInfo *info) {
     const XBYTE *src = info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
     const XBYTE *colorMap = info->colorMap;
     const int bpc = info->bytesPerColorEntry;
@@ -451,7 +451,7 @@ static void CopyLine_Paletted8_32ARGB(const VxBlitInfo *info) {
     if (!colorMap) return;
 
     // Pre-build lookup table for the palette (avoid per-pixel bpc multiply)
-    XULONG palette32[256];
+    XDWORD palette32[256];
     if (bpc >= 4) {
         for (int i = 0; i < 256; ++i) {
             const XBYTE *entry = colorMap + i * bpc;
@@ -488,14 +488,14 @@ static void CopyLine_Paletted8_24RGB(const VxBlitInfo *info) {
     if (!colorMap) return;
 
     // Pre-build lookup table (store BGR in each entry)
-    XULONG palette32[256];
+    XDWORD palette32[256];
     for (int i = 0; i < 256; ++i) {
         const XBYTE *entry = colorMap + i * bpc;
         palette32[i] = (entry[2] << 16) | (entry[1] << 8) | entry[0];
     }
 
     for (int x = 0; x < width; ++x) {
-        XULONG color = palette32[src[x]];
+        XDWORD color = palette32[src[x]];
         dst[0] = (XBYTE)color;          // B
         dst[1] = (XBYTE)(color >> 8);   // G
         dst[2] = (XBYTE)(color >> 16);  // R
@@ -550,10 +550,10 @@ static void CopyLine_Paletted8_16Alpha(const VxBlitInfo *info) {
     const int aShift = info->alphaShiftDst;
     
     // Get bit widths from masks
-    XULONG rWidth = GetBitCountLocal(info->dstRedMask);
-    XULONG gWidth = GetBitCountLocal(info->dstGreenMask);
-    XULONG bWidth = GetBitCountLocal(info->dstBlueMask);
-    XULONG aWidth = GetBitCountLocal(info->dstAlphaMask);
+    XDWORD rWidth = GetBitCountLocal(info->dstRedMask);
+    XDWORD gWidth = GetBitCountLocal(info->dstGreenMask);
+    XDWORD bWidth = GetBitCountLocal(info->dstBlueMask);
+    XDWORD aWidth = GetBitCountLocal(info->dstAlphaMask);
     
     for (int x = 0; x < width; ++x) {
         int idx = src[x];
@@ -583,24 +583,24 @@ static void CopyLine_Paletted8_8(const VxBlitInfo *info) {
 
 // 32-bit ARGB to 32-bit ABGR (swap R and B channels)
 static void CopyLine_32ARGB_32ABGR(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     int x = 0;
     // Process 4 pixels at a time with loop unrolling
     for (; x + 4 <= width; x += 4) {
-        XULONG p0 = src[x + 0];
-        XULONG p1 = src[x + 1];
-        XULONG p2 = src[x + 2];
-        XULONG p3 = src[x + 3];
+        XDWORD p0 = src[x + 0];
+        XDWORD p1 = src[x + 1];
+        XDWORD p2 = src[x + 2];
+        XDWORD p3 = src[x + 3];
         dst[x + 0] = (p0 & 0xFF00FF00) | ((p0 & 0x00FF0000) >> 16) | ((p0 & 0x000000FF) << 16);
         dst[x + 1] = (p1 & 0xFF00FF00) | ((p1 & 0x00FF0000) >> 16) | ((p1 & 0x000000FF) << 16);
         dst[x + 2] = (p2 & 0xFF00FF00) | ((p2 & 0x00FF0000) >> 16) | ((p2 & 0x000000FF) << 16);
         dst[x + 3] = (p3 & 0xFF00FF00) | ((p3 & 0x00FF0000) >> 16) | ((p3 & 0x000000FF) << 16);
     }
     for (; x < width; ++x) {
-        XULONG p = src[x];
+        XDWORD p = src[x];
         dst[x] = (p & 0xFF00FF00) | ((p & 0x00FF0000) >> 16) | ((p & 0x000000FF) << 16);
     }
 }
@@ -612,69 +612,69 @@ static void CopyLine_32ABGR_32ARGB(const VxBlitInfo *info) {
 
 // 32-bit ARGB to 32-bit RGBA (rotate bytes left)
 static void CopyLine_32ARGB_32RGBA(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     int x = 0;
     for (; x + 4 <= width; x += 4) {
-        XULONG p0 = src[x + 0];
-        XULONG p1 = src[x + 1];
-        XULONG p2 = src[x + 2];
-        XULONG p3 = src[x + 3];
+        XDWORD p0 = src[x + 0];
+        XDWORD p1 = src[x + 1];
+        XDWORD p2 = src[x + 2];
+        XDWORD p3 = src[x + 3];
         dst[x + 0] = (p0 << 8) | (p0 >> 24);
         dst[x + 1] = (p1 << 8) | (p1 >> 24);
         dst[x + 2] = (p2 << 8) | (p2 >> 24);
         dst[x + 3] = (p3 << 8) | (p3 >> 24);
     }
     for (; x < width; ++x) {
-        XULONG p = src[x];
+        XDWORD p = src[x];
         dst[x] = (p << 8) | (p >> 24);
     }
 }
 
 // 32-bit RGBA to 32-bit ARGB (rotate bytes right)
 static void CopyLine_32RGBA_32ARGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     int x = 0;
     for (; x + 4 <= width; x += 4) {
-        XULONG p0 = src[x + 0];
-        XULONG p1 = src[x + 1];
-        XULONG p2 = src[x + 2];
-        XULONG p3 = src[x + 3];
+        XDWORD p0 = src[x + 0];
+        XDWORD p1 = src[x + 1];
+        XDWORD p2 = src[x + 2];
+        XDWORD p3 = src[x + 3];
         dst[x + 0] = (p0 >> 8) | (p0 << 24);
         dst[x + 1] = (p1 >> 8) | (p1 << 24);
         dst[x + 2] = (p2 >> 8) | (p2 << 24);
         dst[x + 3] = (p3 >> 8) | (p3 << 24);
     }
     for (; x < width; ++x) {
-        XULONG p = src[x];
+        XDWORD p = src[x];
         dst[x] = (p >> 8) | (p << 24);
     }
 }
 
 // 32-bit ARGB to 32-bit BGRA (full byte reversal)
 static void CopyLine_32ARGB_32BGRA(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     int x = 0;
     for (; x + 4 <= width; x += 4) {
-        XULONG p0 = src[x + 0];
-        XULONG p1 = src[x + 1];
-        XULONG p2 = src[x + 2];
-        XULONG p3 = src[x + 3];
+        XDWORD p0 = src[x + 0];
+        XDWORD p1 = src[x + 1];
+        XDWORD p2 = src[x + 2];
+        XDWORD p3 = src[x + 3];
         dst[x + 0] = ((p0 >> 24) & 0xFF) | ((p0 >> 8) & 0xFF00) | ((p0 << 8) & 0xFF0000) | ((p0 << 24) & 0xFF000000);
         dst[x + 1] = ((p1 >> 24) & 0xFF) | ((p1 >> 8) & 0xFF00) | ((p1 << 8) & 0xFF0000) | ((p1 << 24) & 0xFF000000);
         dst[x + 2] = ((p2 >> 24) & 0xFF) | ((p2 >> 8) & 0xFF00) | ((p2 << 8) & 0xFF0000) | ((p2 << 24) & 0xFF000000);
         dst[x + 3] = ((p3 >> 24) & 0xFF) | ((p3 >> 8) & 0xFF00) | ((p3 << 8) & 0xFF0000) | ((p3 << 24) & 0xFF000000);
     }
     for (; x < width; ++x) {
-        XULONG p = src[x];
+        XDWORD p = src[x];
         dst[x] = ((p >> 24) & 0xFF) | ((p >> 8) & 0xFF00) | ((p << 8) & 0xFF0000) | ((p << 24) & 0xFF000000);
     }
 }
@@ -690,37 +690,37 @@ static void CopyLine_32BGRA_32ARGB(const VxBlitInfo *info) {
 
 // Premultiply alpha (ARGB)
 static void PremultiplyAlpha_32ARGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     for (int x = 0; x < width; ++x) {
-        XULONG p = src[x];
-        XULONG a = (p >> 24) & 0xFF;
-        XULONG r = ((p >> 16) & 0xFF) * a / 255;
-        XULONG g = ((p >> 8) & 0xFF) * a / 255;
-        XULONG b = (p & 0xFF) * a / 255;
+        XDWORD p = src[x];
+        XDWORD a = (p >> 24) & 0xFF;
+        XDWORD r = ((p >> 16) & 0xFF) * a / 255;
+        XDWORD g = ((p >> 8) & 0xFF) * a / 255;
+        XDWORD b = (p & 0xFF) * a / 255;
         dst[x] = (a << 24) | (r << 16) | (g << 8) | b;
     }
 }
 
 // Unpremultiply alpha (ARGB)
 static void UnpremultiplyAlpha_32ARGB(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     for (int x = 0; x < width; ++x) {
-        XULONG p = src[x];
-        XULONG a = (p >> 24) & 0xFF;
+        XDWORD p = src[x];
+        XDWORD a = (p >> 24) & 0xFF;
         if (a == 0) {
             dst[x] = 0;
         } else if (a == 255) {
             dst[x] = p;
         } else {
-            XULONG r = XMin((XULONG)255, ((p >> 16) & 0xFF) * 255 / a);
-            XULONG g = XMin((XULONG)255, ((p >> 8) & 0xFF) * 255 / a);
-            XULONG b = XMin((XULONG)255, (p & 0xFF) * 255 / a);
+            XDWORD r = XMin((XDWORD)255, ((p >> 16) & 0xFF) * 255 / a);
+            XDWORD g = XMin((XDWORD)255, ((p >> 8) & 0xFF) * 255 / a);
+            XDWORD b = XMin((XDWORD)255, (p & 0xFF) * 255 / a);
             dst[x] = (a << 24) | (r << 16) | (g << 8) | b;
         }
     }
@@ -734,8 +734,8 @@ static void UnpremultiplyAlpha_32ARGB(const VxBlitInfo *info) {
 
 // SSE2: 32-bit ARGB to 32-bit RGB (clear alpha) - process 4 pixels at a time
 static void CopyLine_32ARGB_32RGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i mask = _mm_set1_epi32(0x00FFFFFF);
@@ -756,8 +756,8 @@ static void CopyLine_32ARGB_32RGB_SSE(const VxBlitInfo *info) {
 
 // SSE2: 32-bit RGB to 32-bit ARGB (add full alpha) - process 4 pixels at a time
 static void CopyLine_32RGB_32ARGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i alphaMask = _mm_set1_epi32(0xFF000000);
@@ -778,10 +778,10 @@ static void CopyLine_32RGB_32ARGB_SSE(const VxBlitInfo *info) {
 
 // SSE2: Set alpha channel to constant value - process 4 pixels at a time
 static void SetAlpha_32_SSE(const VxBlitInfo *info) {
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
-    const XULONG alphaValue = info->alphaValue & info->dstAlphaMask;
-    const XULONG alphaMaskInv = info->alphaMaskInv;
+    const XDWORD alphaValue = info->alphaValue & info->dstAlphaMask;
+    const XDWORD alphaMaskInv = info->alphaMaskInv;
 
     const __m128i vAlphaValue = _mm_set1_epi32(alphaValue);
     const __m128i vAlphaMaskInv = _mm_set1_epi32(alphaMaskInv);
@@ -804,11 +804,11 @@ static void SetAlpha_32_SSE(const VxBlitInfo *info) {
 // SSE2: Copy alpha from byte array - process 4 pixels at a time
 static void CopyAlpha_32_SSE(const VxBlitInfo *info) {
     const XBYTE *src = info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
     const int alphaShift = info->alphaShiftDst;
-    const XULONG alphaMask = info->dstAlphaMask;
-    const XULONG alphaMaskInv = info->alphaMaskInv;
+    const XDWORD alphaMask = info->dstAlphaMask;
+    const XDWORD alphaMaskInv = info->alphaMaskInv;
 
     const __m128i vAlphaMaskInv = _mm_set1_epi32(alphaMaskInv);
     const __m128i zero = _mm_setzero_si128();
@@ -833,14 +833,14 @@ static void CopyAlpha_32_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG alpha = ((XULONG)src[x] << alphaShift) & alphaMask;
+        XDWORD alpha = ((XDWORD)src[x] << alphaShift) & alphaMask;
         dst[x] = (dst[x] & alphaMaskInv) | alpha;
     }
 }
 
 // SSE2: 32-bit ARGB to 16-bit 565 - process 4 pixels at a time
 static void CopyLine_32ARGB_565RGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XWORD *dst = (XWORD *)info->dstLine;
     const int width = info->width;
 
@@ -869,7 +869,7 @@ static void CopyLine_32ARGB_565RGB_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         XWORD r = ((pixel >> 8) & 0xF800);
         XWORD g = ((pixel >> 5) & 0x07E0);
         XWORD b = ((pixel >> 3) & 0x001F);
@@ -879,7 +879,7 @@ static void CopyLine_32ARGB_565RGB_SSE(const VxBlitInfo *info) {
 
 // SSE2: 32-bit ARGB to 16-bit 4444 - process 4 pixels at a time
 static void CopyLine_32ARGB_4444ARGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XWORD *dst = (XWORD *)info->dstLine;
     const int width = info->width;
 
@@ -910,7 +910,7 @@ static void CopyLine_32ARGB_4444ARGB_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         XWORD a = ((pixel >> 16) & 0xF000);
         XWORD r = ((pixel >> 12) & 0x0F00);
         XWORD g = ((pixel >> 8) & 0x00F0);
@@ -922,7 +922,7 @@ static void CopyLine_32ARGB_4444ARGB_SSE(const VxBlitInfo *info) {
 // SSE2: 16-bit 565 to 32-bit ARGB - process 8 pixels at a time
 static void CopyLine_565RGB_32ARGB_SSE(const VxBlitInfo *info) {
     const XWORD *src = (const XWORD *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i alpha = _mm_set1_epi32(0xFF000000);
@@ -963,16 +963,16 @@ static void CopyLine_565RGB_32ARGB_SSE(const VxBlitInfo *info) {
     // Handle remaining pixels
     for (; x < width; ++x) {
         XWORD pixel = src[x];
-        XULONG r = ((pixel & 0xF800) << 8) | ((pixel & 0xE000) << 3);
-        XULONG g = ((pixel & 0x07E0) << 5) | ((pixel & 0x0600) >> 1);
-        XULONG b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
+        XDWORD r = ((pixel & 0xF800) << 8) | ((pixel & 0xE000) << 3);
+        XDWORD g = ((pixel & 0x07E0) << 5) | ((pixel & 0x0600) >> 1);
+        XDWORD b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
         dst[x] = 0xFF000000 | r | g | b;
     }
 }
 
 // SSE2: 32-bit ARGB to 16-bit 555 - process 4 pixels at a time
 static void CopyLine_32ARGB_555RGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XWORD *dst = (XWORD *)info->dstLine;
     const int width = info->width;
 
@@ -1001,7 +1001,7 @@ static void CopyLine_32ARGB_555RGB_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         XWORD r = ((pixel >> 9) & 0x7C00);
         XWORD g = ((pixel >> 6) & 0x03E0);
         XWORD b = ((pixel >> 3) & 0x001F);
@@ -1011,7 +1011,7 @@ static void CopyLine_32ARGB_555RGB_SSE(const VxBlitInfo *info) {
 
 // SSE2: 32-bit ARGB to 16-bit 1555 - process 4 pixels at a time
 static void CopyLine_32ARGB_1555ARGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XWORD *dst = (XWORD *)info->dstLine;
     const int width = info->width;
 
@@ -1044,7 +1044,7 @@ static void CopyLine_32ARGB_1555ARGB_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         XWORD a = ((pixel >> 16) & 0x8000);
         XWORD r = ((pixel >> 9) & 0x7C00);
         XWORD g = ((pixel >> 6) & 0x03E0);
@@ -1056,7 +1056,7 @@ static void CopyLine_32ARGB_1555ARGB_SSE(const VxBlitInfo *info) {
 // SSE2: 16-bit 555 to 32-bit ARGB - process 4 pixels at a time
 static void CopyLine_555RGB_32ARGB_SSE(const VxBlitInfo *info) {
     const XWORD *src = (const XWORD *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i alpha = _mm_set1_epi32(0xFF000000);
@@ -1097,9 +1097,9 @@ static void CopyLine_555RGB_32ARGB_SSE(const VxBlitInfo *info) {
     // Handle remaining pixels
     for (; x < width; ++x) {
         XWORD pixel = src[x];
-        XULONG r = ((pixel & 0x7C00) << 9) | ((pixel & 0x7000) << 4);
-        XULONG g = ((pixel & 0x03E0) << 6) | ((pixel & 0x0380) << 1);
-        XULONG b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
+        XDWORD r = ((pixel & 0x7C00) << 9) | ((pixel & 0x7000) << 4);
+        XDWORD g = ((pixel & 0x03E0) << 6) | ((pixel & 0x0380) << 1);
+        XDWORD b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
         dst[x] = 0xFF000000 | r | g | b;
     }
 }
@@ -1107,7 +1107,7 @@ static void CopyLine_555RGB_32ARGB_SSE(const VxBlitInfo *info) {
 // SSE2: 16-bit 1555 to 32-bit ARGB - process 4 pixels at a time
 static void CopyLine_1555ARGB_32ARGB_SSE(const VxBlitInfo *info) {
     const XWORD *src = (const XWORD *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i zero = _mm_setzero_si128();
@@ -1156,10 +1156,10 @@ static void CopyLine_1555ARGB_32ARGB_SSE(const VxBlitInfo *info) {
     // Handle remaining pixels
     for (; x < width; ++x) {
         XWORD pixel = src[x];
-        XULONG a = (pixel & 0x8000) ? 0xFF000000 : 0x00000000;
-        XULONG r = ((pixel & 0x7C00) << 9) | ((pixel & 0x7000) << 4);
-        XULONG g = ((pixel & 0x03E0) << 6) | ((pixel & 0x0380) << 1);
-        XULONG b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
+        XDWORD a = (pixel & 0x8000) ? 0xFF000000 : 0x00000000;
+        XDWORD r = ((pixel & 0x7C00) << 9) | ((pixel & 0x7000) << 4);
+        XDWORD g = ((pixel & 0x03E0) << 6) | ((pixel & 0x0380) << 1);
+        XDWORD b = ((pixel & 0x001F) << 3) | ((pixel & 0x001C) >> 2);
         dst[x] = a | r | g | b;
     }
 }
@@ -1167,7 +1167,7 @@ static void CopyLine_1555ARGB_32ARGB_SSE(const VxBlitInfo *info) {
 // SSE2: 16-bit 4444 to 32-bit ARGB - process 4 pixels at a time
 static void CopyLine_4444ARGB_32ARGB_SSE(const VxBlitInfo *info) {
     const XWORD *src = (const XWORD *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i zero = _mm_setzero_si128();
@@ -1213,10 +1213,10 @@ static void CopyLine_4444ARGB_32ARGB_SSE(const VxBlitInfo *info) {
     // Handle remaining pixels
     for (; x < width; ++x) {
         XWORD pixel = src[x];
-        XULONG a = ((pixel & 0xF000) << 16) | ((pixel & 0xF000) << 12);
-        XULONG r = ((pixel & 0x0F00) << 12) | ((pixel & 0x0F00) << 8);
-        XULONG g = ((pixel & 0x00F0) << 8) | ((pixel & 0x00F0) << 4);
-        XULONG b = ((pixel & 0x000F) << 4) | (pixel & 0x000F);
+        XDWORD a = ((pixel & 0xF000) << 16) | ((pixel & 0xF000) << 12);
+        XDWORD r = ((pixel & 0x0F00) << 12) | ((pixel & 0x0F00) << 8);
+        XDWORD g = ((pixel & 0x00F0) << 8) | ((pixel & 0x00F0) << 4);
+        XDWORD b = ((pixel & 0x000F) << 4) | (pixel & 0x000F);
         dst[x] = a | r | g | b;
     }
 }
@@ -1224,7 +1224,7 @@ static void CopyLine_4444ARGB_32ARGB_SSE(const VxBlitInfo *info) {
 // SSE2: 24-bit RGB to 32-bit ARGB
 static void CopyLine_24RGB_32ARGB_SSE(const VxBlitInfo *info) {
     const XBYTE *src = info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i alpha = _mm_set1_epi32(0xFF000000);
@@ -1269,10 +1269,10 @@ static void CopyLine_24RGB_32ARGB_SSE(const VxBlitInfo *info) {
 
     // Process 4 pixels at a time for remainder
     for (; x + 4 <= width; x += 4) {
-        XULONG p0 = src[0] | (src[1] << 8) | (src[2] << 16);
-        XULONG p1 = src[3] | (src[4] << 8) | (src[5] << 16);
-        XULONG p2 = src[6] | (src[7] << 8) | (src[8] << 16);
-        XULONG p3 = src[9] | (src[10] << 8) | (src[11] << 16);
+        XDWORD p0 = src[0] | (src[1] << 8) | (src[2] << 16);
+        XDWORD p1 = src[3] | (src[4] << 8) | (src[5] << 16);
+        XDWORD p2 = src[6] | (src[7] << 8) | (src[8] << 16);
+        XDWORD p3 = src[9] | (src[10] << 8) | (src[11] << 16);
 
         __m128i pixels = _mm_set_epi32(p3, p2, p1, p0);
         pixels = _mm_or_si128(pixels, alpha);
@@ -1290,7 +1290,7 @@ static void CopyLine_24RGB_32ARGB_SSE(const VxBlitInfo *info) {
 
 // SSE2: 32-bit ARGB to 24-bit RGB
 static void CopyLine_32ARGB_24RGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
     XBYTE *dst = info->dstLine;
     const int width = info->width;
 
@@ -1332,7 +1332,7 @@ static void CopyLine_32ARGB_24RGB_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG pixel = src[x];
+        XDWORD pixel = src[x];
         dst[0] = (XBYTE)pixel;
         dst[1] = (XBYTE)(pixel >> 8);
         dst[2] = (XBYTE)(pixel >> 16);
@@ -1343,7 +1343,7 @@ static void CopyLine_32ARGB_24RGB_SSE(const VxBlitInfo *info) {
 // SSE2: 8-bit paletted to 32-bit ARGB (batch lookup)
 static void CopyLine_Paletted8_32ARGB_SSE(const VxBlitInfo *info) {
     const XBYTE *src = info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
     const XBYTE *colorMap = info->colorMap;
     const int bpc = info->bytesPerColorEntry;
@@ -1351,13 +1351,13 @@ static void CopyLine_Paletted8_32ARGB_SSE(const VxBlitInfo *info) {
     if (!colorMap) return;
 
     // Pre-build palette as 32-bit ARGB
-    XULONG palette32[256];
+    XDWORD palette32[256];
     for (int i = 0; i < 256; ++i) {
         const XBYTE *entry = colorMap + i * bpc;
-        XULONG b = entry[0];
-        XULONG g = entry[1];
-        XULONG r = entry[2];
-        XULONG a = (bpc >= 4) ? entry[3] : 0xFF;
+        XDWORD b = entry[0];
+        XDWORD g = entry[1];
+        XDWORD r = entry[2];
+        XDWORD a = (bpc >= 4) ? entry[3] : 0xFF;
         palette32[i] = (a << 24) | (r << 16) | (g << 8) | b;
     }
 
@@ -1377,8 +1377,8 @@ static void CopyLine_Paletted8_32ARGB_SSE(const VxBlitInfo *info) {
 
 // SSE2: 32-bit ARGB to 32-bit ABGR (swap R and B channels)
 static void CopyLine_32ARGB_32ABGR_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Shuffle mask to swap R and B: ARGB -> ABGR
@@ -1396,7 +1396,7 @@ static void CopyLine_32ARGB_32ABGR_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG p = src[x];
+        XDWORD p = src[x];
         // ARGB -> ABGR: swap R and B
         dst[x] = (p & 0xFF00FF00) | ((p & 0x00FF0000) >> 16) | ((p & 0x000000FF) << 16);
     }
@@ -1410,8 +1410,8 @@ static void CopyLine_32ABGR_32ARGB_SSE(const VxBlitInfo *info) {
 
 // SSE2: 32-bit ARGB to 32-bit RGBA (rotate bytes left)
 static void CopyLine_32ARGB_32RGBA_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Shuffle mask: ARGB (BGRA in memory) -> RGBA (ABGR in memory)
@@ -1428,7 +1428,7 @@ static void CopyLine_32ARGB_32RGBA_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG p = src[x];
+        XDWORD p = src[x];
         // ARGB -> RGBA: A moves from MSB to LSB, RGB shift left
         dst[x] = (p << 8) | (p >> 24);
     }
@@ -1436,8 +1436,8 @@ static void CopyLine_32ARGB_32RGBA_SSE(const VxBlitInfo *info) {
 
 // SSE2: 32-bit RGBA to 32-bit ARGB (rotate bytes right)
 static void CopyLine_32RGBA_32ARGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Shuffle mask: RGBA (ABGR in memory) -> ARGB (BGRA in memory)
@@ -1454,7 +1454,7 @@ static void CopyLine_32RGBA_32ARGB_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG p = src[x];
+        XDWORD p = src[x];
         // RGBA -> ARGB: A moves from LSB to MSB, RGB shift right
         dst[x] = (p >> 8) | (p << 24);
     }
@@ -1462,8 +1462,8 @@ static void CopyLine_32RGBA_32ARGB_SSE(const VxBlitInfo *info) {
 
 // SSE2: 32-bit ARGB to 32-bit BGRA
 static void CopyLine_32ARGB_32BGRA_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Shuffle mask: ARGB (BGRA in memory) -> BGRA (ARGB in memory)
@@ -1480,7 +1480,7 @@ static void CopyLine_32ARGB_32BGRA_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels - full byte reversal
     for (; x < width; ++x) {
-        XULONG p = src[x];
+        XDWORD p = src[x];
         dst[x] = ((p & 0xFF000000) >> 24) | ((p & 0x00FF0000) >> 8) | 
                  ((p & 0x0000FF00) << 8)  | ((p & 0x000000FF) << 24);
     }
@@ -1495,8 +1495,8 @@ static void CopyLine_32BGRA_32ARGB_SSE(const VxBlitInfo *info) {
 // SSE2: Premultiply alpha (ARGB) using accurate division by 255
 // Uses the formula: (c * a + 127) / 255 ≈ (c * a + 128 + ((c * a + 128) >> 8)) >> 8
 static void PremultiplyAlpha_32ARGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i zero = _mm_setzero_si128();
@@ -1547,11 +1547,11 @@ static void PremultiplyAlpha_32ARGB_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG p = src[x];
-        XULONG a = (p >> 24) & 0xFF;
-        XULONG r = (((p >> 16) & 0xFF) * a + 127) / 255;
-        XULONG g = (((p >> 8) & 0xFF) * a + 127) / 255;
-        XULONG b = ((p & 0xFF) * a + 127) / 255;
+        XDWORD p = src[x];
+        XDWORD a = (p >> 24) & 0xFF;
+        XDWORD r = (((p >> 16) & 0xFF) * a + 127) / 255;
+        XDWORD g = (((p >> 8) & 0xFF) * a + 127) / 255;
+        XDWORD b = ((p & 0xFF) * a + 127) / 255;
         dst[x] = (a << 24) | (r << 16) | (g << 8) | b;
     }
 }
@@ -1559,30 +1559,30 @@ static void PremultiplyAlpha_32ARGB_SSE(const VxBlitInfo *info) {
 // SSE2: Unpremultiply alpha (ARGB)
 // Division is tricky to vectorize, but we can use lookup tables or SIMD division
 static void UnpremultiplyAlpha_32ARGB_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     // Use scalar for unpremultiply - division by variable is hard to vectorize
     // and the lookup table approach would require too much memory
     for (int x = 0; x < width; ++x) {
-        XULONG p = src[x];
-        XULONG a = (p >> 24) & 0xFF;
+        XDWORD p = src[x];
+        XDWORD a = (p >> 24) & 0xFF;
         if (a == 0) {
             dst[x] = 0;
         } else if (a == 255) {
             dst[x] = p;
         } else {
-            XULONG r = XMin((XULONG)255, ((p >> 16) & 0xFF) * 255 / a);
-            XULONG g = XMin((XULONG)255, ((p >> 8) & 0xFF) * 255 / a);
-            XULONG b = XMin((XULONG)255, (p & 0xFF) * 255 / a);
+            XDWORD r = XMin((XDWORD)255, ((p >> 16) & 0xFF) * 255 / a);
+            XDWORD g = XMin((XDWORD)255, ((p >> 8) & 0xFF) * 255 / a);
+            XDWORD b = XMin((XDWORD)255, (p & 0xFF) * 255 / a);
             dst[x] = (a << 24) | (r << 16) | (g << 8) | b;
         }
     }
 }
 
 // SSE2: Fill 32-bit image with solid color
-static void FillLine_32_SSE(XULONG *dst, int width, XULONG color) {
+static void FillLine_32_SSE(XDWORD *dst, int width, XDWORD color) {
     __m128i fillColor = _mm_set1_epi32(color);
     int x = 0;
 
@@ -1631,7 +1631,7 @@ static void FillLine_16_SSE(XWORD *dst, int width, XWORD color) {
 
 // SSE2: Clear alpha channel (set to 0) - useful for RGB32 format
 static void ClearAlpha_32_SSE(const VxBlitInfo *info) {
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
     const __m128i mask = _mm_set1_epi32(0x00FFFFFF);
     int x = 0;
@@ -1649,7 +1649,7 @@ static void ClearAlpha_32_SSE(const VxBlitInfo *info) {
 
 // SSE2: Set alpha channel to full (255)
 static void SetFullAlpha_32_SSE(const VxBlitInfo *info) {
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
     const __m128i alphaMask = _mm_set1_epi32(0xFF000000);
     int x = 0;
@@ -1667,7 +1667,7 @@ static void SetFullAlpha_32_SSE(const VxBlitInfo *info) {
 
 // SSE2: Invert colors (keep alpha)
 static void InvertColors_32_SSE(const VxBlitInfo *info) {
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
     const __m128i invertMask = _mm_set1_epi32(0x00FFFFFF);
     int x = 0;
@@ -1687,8 +1687,8 @@ static void InvertColors_32_SSE(const VxBlitInfo *info) {
 // SSE2: Convert to grayscale using luminance formula
 // Y = 0.299*R + 0.587*G + 0.114*B (using fixed point: 77*R + 150*G + 29*B) >> 8
 static void Grayscale_32_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i zero = _mm_setzero_si128();
@@ -1721,20 +1721,20 @@ static void Grayscale_32_SSE(const VxBlitInfo *info) {
 
     // Fall back to scalar for now (grayscale has complex channel access)
     for (; x < width; ++x) {
-        XULONG p = src[x];
-        XULONG a = p & 0xFF000000;
-        XULONG r = (p >> 16) & 0xFF;
-        XULONG g = (p >> 8) & 0xFF;
-        XULONG b = p & 0xFF;
-        XULONG y = (77 * r + 150 * g + 29 * b) >> 8;
+        XDWORD p = src[x];
+        XDWORD a = p & 0xFF000000;
+        XDWORD r = (p >> 16) & 0xFF;
+        XDWORD g = (p >> 8) & 0xFF;
+        XDWORD b = p & 0xFF;
+        XDWORD y = (77 * r + 150 * g + 29 * b) >> 8;
         dst[x] = a | (y << 16) | (y << 8) | y;
     }
 }
 
 // SSE2: Multiply blend (dst = src * dst / 255)
 static void MultiplyBlend_32_SSE(const VxBlitInfo *info) {
-    const XULONG *src = (const XULONG *)info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    const XDWORD *src = (const XDWORD *)info->srcLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
 
     const __m128i zero = _mm_setzero_si128();
@@ -1770,12 +1770,12 @@ static void MultiplyBlend_32_SSE(const VxBlitInfo *info) {
 
     // Handle remaining pixels
     for (; x < width; ++x) {
-        XULONG s = src[x];
-        XULONG d = dst[x];
-        XULONG r = (((s >> 16) & 0xFF) * ((d >> 16) & 0xFF) + 127) / 255;
-        XULONG g = (((s >> 8) & 0xFF) * ((d >> 8) & 0xFF) + 127) / 255;
-        XULONG b = ((s & 0xFF) * (d & 0xFF) + 127) / 255;
-        XULONG a = (((s >> 24) & 0xFF) * ((d >> 24) & 0xFF) + 127) / 255;
+        XDWORD s = src[x];
+        XDWORD d = dst[x];
+        XDWORD r = (((s >> 16) & 0xFF) * ((d >> 16) & 0xFF) + 127) / 255;
+        XDWORD g = (((s >> 8) & 0xFF) * ((d >> 8) & 0xFF) + 127) / 255;
+        XDWORD b = ((s & 0xFF) * (d & 0xFF) + 127) / 255;
+        XDWORD a = (((s >> 24) & 0xFF) * ((d >> 24) & 0xFF) + 127) / 255;
         dst[x] = (a << 24) | (r << 16) | (g << 8) | b;
     }
 }
@@ -1809,10 +1809,10 @@ static void SetAlpha_16(const VxBlitInfo *info) {
 }
 
 static void SetAlpha_32(const VxBlitInfo *info) {
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
-    const XULONG alphaValue = info->alphaValue & info->dstAlphaMask;
-    const XULONG alphaMaskInv = info->alphaMaskInv;
+    const XDWORD alphaValue = info->alphaValue & info->dstAlphaMask;
+    const XDWORD alphaMaskInv = info->alphaMaskInv;
 
     for (int x = 0; x < width; ++x) {
         dst[x] = (dst[x] & alphaMaskInv) | alphaValue;
@@ -1868,14 +1868,14 @@ static void CopyAlpha_16(const VxBlitInfo *info) {
 
 static void CopyAlpha_32(const VxBlitInfo *info) {
     const XBYTE *src = info->srcLine;
-    XULONG *dst = (XULONG *)info->dstLine;
+    XDWORD *dst = (XDWORD *)info->dstLine;
     const int width = info->width;
     const int alphaShift = info->alphaShiftDst;
-    const XULONG alphaMask = info->dstAlphaMask;
-    const XULONG alphaMaskInv = info->alphaMaskInv;
+    const XDWORD alphaMask = info->dstAlphaMask;
+    const XDWORD alphaMaskInv = info->alphaMaskInv;
 
     for (int x = 0; x < width; ++x) {
-        XULONG alpha = ((XULONG)src[x] << alphaShift) & alphaMask;
+        XDWORD alpha = ((XDWORD)src[x] << alphaShift) & alphaMask;
         dst[x] = (dst[x] & alphaMaskInv) | alpha;
     }
 }
@@ -1891,8 +1891,8 @@ static void ResizeHLine_EqualY_EqualX_32Bpp(const VxResizeInfo *info) {
 
 // Equal Y, Shrink X - horizontal downscale
 static void ResizeHLine_EqualY_ShrinkX_32Bpp(const VxResizeInfo *info) {
-    const XULONG *src = info->srcRow;
-    XULONG *dst = info->dstRow;
+    const XDWORD *src = info->srcRow;
+    XDWORD *dst = info->dstRow;
 
     int srcX = 0; // Fixed point 16.16
     for (int x = 0; x < info->w2; ++x) {
@@ -1903,13 +1903,13 @@ static void ResizeHLine_EqualY_ShrinkX_32Bpp(const VxResizeInfo *info) {
             dst[x] = src[srcIdx];
         } else {
             // Bilinear interpolation
-            XULONG p0 = src[srcIdx];
-            XULONG p1 = src[srcIdx + 1];
+            XDWORD p0 = src[srcIdx];
+            XDWORD p1 = src[srcIdx + 1];
 
-            XULONG r = (((p0 >> 16) & 0xFF) * (0x10000 - frac) + ((p1 >> 16) & 0xFF) * frac) >> 16;
-            XULONG g = (((p0 >> 8) & 0xFF) * (0x10000 - frac) + ((p1 >> 8) & 0xFF) * frac) >> 16;
-            XULONG b = ((p0 & 0xFF) * (0x10000 - frac) + (p1 & 0xFF) * frac) >> 16;
-            XULONG a = (((p0 >> 24) & 0xFF) * (0x10000 - frac) + ((p1 >> 24) & 0xFF) * frac) >> 16;
+            XDWORD r = (((p0 >> 16) & 0xFF) * (0x10000 - frac) + ((p1 >> 16) & 0xFF) * frac) >> 16;
+            XDWORD g = (((p0 >> 8) & 0xFF) * (0x10000 - frac) + ((p1 >> 8) & 0xFF) * frac) >> 16;
+            XDWORD b = ((p0 & 0xFF) * (0x10000 - frac) + (p1 & 0xFF) * frac) >> 16;
+            XDWORD a = (((p0 >> 24) & 0xFF) * (0x10000 - frac) + ((p1 >> 24) & 0xFF) * frac) >> 16;
 
             dst[x] = (a << 24) | (r << 16) | (g << 8) | b;
         }
@@ -1920,8 +1920,8 @@ static void ResizeHLine_EqualY_ShrinkX_32Bpp(const VxResizeInfo *info) {
 
 // Equal Y, Grow X - horizontal upscale
 static void ResizeHLine_EqualY_GrowX_32Bpp(const VxResizeInfo *info) {
-    const XULONG *src = info->srcRow;
-    XULONG *dst = info->dstRow;
+    const XDWORD *src = info->srcRow;
+    XDWORD *dst = info->dstRow;
 
     int srcX = 0; // Fixed point 16.16
     for (int x = 0; x < info->w2; ++x) {
@@ -1932,13 +1932,13 @@ static void ResizeHLine_EqualY_GrowX_32Bpp(const VxResizeInfo *info) {
             dst[x] = src[XMin(srcIdx, info->w1 - 1)];
         } else {
             // Bilinear interpolation
-            XULONG p0 = src[srcIdx];
-            XULONG p1 = src[XMin(srcIdx + 1, info->w1 - 1)];
+            XDWORD p0 = src[srcIdx];
+            XDWORD p1 = src[XMin(srcIdx + 1, info->w1 - 1)];
 
-            XULONG r = (((p0 >> 16) & 0xFF) * (0x10000 - frac) + ((p1 >> 16) & 0xFF) * frac) >> 16;
-            XULONG g = (((p0 >> 8) & 0xFF) * (0x10000 - frac) + ((p1 >> 8) & 0xFF) * frac) >> 16;
-            XULONG b = ((p0 & 0xFF) * (0x10000 - frac) + (p1 & 0xFF) * frac) >> 16;
-            XULONG a = (((p0 >> 24) & 0xFF) * (0x10000 - frac) + ((p1 >> 24) & 0xFF) * frac) >> 16;
+            XDWORD r = (((p0 >> 16) & 0xFF) * (0x10000 - frac) + ((p1 >> 16) & 0xFF) * frac) >> 16;
+            XDWORD g = (((p0 >> 8) & 0xFF) * (0x10000 - frac) + ((p1 >> 8) & 0xFF) * frac) >> 16;
+            XDWORD b = ((p0 & 0xFF) * (0x10000 - frac) + (p1 & 0xFF) * frac) >> 16;
+            XDWORD a = (((p0 >> 24) & 0xFF) * (0x10000 - frac) + ((p1 >> 24) & 0xFF) * frac) >> 16;
 
             dst[x] = (a << 24) | (r << 16) | (g << 8) | b;
         }
@@ -2126,11 +2126,11 @@ VX_PIXELFORMAT VxBlitEngine::GetPixelFormat(const VxImageDescEx &desc) {
     }
 
     // Search through standard formats
-    const XULONG bpp = desc.BitsPerPixel;
-    const XULONG rmask = desc.RedMask;
-    const XULONG gmask = desc.GreenMask;
-    const XULONG bmask = desc.BlueMask;
-    const XULONG amask = desc.AlphaMask;
+    const XDWORD bpp = desc.BitsPerPixel;
+    const XDWORD rmask = desc.RedMask;
+    const XDWORD gmask = desc.GreenMask;
+    const XDWORD bmask = desc.BlueMask;
+    const XDWORD amask = desc.AlphaMask;
 
     for (int i = 1; i < NUM_PIXEL_FORMATS && i < _DXT1; ++i) {
         const PixelFormatDef &fmt = s_PixelFormats[i];
@@ -2391,11 +2391,11 @@ void VxBlitEngine::DoAlphaBlit(const VxImageDescEx &dst_desc, XBYTE AlphaValue) 
 
     // Scale 8-bit alpha to target bit depth
     // Get the shift and bit count of the alpha mask
-    XULONG alphaMask = dst_desc.AlphaMask;
+    XDWORD alphaMask = dst_desc.AlphaMask;
     int alphaShift = static_cast<int>(GetBitShiftLocal(alphaMask));
     
     // Count bits in the alpha mask
-    XULONG tempMask = alphaMask >> alphaShift;
+    XDWORD tempMask = alphaMask >> alphaShift;
     int alphaBits = 0;
     while (tempMask & 1) {
         ++alphaBits;
@@ -2403,14 +2403,14 @@ void VxBlitEngine::DoAlphaBlit(const VxImageDescEx &dst_desc, XBYTE AlphaValue) 
     }
     
     // Scale the 8-bit alpha value to the target bit depth
-    XULONG scaledAlpha;
+    XDWORD scaledAlpha;
     if (alphaBits >= 8) {
         // Direct placement for 8+ bit alpha
-        scaledAlpha = (XULONG)AlphaValue << alphaShift;
+        scaledAlpha = (XDWORD)AlphaValue << alphaShift;
     } else {
         // Scale down from 8-bit to target bits by taking top bits
         int shiftAmount = 8 - alphaBits;
-        scaledAlpha = ((XULONG)AlphaValue >> shiftAmount) << alphaShift;
+        scaledAlpha = ((XDWORD)AlphaValue >> shiftAmount) << alphaShift;
     }
     m_BlitInfo.alphaValue = scaledAlpha & alphaMask;
 
@@ -2454,7 +2454,7 @@ void VxBlitEngine::DoAlphaBlit(const VxImageDescEx &dst_desc, XBYTE *AlphaValues
 // FillImage - Fill image with solid color (uses SIMD when available)
 //------------------------------------------------------------------------------
 
-void VxBlitEngine::FillImage(const VxImageDescEx &dst_desc, XULONG color) {
+void VxBlitEngine::FillImage(const VxImageDescEx &dst_desc, XDWORD color) {
     if (!dst_desc.Image) return;
     if (dst_desc.Width <= 0 || dst_desc.Height <= 0) return;
 
@@ -2465,9 +2465,9 @@ void VxBlitEngine::FillImage(const VxImageDescEx &dst_desc, XULONG color) {
         // 32-bit fill with SIMD
         for (int y = 0; y < dst_desc.Height; ++y) {
 #if defined(VX_SIMD_SSE2)
-            FillLine_32_SSE((XULONG *)row, dst_desc.Width, color);
+            FillLine_32_SSE((XDWORD *)row, dst_desc.Width, color);
 #else
-            XULONG *dst = (XULONG *)row;
+            XDWORD *dst = (XDWORD *)row;
             for (int x = 0; x < dst_desc.Width; ++x) {
                 dst[x] = color;
             }
@@ -2613,7 +2613,7 @@ void VxBlitEngine::ClearAlpha(const VxImageDescEx &desc) {
 #if defined(VX_SIMD_SSE2)
         ClearAlpha_32_SSE(&info);
 #else
-        XULONG *dst = (XULONG *)row;
+        XDWORD *dst = (XDWORD *)row;
         for (int x = 0; x < desc.Width; ++x) {
             dst[x] &= 0x00FFFFFF;
         }
@@ -2640,7 +2640,7 @@ void VxBlitEngine::SetFullAlpha(const VxImageDescEx &desc) {
 #if defined(VX_SIMD_SSE2)
         SetFullAlpha_32_SSE(&info);
 #else
-        XULONG *dst = (XULONG *)row;
+        XDWORD *dst = (XDWORD *)row;
         for (int x = 0; x < desc.Width; ++x) {
             dst[x] |= 0xFF000000;
         }
@@ -2667,7 +2667,7 @@ void VxBlitEngine::InvertColors(const VxImageDescEx &desc) {
 #if defined(VX_SIMD_SSE2)
         InvertColors_32_SSE(&info);
 #else
-        XULONG *dst = (XULONG *)row;
+        XDWORD *dst = (XDWORD *)row;
         for (int x = 0; x < desc.Width; ++x) {
             dst[x] ^= 0x00FFFFFF;
         }
@@ -2695,14 +2695,14 @@ void VxBlitEngine::ConvertToGrayscale(const VxImageDescEx &desc) {
 #if defined(VX_SIMD_SSE2)
         Grayscale_32_SSE(&info);
 #else
-        XULONG *dst = (XULONG *)row;
+        XDWORD *dst = (XDWORD *)row;
         for (int x = 0; x < desc.Width; ++x) {
-            XULONG p = dst[x];
-            XULONG a = p & 0xFF000000;
-            XULONG r = (p >> 16) & 0xFF;
-            XULONG g = (p >> 8) & 0xFF;
-            XULONG b = p & 0xFF;
-            XULONG y_val = (77 * r + 150 * g + 29 * b) >> 8;
+            XDWORD p = dst[x];
+            XDWORD a = p & 0xFF000000;
+            XDWORD r = (p >> 16) & 0xFF;
+            XDWORD g = (p >> 8) & 0xFF;
+            XDWORD b = p & 0xFF;
+            XDWORD y_val = (77 * r + 150 * g + 29 * b) >> 8;
             dst[x] = a | (y_val << 16) | (y_val << 8) | y_val;
         }
 #endif
@@ -2731,15 +2731,15 @@ void VxBlitEngine::MultiplyBlend(const VxImageDescEx &src_desc, const VxImageDes
 #if defined(VX_SIMD_SSE2)
         MultiplyBlend_32_SSE(&info);
 #else
-        const XULONG *src = (const XULONG *)srcRow;
-        XULONG *dst = (XULONG *)dstRow;
+        const XDWORD *src = (const XDWORD *)srcRow;
+        XDWORD *dst = (XDWORD *)dstRow;
         for (int x = 0; x < src_desc.Width; ++x) {
-            XULONG s = src[x];
-            XULONG d = dst[x];
-            XULONG r = (((s >> 16) & 0xFF) * ((d >> 16) & 0xFF) + 127) / 255;
-            XULONG g = (((s >> 8) & 0xFF) * ((d >> 8) & 0xFF) + 127) / 255;
-            XULONG b = ((s & 0xFF) * (d & 0xFF) + 127) / 255;
-            XULONG a = (((s >> 24) & 0xFF) * ((d >> 24) & 0xFF) + 127) / 255;
+            XDWORD s = src[x];
+            XDWORD d = dst[x];
+            XDWORD r = (((s >> 16) & 0xFF) * ((d >> 16) & 0xFF) + 127) / 255;
+            XDWORD g = (((s >> 8) & 0xFF) * ((d >> 8) & 0xFF) + 127) / 255;
+            XDWORD b = ((s & 0xFF) * (d & 0xFF) + 127) / 255;
+            XDWORD a = (((s >> 24) & 0xFF) * ((d >> 24) & 0xFF) + 127) / 255;
             dst[x] = (a << 24) | (r << 16) | (g << 8) | b;
         }
 #endif
@@ -2780,7 +2780,7 @@ void VxBlitEngine::DoBlitWithResize(const VxImageDescEx &src_desc, const VxImage
     m_BlitInfo.srcLine = (const XBYTE *)resizeInfo.dstRow;
     XBYTE *dstRow = dst_desc.Image;
 
-    const XULONG *srcImage = (const XULONG *)src_desc.Image;
+    const XDWORD *srcImage = (const XDWORD *)src_desc.Image;
     int srcHeight = src_desc.Height;
     int dstHeight = dst_desc.Height;
 
@@ -2954,9 +2954,9 @@ void VxBlitEngine::ResizeBilinear32(const VxImageDescEx &src_desc, const VxImage
         const int fracY = srcYFixed & 0xFFFF;
         const int invFracY = 0x10000 - fracY;
 
-        const XULONG *srcRow0 = (const XULONG *)(src_desc.Image + srcY0 * src_desc.BytesPerLine);
-        const XULONG *srcRow1 = (const XULONG *)(src_desc.Image + srcY1 * src_desc.BytesPerLine);
-        XULONG *dstRow = (XULONG *)(dst_desc.Image + y * dst_desc.BytesPerLine);
+        const XDWORD *srcRow0 = (const XDWORD *)(src_desc.Image + srcY0 * src_desc.BytesPerLine);
+        const XDWORD *srcRow1 = (const XDWORD *)(src_desc.Image + srcY1 * src_desc.BytesPerLine);
+        XDWORD *dstRow = (XDWORD *)(dst_desc.Image + y * dst_desc.BytesPerLine);
 
         // SSE constants for this row
         const __m128i vFracY = _mm_set1_epi16((short)(fracY >> 8));
@@ -2971,10 +2971,10 @@ void VxBlitEngine::ResizeBilinear32(const VxImageDescEx &src_desc, const VxImage
             const int invFracX = 0x10000 - fracX;
 
             // Load 4 corner pixels
-            XULONG p00 = srcRow0[srcX0];
-            XULONG p10 = srcRow0[srcX1];
-            XULONG p01 = srcRow1[srcX0];
-            XULONG p11 = srcRow1[srcX1];
+            XDWORD p00 = srcRow0[srcX0];
+            XDWORD p10 = srcRow0[srcX1];
+            XDWORD p01 = srcRow1[srcX0];
+            XDWORD p11 = srcRow1[srcX1];
 
             // Convert fractional weights to 8-bit for SSE (0-256 range)
             // Use rounding for better precision
@@ -3028,9 +3028,9 @@ void VxBlitEngine::ResizeBilinear32(const VxImageDescEx &src_desc, const VxImage
         const int fracY = srcYFixed & 0xFFFF;
         const int invFracY = 0x10000 - fracY;
 
-        const XULONG *srcRow0 = (const XULONG *)(src_desc.Image + srcY0 * src_desc.BytesPerLine);
-        const XULONG *srcRow1 = (const XULONG *)(src_desc.Image + srcY1 * src_desc.BytesPerLine);
-        XULONG *dstRow = (XULONG *)(dst_desc.Image + y * dst_desc.BytesPerLine);
+        const XDWORD *srcRow0 = (const XDWORD *)(src_desc.Image + srcY0 * src_desc.BytesPerLine);
+        const XDWORD *srcRow1 = (const XDWORD *)(src_desc.Image + srcY1 * src_desc.BytesPerLine);
+        XDWORD *dstRow = (XDWORD *)(dst_desc.Image + y * dst_desc.BytesPerLine);
 
         int srcXFixed = 0;
         for (int x = 0; x < dstW; ++x) {
@@ -3039,19 +3039,19 @@ void VxBlitEngine::ResizeBilinear32(const VxImageDescEx &src_desc, const VxImage
             const int fracX = srcXFixed & 0xFFFF;
             const int invFracX = 0x10000 - fracX;
 
-            XULONG p00 = srcRow0[srcX0];
-            XULONG p10 = srcRow0[srcX1];
-            XULONG p01 = srcRow1[srcX0];
-            XULONG p11 = srcRow1[srcX1];
+            XDWORD p00 = srcRow0[srcX0];
+            XDWORD p10 = srcRow0[srcX1];
+            XDWORD p01 = srcRow1[srcX0];
+            XDWORD p11 = srcRow1[srcX1];
 
             // Bilinear interpolation for each channel
-            XULONG a = ((((p00 >> 24) & 0xFF) * invFracX + ((p10 >> 24) & 0xFF) * fracX) >> 16) * invFracY +
+            XDWORD a = ((((p00 >> 24) & 0xFF) * invFracX + ((p10 >> 24) & 0xFF) * fracX) >> 16) * invFracY +
                        ((((p01 >> 24) & 0xFF) * invFracX + ((p11 >> 24) & 0xFF) * fracX) >> 16) * fracY;
-            XULONG r = ((((p00 >> 16) & 0xFF) * invFracX + ((p10 >> 16) & 0xFF) * fracX) >> 16) * invFracY +
+            XDWORD r = ((((p00 >> 16) & 0xFF) * invFracX + ((p10 >> 16) & 0xFF) * fracX) >> 16) * invFracY +
                        ((((p01 >> 16) & 0xFF) * invFracX + ((p11 >> 16) & 0xFF) * fracX) >> 16) * fracY;
-            XULONG g = ((((p00 >> 8) & 0xFF) * invFracX + ((p10 >> 8) & 0xFF) * fracX) >> 16) * invFracY +
+            XDWORD g = ((((p00 >> 8) & 0xFF) * invFracX + ((p10 >> 8) & 0xFF) * fracX) >> 16) * invFracY +
                        ((((p01 >> 8) & 0xFF) * invFracX + ((p11 >> 8) & 0xFF) * fracX) >> 16) * fracY;
-            XULONG b = (((p00 & 0xFF) * invFracX + (p10 & 0xFF) * fracX) >> 16) * invFracY +
+            XDWORD b = (((p00 & 0xFF) * invFracX + (p10 & 0xFF) * fracX) >> 16) * invFracY +
                        (((p01 & 0xFF) * invFracX + (p11 & 0xFF) * fracX) >> 16) * fracY;
 
             dstRow[x] = ((a >> 16) << 24) | ((r >> 16) << 16) | ((g >> 16) << 8) | (b >> 16);
@@ -3095,7 +3095,7 @@ void VxBlitEngine::ResizeBilinear24(const VxImageDescEx &src_desc, const VxImage
 
             // Bilinear interpolation for each channel (BGR order)
             for (int c = 0; c < 3; ++c) {
-                XULONG v = (((p00[c] * invFracX + p10[c] * fracX) >> 16) * invFracY +
+                XDWORD v = (((p00[c] * invFracX + p10[c] * fracX) >> 16) * invFracY +
                             ((p01[c] * invFracX + p11[c] * fracX) >> 16) * fracY) >> 16;
                 dstRow[x * 3 + c] = (XBYTE)v;
             }
@@ -3294,7 +3294,7 @@ XBOOL VxBlitEngine::QuantizeImageMedianCut(const VxImageDescEx &src_desc, const 
     // Step 1: Build color histogram
     // Use a hash table for color counting
     struct ColorEntry {
-        XULONG color;
+        XDWORD color;
         int count;
         int next;
     };
@@ -3320,8 +3320,8 @@ XBOOL VxBlitEngine::QuantizeImageMedianCut(const VxImageDescEx &src_desc, const 
             XBYTE r = src[2];
 
             // Create color key (5-6-5 quantized for hash)
-            XULONG colorKey = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
-            XULONG fullColor = (r << 16) | (g << 8) | b;
+            XDWORD colorKey = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+            XDWORD fullColor = (r << 16) | (g << 8) | b;
 
             // Search hash chain
             int idx = hashTable[colorKey];

@@ -73,7 +73,7 @@ TEST_F(BlitEngineStrideTest, PaddedStride_32BitCopy_PreservesSentinels) {
 
     // Fill source pixels only (not padding)
     for (int y = 0; y < height; ++y) {
-        XULONG* row = reinterpret_cast<XULONG*>(srcBuf.Row(y));
+        XDWORD* row = reinterpret_cast<XDWORD*>(srcBuf.Row(y));
         for (int x = 0; x < width; ++x) {
             row[x] = 0xFFFF0000 | (y << 8) | x;  // Red with varying GB
         }
@@ -88,8 +88,8 @@ TEST_F(BlitEngineStrideTest, PaddedStride_32BitCopy_PreservesSentinels) {
 
     // Verify content copied correctly
     for (int y = 0; y < height; ++y) {
-        const XULONG* srcRow = reinterpret_cast<const XULONG*>(srcBuf.Row(y));
-        const XULONG* dstRow = reinterpret_cast<const XULONG*>(dstBuf.Row(y));
+        const XDWORD* srcRow = reinterpret_cast<const XDWORD*>(srcBuf.Row(y));
+        const XDWORD* dstRow = reinterpret_cast<const XDWORD*>(dstBuf.Row(y));
         for (int x = 0; x < width; ++x) {
             EXPECT_EQ(srcRow[x], dstRow[x]) 
                 << "Pixel mismatch at (" << x << "," << y << ")";
@@ -111,7 +111,7 @@ TEST_F(BlitEngineStrideTest, PaddedStride_32To24Conversion_PreservesSentinels) {
 
     // Fill source with gradient
     for (int y = 0; y < height; ++y) {
-        XULONG* row = reinterpret_cast<XULONG*>(srcBuf.Row(y));
+        XDWORD* row = reinterpret_cast<XDWORD*>(srcBuf.Row(y));
         for (int x = 0; x < width; ++x) {
             row[x] = 0xFF000000 | ((x * 20) << 16) | ((y * 50) << 8) | 0x80;
         }
@@ -126,10 +126,10 @@ TEST_F(BlitEngineStrideTest, PaddedStride_32To24Conversion_PreservesSentinels) {
 
     // Verify conversion worked
     for (int y = 0; y < height; ++y) {
-        const XULONG* srcRow = reinterpret_cast<const XULONG*>(srcBuf.Row(y));
+        const XDWORD* srcRow = reinterpret_cast<const XDWORD*>(srcBuf.Row(y));
         const XBYTE* dstRow = dstBuf.Row(y);
         for (int x = 0; x < width; ++x) {
-            XULONG srcPx = srcRow[x];
+            XDWORD srcPx = srcRow[x];
             XBYTE expR = (srcPx >> 16) & 0xFF;
             XBYTE expG = (srcPx >> 8) & 0xFF;
             XBYTE expB = srcPx & 0xFF;
@@ -173,7 +173,7 @@ TEST_F(BlitEngineStrideTest, UpsideDown_PaddedStride_PreservesSentinels) {
 
     // Fill source
     for (int y = 0; y < height; ++y) {
-        XULONG* row = reinterpret_cast<XULONG*>(srcBuf.Row(y));
+        XDWORD* row = reinterpret_cast<XDWORD*>(srcBuf.Row(y));
         for (int x = 0; x < width; ++x) {
             row[x] = 0xFF000000 | (y << 16) | (x << 8) | ((x + y) & 0xFF);
         }
@@ -188,8 +188,8 @@ TEST_F(BlitEngineStrideTest, UpsideDown_PaddedStride_PreservesSentinels) {
 
     // Verify rows are flipped
     for (int y = 0; y < height; ++y) {
-        const XULONG* srcRow = reinterpret_cast<const XULONG*>(srcBuf.Row(y));
-        const XULONG* dstRow = reinterpret_cast<const XULONG*>(dstBuf.Row(height - 1 - y));
+        const XDWORD* srcRow = reinterpret_cast<const XDWORD*>(srcBuf.Row(y));
+        const XDWORD* dstRow = reinterpret_cast<const XDWORD*>(dstBuf.Row(height - 1 - y));
         for (int x = 0; x < width; ++x) {
             EXPECT_EQ(srcRow[x], dstRow[x])
                 << "UpsideDown mismatch at src(" << x << "," << y << ")";
@@ -257,7 +257,7 @@ TEST_F(BlitEngineSelfBlitTest, SelfBlit_AlphaOp_ModifiesInPlace) {
     // In-place alpha modification
     blitter.DoAlphaBlit(desc, static_cast<XBYTE>(255));
 
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFF, (pixels[i] >> 24) & 0xFF) << "Alpha not set at pixel " << i;
         EXPECT_EQ(100, (pixels[i] >> 16) & 0xFF) << "Red changed at pixel " << i;
@@ -280,12 +280,12 @@ TEST_F(BlitEngineDimensionTest, MinimumSize_1x1_32Bit) {
         width, height
     );
 
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     src[0] = 0xDEADBEEF;
 
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
 
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     EXPECT_EQ(0xDEADBEEF, dst[0]) << "1x1 blit failed";
 }
 
@@ -294,7 +294,7 @@ TEST_F(BlitEngineDimensionTest, MinimumSize_1x1_Conversion) {
     ImageBuffer srcBuf(4);
     ImageBuffer dstBuf(2);
 
-    XULONG* src = reinterpret_cast<XULONG*>(srcBuf.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(srcBuf.Data());
     src[0] = 0xFFFF0000;  // Pure red, full alpha
 
     auto srcDesc = ImageDescFactory::Create32BitARGB(1, 1, srcBuf.Data());
@@ -378,7 +378,7 @@ TEST_F(BlitEngineDimensionTest, OddDimensions_Conversion_32To24) {
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
 
         // Verify conversion
-        const XULONG* src = reinterpret_cast<const XULONG*>(pair.srcBuffer.Data());
+        const XDWORD* src = reinterpret_cast<const XDWORD*>(pair.srcBuffer.Data());
         const XBYTE* dst = pair.dstBuffer.Data();
         bool ok = true;
         for (int i = 0; i < width * height && ok; ++i) {
@@ -461,7 +461,7 @@ TEST_F(BlitEngineDimensionMismatchTest, SmallerDst_ClipsToDestination) {
     // Either clips to dst size, or resizes. Document actual behavior.
     // At minimum, it should not crash and should write something to dst.
     bool anyNonZero = false;
-    const XULONG* dst = reinterpret_cast<const XULONG*>(dstBuf.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(dstBuf.Data());
     for (int i = 0; i < dstW * dstH; ++i) {
         if (dst[i] != 0) { anyNonZero = true; break; }
     }
@@ -504,7 +504,7 @@ TEST_F(BlitEngineAlphaEdgeCaseTest, AlphaArray_AllZeros) {
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
     blitter.DoAlphaBlit(desc, alphaValues.data());
 
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0x00, (pixels[i] >> 24) & 0xFF) << "Alpha not zero at pixel " << i;
     }
@@ -520,7 +520,7 @@ TEST_F(BlitEngineAlphaEdgeCaseTest, AlphaArray_AllMax) {
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
     blitter.DoAlphaBlit(desc, alphaValues.data());
 
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFF, (pixels[i] >> 24) & 0xFF) << "Alpha not 255 at pixel " << i;
     }
@@ -539,7 +539,7 @@ TEST_F(BlitEngineAlphaEdgeCaseTest, AlphaArray_Gradient) {
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
     blitter.DoAlphaBlit(desc, alphaValues.data());
 
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width; ++i) {
         EXPECT_EQ(i, (pixels[i] >> 24) & 0xFF) << "Alpha mismatch at pixel " << i;
     }
@@ -558,7 +558,7 @@ TEST_F(BlitEngineResizeEdgeCaseTest, Resize_1x1_To_Larger) {
     ImageBuffer srcBuf(srcW * srcH * 4);
     ImageBuffer dstBuf(dstW * dstH * 4);
 
-    XULONG* src = reinterpret_cast<XULONG*>(srcBuf.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(srcBuf.Data());
     src[0] = 0xFFAABBCC;
 
     auto srcDesc = ImageDescFactory::Create32BitARGB(srcW, srcH, srcBuf.Data());
@@ -567,7 +567,7 @@ TEST_F(BlitEngineResizeEdgeCaseTest, Resize_1x1_To_Larger) {
     blitter.ResizeImage(srcDesc, dstDesc);
 
     // All destination pixels should be the same color (bilinear of single pixel)
-    const XULONG* dst = reinterpret_cast<const XULONG*>(dstBuf.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(dstBuf.Data());
     for (int i = 0; i < dstW * dstH; ++i) {
         EXPECT_EQ(0xFFAABBCC, dst[i]) << "Resize 1x1 to larger failed at pixel " << i;
     }
@@ -673,7 +673,7 @@ TEST_F(BlitEngineExtraOpsEdgeCaseTest, PremultiplyAlpha_ZeroAlpha) {
     blitter.PremultiplyAlpha(desc);
 
     // With zero alpha, RGB should become 0
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0x00000000, pixels[i]) << "Premultiply with alpha=0 should zero RGB";
     }
@@ -689,7 +689,7 @@ TEST_F(BlitEngineExtraOpsEdgeCaseTest, PremultiplyAlpha_FullAlpha) {
     blitter.PremultiplyAlpha(desc);
 
     // With full alpha, RGB should be unchanged
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(100, (pixels[i] >> 16) & 0xFF) << "R changed with alpha=255";
         EXPECT_EQ(150, (pixels[i] >> 8) & 0xFF) << "G changed with alpha=255";
@@ -770,7 +770,7 @@ TEST_F(BlitEngineExtraOpsEdgeCaseTest, Grayscale_PreservesAlpha) {
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
     blitter.ConvertToGrayscale(desc);
 
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(128, (pixels[i] >> 24) & 0xFF) << "Alpha changed during grayscale";
     }
@@ -784,7 +784,7 @@ TEST_F(BlitEngineExtraOpsEdgeCaseTest, FillImage_32Bit) {
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
     blitter.FillImage(desc, 0xAABBCCDD);
 
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xAABBCCDD, pixels[i]) << "FillImage failed at pixel " << i;
     }
@@ -836,8 +836,8 @@ TEST_F(BlitEngineLargeImageTest, LargeImage_2048x2048_32BitCopy) {
     EXPECT_NO_THROW(blitter.DoBlit(srcDesc, dstDesc));
 
     // Spot check a few pixels
-    const XULONG* src = reinterpret_cast<const XULONG*>(srcBuf.Data());
-    const XULONG* dst = reinterpret_cast<const XULONG*>(dstBuf.Data());
+    const XDWORD* src = reinterpret_cast<const XDWORD*>(srcBuf.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(dstBuf.Data());
 
     EXPECT_EQ(src[0], dst[0]);
     EXPECT_EQ(src[size * size / 2], dst[size * size / 2]);

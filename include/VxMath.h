@@ -72,7 +72,7 @@ VX_EXPORT void InterpolateFloatArray(void *Res, void *array1, void *array2, floa
  * @param StrideRes The stride in bytes for the result array.
  * @param StrideIn The stride in bytes for the input arrays.
  */
-VX_EXPORT void InterpolateVectorArray(void *Res, void *Inarray1, void *Inarray2, float factor, int count, XULONG StrideRes, XULONG StrideIn);
+VX_EXPORT void InterpolateVectorArray(void *Res, void *Inarray1, void *Inarray2, float factor, int count, XDWORD StrideRes, XDWORD StrideIn);
 
 /**
  * @brief Transforms a 3D bounding box to 2D screen space extents.
@@ -104,7 +104,7 @@ VX_EXPORT void VxProjectBoxZExtents(const VxMatrix &World_ProjectionMat, const V
  * @param Src Pointer to the source data block.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxFillStructure(int Count, void *Dst, XULONG Stride, XULONG SizeSrc, void *Src);
+VX_EXPORT XBOOL VxFillStructure(int Count, void *Dst, XDWORD Stride, XDWORD SizeSrc, void *Src);
 
 /**
  * @brief Copies data from one strided array to another.
@@ -116,7 +116,7 @@ VX_EXPORT XBOOL VxFillStructure(int Count, void *Dst, XULONG Stride, XULONG Size
  * @param InStride The stride in bytes of the source array.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxCopyStructure(int Count, void *Dst, XULONG OutStride, XULONG SizeSrc, void *Src, XULONG InStride);
+VX_EXPORT XBOOL VxCopyStructure(int Count, void *Dst, XDWORD OutStride, XDWORD SizeSrc, void *Src, XDWORD InStride);
 
 /**
  * @brief Copies elements from a source array to a destination array using an index list.
@@ -127,7 +127,7 @@ VX_EXPORT XBOOL VxCopyStructure(int Count, void *Dst, XULONG OutStride, XULONG S
  * @param IndexCount The number of indices in the `Indices` array.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxIndexedCopy(const VxStridedData &Dst, const VxStridedData &Src, XULONG SizeSrc, int *Indices, int IndexCount);
+VX_EXPORT XBOOL VxIndexedCopy(const VxStridedData &Dst, const VxStridedData &Src, XDWORD SizeSrc, int *Indices, int IndexCount);
 
 /**
  * @brief Performs a bit-block transfer (blit) from a source image to a destination image.
@@ -165,7 +165,7 @@ VX_EXPORT void VxDoAlphaBlit(const VxImageDescEx &dst_desc, XBYTE *AlphaValues);
  * @param Bbits Output parameter for the number of blue bits.
  * @param Abits Output parameter for the number of alpha bits.
  */
-VX_EXPORT void VxGetBitCounts(const VxImageDescEx &desc, XULONG &Rbits, XULONG &Gbits, XULONG &Bbits, XULONG &Abits);
+VX_EXPORT void VxGetBitCounts(const VxImageDescEx &desc, XDWORD &Rbits, XDWORD &Gbits, XDWORD &Bbits, XDWORD &Abits);
 
 /**
  * @brief Gets the bit shifts for each color component from an image description.
@@ -175,7 +175,7 @@ VX_EXPORT void VxGetBitCounts(const VxImageDescEx &desc, XULONG &Rbits, XULONG &
  * @param Bshift Output parameter for the blue component bit shift.
  * @param Ashift Output parameter for the alpha component bit shift.
  */
-VX_EXPORT void VxGetBitShifts(const VxImageDescEx &desc, XULONG &Rshift, XULONG &Gshift, XULONG &Bshift, XULONG &Ashift);
+VX_EXPORT void VxGetBitShifts(const VxImageDescEx &desc, XDWORD &Rshift, XDWORD &Gshift, XDWORD &Bshift, XDWORD &Ashift);
 
 /**
  * @brief Generates the next mipmap level from a source image.
@@ -197,7 +197,7 @@ VX_EXPORT void VxResizeImage32(const VxImageDescEx &src_desc, const VxImageDescE
  * @param ColorMask A mask indicating which channel (R, G, or B) contains the height information.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XULONG ColorMask);
+VX_EXPORT XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XDWORD ColorMask);
 
 /**
  * @brief Converts an image to a bump map.
@@ -211,14 +211,14 @@ VX_EXPORT XBOOL VxConvertToBumpMap(const VxImageDescEx &image);
  * @param dwMask The mask to count bits in.
  * @return The number of set bits.
  */
-VX_EXPORT XULONG GetBitCount(XULONG dwMask);
+VX_EXPORT XDWORD GetBitCount(XDWORD dwMask);
 
 /**
  * @brief Gets the bit position of the least significant bit in a mask.
  * @param dwMask The mask to analyze.
  * @return The bit shift value.
  */
-VX_EXPORT XULONG GetBitShift(XULONG dwMask);
+VX_EXPORT XDWORD GetBitShift(XDWORD dwMask);
 
 /**
  * @brief Converts an image description to a pixel format enum.
@@ -275,14 +275,14 @@ VX_EXPORT int GetProcessorFrequency();
  * @brief Gets a bitmask of detected processor features (e.g., MMX, SSE).
  * @return A bitmask of processor features.
  */
-VX_EXPORT XULONG GetProcessorFeatures();
+VX_EXPORT XDWORD GetProcessorFeatures();
 
 /**
  * @brief Manually adds or removes processor features from the detected set.
  * @param Add A bitmask of features to add.
  * @param Remove A bitmask of features to remove.
  */
-VX_EXPORT void ModifyProcessorFeatures(XULONG Add, XULONG Remove);
+VX_EXPORT void ModifyProcessorFeatures(XDWORD Add, XDWORD Remove);
 
 /**
  * @brief Gets the general type of the processor.
@@ -294,7 +294,7 @@ VX_EXPORT ProcessorsType GetProcessorType();
  * @brief Gets a bitmask of instruction set extensions supported by the processor.
  * @return A bitmask of instruction set extensions.
  */
-VX_EXPORT XULONG GetInstructionSetExtensions();
+VX_EXPORT XDWORD GetInstructionSetExtensions();
 
 /**
  * @brief Checks if a point is inside a rectangle.
@@ -313,6 +313,6 @@ VX_EXPORT XBOOL VxPtInRect(CKRECT *rect, CKPOINT *pt);
  * @param AdditionalBorder A value to expand the computed box by.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxComputeBestFitBBox(const XBYTE *Points, XULONG Stride, int Count, VxMatrix &BBoxMatrix, float AdditionalBorder);
+VX_EXPORT XBOOL VxComputeBestFitBBox(const XBYTE *Points, XDWORD Stride, int Count, VxMatrix &BBoxMatrix, float AdditionalBorder);
 
 #endif // VXMATH_H

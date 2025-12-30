@@ -63,7 +63,7 @@ public:
 
 protected:
     /// @brief Internal storage for timing data, likely OS-specific high-resolution timer values.
-    XULONG Times[4];
+    XDWORD Times[4];
 };
 
 #endif // VXTIMEPROFILER_H

@@ -24,18 +24,18 @@
 float g_MSecondsPerCycle;
 ProcessorsType g_ProcessorType;
 int g_ProcessorFrequency;
-XULONG g_ProcessorFeatures;
-XULONG g_InstructionSetExtensions;
+XDWORD g_ProcessorFeatures;
+XDWORD g_InstructionSetExtensions;
 char g_ProcDescription[64];
 
 typedef struct CpuIdRegs {
-    XULONG eax;
-    XULONG ebx;
-    XULONG ecx;
-    XULONG edx;
+    XDWORD eax;
+    XDWORD ebx;
+    XDWORD ecx;
+    XDWORD edx;
 } CpuIdRegs;
 
-static CpuIdRegs cpuid(XULONG eax) {
+static CpuIdRegs cpuid(XDWORD eax) {
     CpuIdRegs regs;
 #if defined(__GNUC__)
     __cpuid(eax, regs.eax, regs.ebx, regs.ecx, regs.edx);
@@ -50,7 +50,7 @@ static CpuIdRegs cpuid(XULONG eax) {
     return regs;
 }
 
-static inline CpuIdRegs cpuidex(XULONG eax, XULONG ecx) {
+static inline CpuIdRegs cpuidex(XDWORD eax, XDWORD ecx) {
     CpuIdRegs regs;
 #if defined(__GNUC__)
     __cpuid_count(eax, ecx, regs.eax, regs.ebx, regs.ecx, regs.edx);
@@ -428,11 +428,11 @@ int GetProcessorFrequency() {
     return g_ProcessorFrequency;
 }
 
-XULONG GetProcessorFeatures() {
+XDWORD GetProcessorFeatures() {
     return g_ProcessorFeatures;
 }
 
-void ModifyProcessorFeatures(XULONG Add, XULONG Remove) {
+void ModifyProcessorFeatures(XDWORD Add, XDWORD Remove) {
     g_ProcessorFeatures = (g_ProcessorFeatures | Add) & ~Remove;
 }
 
@@ -440,6 +440,6 @@ ProcessorsType GetProcessorType() {
     return g_ProcessorType;
 }
 
-XULONG GetInstructionSetExtensions() {
+XDWORD GetInstructionSetExtensions() {
     return g_InstructionSetExtensions;
 }

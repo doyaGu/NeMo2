@@ -12,9 +12,9 @@
 #endif
 
 // Include the functions under test
-typedef unsigned long XULONG;
+typedef unsigned long XDWORD;
 
-XULONG VxEscapeURL(char *InURL, XString &OutURL) {
+XDWORD VxEscapeURL(char *InURL, XString &OutURL) {
     if (!InURL) {
         OutURL = "";
         return -1;
@@ -132,245 +132,245 @@ protected:
 };
 
 TEST_F(VxEscapeURLTest, NullInput) {
-    XULONG result = VxEscapeURL(nullptr, outURL);
-    EXPECT_EQ(result, (XULONG)-1);
+    XDWORD result = VxEscapeURL(nullptr, outURL);
+    EXPECT_EQ(result, (XDWORD)-1);
     EXPECT_TRUE(outURL == "");
 }
 
 TEST_F(VxEscapeURLTest, EmptyString) {
     char input[] = "";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file://");
 }
 
 TEST_F(VxEscapeURLTest, FileProtocolAlreadyPresent) {
     char input[] = "file:///path/to/file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/file.txt");
 }
 
 TEST_F(VxEscapeURLTest, FileProtocolCaseInsensitive) {
     char input[] = "FILE:///path/to/file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "FILE:///path/to/file.txt");
 }
 
 TEST_F(VxEscapeURLTest, FileProtocolMixedCase) {
     char input[] = "File:///path/to/file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "File:///path/to/file.txt");
 }
 
 TEST_F(VxEscapeURLTest, HttpProtocolNoEscaping) {
     char input[] = "http://example.com/path";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "http://example.com/path");
 }
 
 TEST_F(VxEscapeURLTest, HttpsProtocolNoEscaping) {
     char input[] = "https://example.com/path";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "https://example.com/path");
 }
 
 TEST_F(VxEscapeURLTest, FtpProtocolNoEscaping) {
     char input[] = "ftp://example.com/path";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "ftp://example.com/path");
 }
 
 TEST_F(VxEscapeURLTest, CustomProtocolNoEscaping) {
     char input[] = "custom://server/path";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "custom://server/path");
 }
 
 TEST_F(VxEscapeURLTest, NoProtocolNoSpecialChars) {
     char input[] = "/path/to/file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/file.txt");
 }
 
 TEST_F(VxEscapeURLTest, WindowsPathNoSpecialChars) {
     char input[] = "C:/Users/test/file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file://C:/Users/test/file.txt");
 }
 
 TEST_F(VxEscapeURLTest, RelativePathNoSpecialChars) {
     char input[] = "documents/file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file://documents/file.txt");
 }
 
 TEST_F(VxEscapeURLTest, SpaceEscaping) {
     char input[] = "/path/to/my file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/my%20file.txt");
 }
 
 TEST_F(VxEscapeURLTest, MultipleSpacesEscaping) {
     char input[] = "/path with many spaces/file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path%20with%20many%20spaces/file.txt");
 }
 
 TEST_F(VxEscapeURLTest, HashEscaping) {
     char input[] = "/path/to/file#1.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/file%231.txt");
 }
 
 TEST_F(VxEscapeURLTest, DollarSignEscaping) {
     char input[] = "/path/to/$file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/%24file.txt");
 }
 
 TEST_F(VxEscapeURLTest, PercentEscaping) {
     char input[] = "/path/to/100%complete.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/100%25complete.txt");
 }
 
 TEST_F(VxEscapeURLTest, AmpersandEscaping) {
     char input[] = "/path/to/Tom&Jerry.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/Tom%26Jerry.txt");
 }
 
 TEST_F(VxEscapeURLTest, BackslashEscaping) {
     char input[] = "C:\\path\\to\\file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file://C:%5Cpath%5Cto%5Cfile.txt");
 }
 
 TEST_F(VxEscapeURLTest, PlusSignEscaping) {
     char input[] = "/path/to/C++file.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/C%2B%2Bfile.txt");
 }
 
 TEST_F(VxEscapeURLTest, CommaEscaping) {
     char input[] = "/path/to/list,of,items.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/list%2Cof%2Citems.txt");
 }
 
 TEST_F(VxEscapeURLTest, SemicolonEscaping) {
     char input[] = "/path/to/file;version=1.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/file%3Bversion%3D1.txt");
 }
 
 TEST_F(VxEscapeURLTest, EqualsEscaping) {
     char input[] = "/path/to/equation=result.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/equation%3Dresult.txt");
 }
 
 TEST_F(VxEscapeURLTest, AtSignEscaping) {
     char input[] = "/path/to/email@domain.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/email%40domain.txt");
 }
 
 TEST_F(VxEscapeURLTest, BracketEscaping) {
     char input[] = "/path/to/array[0].txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/array%5B0%5D.txt");
 }
 
 TEST_F(VxEscapeURLTest, CaretEscaping) {
     char input[] = "/path/to/power^2.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/power%5E2.txt");
 }
 
 TEST_F(VxEscapeURLTest, BraceEscaping) {
     char input[] = "/path/to/{template}.txt";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file:///path/to/%7Btemplate%7D.txt");
 }
 
 TEST_F(VxEscapeURLTest, AllSpecialCharacters) {
     char input[] = "path with #$%&\\+,;=@[]^{} all";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file://path%20with%20%23%24%25%26%5C%2B%2C%3B%3D%40%5B%5D%5E%7B%7D%20all");
 }
 
 TEST_F(VxEscapeURLTest, HttpUrlWithSpecialChars) {
     char input[] = "http://example.com/path with spaces?query=test&value=100%";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "http://example.com/path%20with%20spaces?query%3Dtest%26value%3D100%25");
 }
 
 TEST_F(VxEscapeURLTest, HttpsUrlWithSpecialChars) {
     char input[] = "https://example.com/path#anchor";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "https://example.com/path%23anchor");
 }
 
 TEST_F(VxEscapeURLTest, EdgeCaseEmptyPathWithProtocol) {
     char input[] = "http://";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "http://");
 }
 
 TEST_F(VxEscapeURLTest, OnlySpecialCharacters) {
     char input[] = " #$%&\\+,;=@[]^{}";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file://%20%23%24%25%26%5C%2B%2C%3B%3D%40%5B%5D%5E%7B%7D");
 }
 
 TEST_F(VxEscapeURLTest, OnlySpaces) {
     char input[] = "   ";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file://%20%20%20");
 }
 
 TEST_F(VxEscapeURLTest, SingleCharacterSpecial) {
     char input[] = " ";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "file://%20");
 }
 
 TEST_F(VxEscapeURLTest, ProtocolWithPort) {
     char input[] = "http://localhost:8080/path";
-    XULONG result = VxEscapeURL(input, outURL);
+    XDWORD result = VxEscapeURL(input, outURL);
     EXPECT_EQ(result, 0u);
     EXPECT_TRUE(outURL == "http://localhost:8080/path");
 }
@@ -582,7 +582,7 @@ protected:
         char *input = new char[strlen(original) + 1];
         strcpy(input, original);
 
-        XULONG result = VxEscapeURL(input, escaped);
+        XDWORD result = VxEscapeURL(input, escaped);
         EXPECT_EQ(result, 0u);
 
         XString unescaped = escaped;
@@ -641,7 +641,7 @@ TEST(EdgeCaseTest, VeryLongUrl) {
     strcpy(input, longPath.CStr());
 
     XString result;
-    XULONG status = VxEscapeURL(input, result);
+    XDWORD status = VxEscapeURL(input, result);
     EXPECT_EQ(status, 0u);
     EXPECT_GT(result.Length(), 0u);
 
@@ -651,7 +651,7 @@ TEST(EdgeCaseTest, VeryLongUrl) {
 TEST(EdgeCaseTest, OnlyPercentSigns) {
     char input[] = "%%%%%%";
     XString result;
-    XULONG status = VxEscapeURL(input, result);
+    XDWORD status = VxEscapeURL(input, result);
     EXPECT_EQ(status, 0u);
     EXPECT_TRUE(result == "file://%25%25%25%25%25%25");
 }
@@ -659,7 +659,7 @@ TEST(EdgeCaseTest, OnlyPercentSigns) {
 TEST(EdgeCaseTest, AlternatingSpecialAndNormal) {
     char input[] = "a b c#d$e%f";
     XString result;
-    XULONG status = VxEscapeURL(input, result);
+    XDWORD status = VxEscapeURL(input, result);
     EXPECT_EQ(status, 0u);
     EXPECT_TRUE(result == "file://a%20b%20c%23d%24e%25f");
 }
@@ -667,7 +667,7 @@ TEST(EdgeCaseTest, AlternatingSpecialAndNormal) {
 TEST(EdgeCaseTest, AllNormalCharacters) {
     char input[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     XString result;
-    XULONG status = VxEscapeURL(input, result);
+    XDWORD status = VxEscapeURL(input, result);
     EXPECT_EQ(status, 0u);
     EXPECT_TRUE(result == "file://abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
 }
@@ -675,7 +675,7 @@ TEST(EdgeCaseTest, AllNormalCharacters) {
 TEST(EdgeCaseTest, SingleCharacter) {
     char input[] = "a";
     XString result;
-    XULONG status = VxEscapeURL(input, result);
+    XDWORD status = VxEscapeURL(input, result);
     EXPECT_EQ(status, 0u);
     EXPECT_TRUE(result == "file://a");
 }
@@ -683,7 +683,7 @@ TEST(EdgeCaseTest, SingleCharacter) {
 TEST(EdgeCaseTest, ProtocolDetectionEdgeCase) {
     char input[] = "://invalid";
     XString result;
-    XULONG status = VxEscapeURL(input, result);
+    XDWORD status = VxEscapeURL(input, result);
     EXPECT_EQ(status, 0u);
     EXPECT_TRUE(result == "://invalid"); // Should be detected as having protocol
 }

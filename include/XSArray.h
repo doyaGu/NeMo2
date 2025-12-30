@@ -293,7 +293,7 @@ public:
     /// @brief Moves an element from one position to another.
     void Move(T *i, T *n) {
         if (i >= m_Begin && i <= m_End && n >= m_Begin && n < m_End) {
-            int insertpos = i - m_Begin;
+            int insertpos = static_cast<int>(i - m_Begin);
             if (n < i) --insertpos;
             T tn = *n;
 #if VX_HAS_CXX11
@@ -439,13 +439,13 @@ protected:
 
     void XCopy(T *dest, T *start, T *end) {
         if (start == end) return;
-        int size = ((XBYTE *) end - (XBYTE *) start);
+        size_t size = static_cast<size_t>((XBYTE *) end - (XBYTE *) start);
         if (size > 0) memcpy(dest, start, size);
     }
 
     void XMove(T *dest, T *start, T *end) {
         if (start == end) return;
-        int size = ((XBYTE *) end - (XBYTE *) start);
+        size_t size = static_cast<size_t>((XBYTE *) end - (XBYTE *) start);
         if (size > 0) memmove(dest, start, size);
     }
 

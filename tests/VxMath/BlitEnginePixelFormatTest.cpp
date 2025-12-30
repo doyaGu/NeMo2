@@ -222,7 +222,7 @@ TEST_F(PixelFormatTest, ConvertPixelFormat_ARGB_Components) {
     // Test that ConvertPixelFormat correctly identifies ARGB components
     VX_PIXELFORMAT fmt = _32_ARGB8888;
     
-    XULONG aMask, rMask, gMask, bMask;
+    XDWORD aMask, rMask, gMask, bMask;
     BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask);
     
     EXPECT_EQ(0xFF000000, aMask) << "Alpha mask for ARGB";
@@ -234,7 +234,7 @@ TEST_F(PixelFormatTest, ConvertPixelFormat_ARGB_Components) {
 TEST_F(PixelFormatTest, ConvertPixelFormat_565_Components) {
     VX_PIXELFORMAT fmt = _16_RGB565;
     
-    XULONG aMask, rMask, gMask, bMask;
+    XDWORD aMask, rMask, gMask, bMask;
     BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask);
     
     EXPECT_EQ(0x0000, aMask) << "No alpha in 565";
@@ -246,7 +246,7 @@ TEST_F(PixelFormatTest, ConvertPixelFormat_565_Components) {
 TEST_F(PixelFormatTest, ConvertPixelFormat_1555_Components) {
     VX_PIXELFORMAT fmt = _16_ARGB1555;
     
-    XULONG aMask, rMask, gMask, bMask;
+    XDWORD aMask, rMask, gMask, bMask;
     BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask);
     
     EXPECT_EQ(0x8000, aMask) << "Alpha bit in 1555";
@@ -258,7 +258,7 @@ TEST_F(PixelFormatTest, ConvertPixelFormat_1555_Components) {
 TEST_F(PixelFormatTest, ConvertPixelFormat_4444_Components) {
     VX_PIXELFORMAT fmt = _16_ARGB4444;
     
-    XULONG aMask, rMask, gMask, bMask;
+    XDWORD aMask, rMask, gMask, bMask;
     BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask);
     
     EXPECT_EQ(0xF000, aMask) << "Alpha mask for 4444";
@@ -270,7 +270,7 @@ TEST_F(PixelFormatTest, ConvertPixelFormat_4444_Components) {
 TEST_F(PixelFormatTest, ConvertPixelFormat_RGB888_NoAlpha) {
     VX_PIXELFORMAT fmt = _32_RGB888;
     
-    XULONG aMask, rMask, gMask, bMask;
+    XDWORD aMask, rMask, gMask, bMask;
     BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask);
     
     EXPECT_EQ(0x00000000, aMask) << "No alpha in RGB888";
@@ -290,7 +290,7 @@ TEST_F(PixelFormatTest, RoundTrip_ARGB8888) {
     
     VX_PIXELFORMAT fmt = BlitterWrapper::GetPixelFormat(desc);
     
-    XULONG aMask, rMask, gMask, bMask;
+    XDWORD aMask, rMask, gMask, bMask;
     BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask);
     
     EXPECT_EQ(desc.AlphaMask, aMask);
@@ -306,7 +306,7 @@ TEST_F(PixelFormatTest, RoundTrip_565) {
     
     VX_PIXELFORMAT fmt = BlitterWrapper::GetPixelFormat(desc);
     
-    XULONG aMask, rMask, gMask, bMask;
+    XDWORD aMask, rMask, gMask, bMask;
     BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask);
     
     EXPECT_EQ(desc.AlphaMask, aMask);
@@ -322,7 +322,7 @@ TEST_F(PixelFormatTest, RoundTrip_1555) {
     
     VX_PIXELFORMAT fmt = BlitterWrapper::GetPixelFormat(desc);
     
-    XULONG aMask, rMask, gMask, bMask;
+    XDWORD aMask, rMask, gMask, bMask;
     BlitterWrapper::ConvertPixelFormat(fmt, aMask, rMask, gMask, bMask);
     
     EXPECT_EQ(desc.AlphaMask, aMask);

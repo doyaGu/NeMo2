@@ -15,7 +15,7 @@
  */
 typedef struct VxImageDescEx {
     int Size;     ///< Size of this structure, for versioning.
-    XULONG Flags; ///< Flags for special formats (e.g., compression types like DXT1). 0 for standard formats.
+    XDWORD Flags; ///< Flags for special formats (e.g., compression types like DXT1). 0 for standard formats.
 
     int Width;  ///< Width of the image in pixels.
     int Height; ///< Height of the image in pixels.
@@ -26,21 +26,21 @@ typedef struct VxImageDescEx {
 
     int BitsPerPixel; ///< Number of bits per pixel.
     union {
-        XULONG RedMask;    ///< Bitmask for the red component.
-        XULONG BumpDuMask; ///< Bitmask for the Du component in a bump map.
+        XDWORD RedMask;    ///< Bitmask for the red component.
+        XDWORD BumpDuMask; ///< Bitmask for the Du component in a bump map.
     };
 
     union {
-        XULONG GreenMask;  ///< Bitmask for the green component.
-        XULONG BumpDvMask; ///< Bitmask for the Dv component in a bump map.
+        XDWORD GreenMask;  ///< Bitmask for the green component.
+        XDWORD BumpDvMask; ///< Bitmask for the Dv component in a bump map.
     };
 
     union {
-        XULONG BlueMask;    ///< Bitmask for the blue component.
-        XULONG BumpLumMask; ///< Bitmask for the luminance component in a bump map.
+        XDWORD BlueMask;    ///< Bitmask for the blue component.
+        XDWORD BumpLumMask; ///< Bitmask for the luminance component in a bump map.
     };
 
-    XULONG AlphaMask; ///< Bitmask for the alpha component.
+    XDWORD AlphaMask; ///< Bitmask for the alpha component.
 
     short BytesPerColorEntry; ///< The size of each entry in the colormap, in bytes.
     short ColorMapEntries;    ///< The number of entries in the colormap. If non-zero, the image is palettized.

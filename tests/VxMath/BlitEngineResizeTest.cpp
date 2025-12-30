@@ -41,8 +41,8 @@ protected:
     // expected color from source
     bool CheckPixelApprox(const XBYTE* data, int w, int h, int x, int y,
                           XBYTE r, XBYTE g, XBYTE b, int tolerance = 5) {
-        const XULONG* pixels = reinterpret_cast<const XULONG*>(data);
-        XULONG pixel = pixels[y * w + x];
+        const XDWORD* pixels = reinterpret_cast<const XDWORD*>(data);
+        XDWORD pixel = pixels[y * w + x];
         int pr = (pixel >> 16) & 0xFF;
         int pg = (pixel >> 8) & 0xFF;
         int pb = pixel & 0xFF;
@@ -74,13 +74,13 @@ TEST_F(ResizeTest, SameSize_CopiesExactly) {
 TEST_F(ResizeTest, SameSize_1x1) {
     auto pair = CreateResizePair(1, 1, 1, 1);
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     *src = 0xFF123456;
     
     blitter.ResizeImage(pair.srcDesc, pair.dstDesc);
     ImageWriter::SaveFromDesc("resize_same_size_1x1", pair.dstDesc, "Resize");
     
-    XULONG* dst = reinterpret_cast<XULONG*>(pair.dstBuffer.Data());
+    XDWORD* dst = reinterpret_cast<XDWORD*>(pair.dstBuffer.Data());
     EXPECT_EQ(0xFF123456, *dst);
 }
 
@@ -101,7 +101,7 @@ TEST_F(ResizeTest, Upscale_2x_SolidColor) {
     EXPECT_EQ(CK_OK, result);
     
     // Every pixel should match source color (ARGB: 0xFF8040C0)
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < dstSize * dstSize; ++i) {
         EXPECT_EQ(0xFF8040C0, dst[i] & 0xFFFFFFFF) 
             << "Color mismatch at pixel " << i;
@@ -121,7 +121,7 @@ TEST_F(ResizeTest, Upscale_2x_Checkerboard) {
     // Due to bilinear filtering, edges will be blended
     // Check corners - should match source corners
     // Default checkerboard: (0,0) = white (color1)
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     EXPECT_TRUE(CheckPixelApprox(pair.dstBuffer.Data(), dstSize, dstSize, 
                                   0, 0, 255, 255, 255, 30))
         << "Top-left corner should be close to white";
@@ -138,9 +138,9 @@ TEST_F(ResizeTest, Upscale_4x) {
     EXPECT_EQ(CK_OK, result);
     
     // Gradient should still be present - check top-left is darker than bottom-right
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
-    XULONG topLeft = dst[0];
-    XULONG bottomRight = dst[dstSize * dstSize - 1];
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
+    XDWORD topLeft = dst[0];
+    XDWORD bottomRight = dst[dstSize * dstSize - 1];
     
     int tlBrightness = ((topLeft >> 16) & 0xFF) + ((topLeft >> 8) & 0xFF) + (topLeft & 0xFF);
     int brBrightness = ((bottomRight >> 16) & 0xFF) + ((bottomRight >> 8) & 0xFF) + (bottomRight & 0xFF);
@@ -161,7 +161,7 @@ TEST_F(ResizeTest, Upscale_NonPowerOf2) {
     EXPECT_EQ(CK_OK, result);
     
     // All pixels should be similar to source
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < dstW * dstH; ++i) {
         EXPECT_TRUE(CheckPixelApprox(pair.dstBuffer.Data(), dstW, dstH,
                                       i % dstW, i / dstW, 200, 100, 50, 2))
@@ -184,7 +184,7 @@ TEST_F(ResizeTest, Downscale_2x_SolidColor) {
     ImageWriter::SaveFromDesc("resize_down_2x_solid", pair.dstDesc, "Resize");
     EXPECT_EQ(CK_OK, result);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < dstSize * dstSize; ++i) {
         EXPECT_TRUE(CheckPixelApprox(pair.dstBuffer.Data(), dstSize, dstSize,
                                       i % dstSize, i / dstSize, 100, 150, 200, 2));
@@ -204,7 +204,7 @@ TEST_F(ResizeTest, Downscale_2x_Checkerboard) {
     
     // After downscaling, checkerboard should produce some blending
     // The exact result depends on filtering algorithm - allow wide tolerance
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     // Just verify the resize completes successfully - filtering varies by implementation
     EXPECT_TRUE(dst[0] != 0 || dst[dstSize * dstSize - 1] != 0)
         << "Output should not be all zeros";
@@ -221,9 +221,9 @@ TEST_F(ResizeTest, Downscale_4x) {
     EXPECT_EQ(CK_OK, result);
     
     // Gradient should be preserved
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
-    XULONG topLeft = dst[0];
-    XULONG bottomRight = dst[dstSize * dstSize - 1];
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
+    XDWORD topLeft = dst[0];
+    XDWORD bottomRight = dst[dstSize * dstSize - 1];
     
     int tlBrightness = ((topLeft >> 16) & 0xFF) + ((topLeft >> 8) & 0xFF) + (topLeft & 0xFF);
     int brBrightness = ((bottomRight >> 16) & 0xFF) + ((bottomRight >> 8) & 0xFF) + (bottomRight & 0xFF);
@@ -243,7 +243,7 @@ TEST_F(ResizeTest, Downscale_NonPowerOf2) {
     ImageWriter::SaveFromDesc("resize_down_nonpow2", pair.dstDesc, "Resize");
     EXPECT_EQ(CK_OK, result);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     // Check all pixels match
     for (int i = 0; i < dstW * dstH; ++i) {
         EXPECT_TRUE(CheckPixelApprox(pair.dstBuffer.Data(), dstW, dstH,
@@ -310,7 +310,7 @@ TEST_F(ResizeTest, NonSquare_DifferentRatios) {
 TEST_F(ResizeTest, Extreme_UpscaleFrom1x1) {
     auto pair = CreateResizePair(1, 1, 64, 64);
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     *src = 0xFF112233;
     
     CKERROR result = blitter.ResizeImage(pair.srcDesc, pair.dstDesc);
@@ -318,7 +318,7 @@ TEST_F(ResizeTest, Extreme_UpscaleFrom1x1) {
     EXPECT_EQ(CK_OK, result);
     
     // All destination pixels should be the same color
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < 64 * 64; ++i) {
         EXPECT_TRUE(CheckPixelApprox(pair.dstBuffer.Data(), 64, 64,
                                       i % 64, i / 64, 0x11, 0x22, 0x33, 2));
@@ -337,7 +337,7 @@ TEST_F(ResizeTest, Extreme_DownscaleTo1x1) {
     ImageWriter::SaveFromDesc("resize_extreme_down_to1x1", pair.dstDesc, "Resize");
     EXPECT_EQ(CK_OK, result);
     
-    XULONG* dst = reinterpret_cast<XULONG*>(pair.dstBuffer.Data());
+    XDWORD* dst = reinterpret_cast<XDWORD*>(pair.dstBuffer.Data());
     EXPECT_TRUE(CheckPixelApprox(pair.dstBuffer.Data(), 1, 1, 0, 0,
                                   0x44, 0x88, 0xCC, 10));
 }
@@ -420,7 +420,7 @@ TEST_F(ResizeTest, Alpha_PreservedDuringUpscale) {
     blitter.ResizeImage(pair.srcDesc, pair.dstDesc);
     ImageWriter::SaveFromDesc("resize_alpha_upscale", pair.dstDesc, "Resize");
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < 10; ++i) {
         XBYTE alpha = (dst[i] >> 24) & 0xFF;
         EXPECT_NEAR(128, alpha, 5) << "Alpha should be preserved";
@@ -437,7 +437,7 @@ TEST_F(ResizeTest, Alpha_PreservedDuringDownscale) {
     blitter.ResizeImage(pair.srcDesc, pair.dstDesc);
     ImageWriter::SaveFromDesc("resize_alpha_downscale", pair.dstDesc, "Resize");
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < dstSize * dstSize; ++i) {
         XBYTE alpha = (dst[i] >> 24) & 0xFF;
         EXPECT_NEAR(64, alpha, 5) << "Alpha should be preserved at pixel " << i;

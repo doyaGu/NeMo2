@@ -8,7 +8,7 @@ class VxEigenMatrix : public VxMatrix {
 public:
     VxEigenMatrix() = default;
 
-    void Covariance(const float *points, XULONG stride, int count) {
+    void Covariance(const float *points, XDWORD stride, int count) {
         VxVector sum(0.0f);
 
         float sumXX = 0.0f;

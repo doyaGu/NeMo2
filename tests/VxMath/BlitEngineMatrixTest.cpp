@@ -452,7 +452,7 @@ TEST_P(BlitEngineStrideMatrixTest, PaddedStrideWorks) {
         XBYTE* row = srcBuf.data() + y * srcStride;
         for (int x = 0; x < width; ++x) {
             if (srcFormat.bytesPerPixel == 4) {
-                reinterpret_cast<XULONG*>(row)[x] = 0xFFAABBCC;
+                reinterpret_cast<XDWORD*>(row)[x] = 0xFFAABBCC;
             } else if (srcFormat.bytesPerPixel == 3) {
                 row[x * 3 + 0] = 0xCC;
                 row[x * 3 + 1] = 0xBB;
@@ -507,7 +507,7 @@ TEST_F(BlitEngineAlphaPreservationTest, ARGB_To_ARGB_PreservesAlpha) {
     ImageBuffer dstBuf(width * height * 4);
 
     // Fill with varying alpha
-    XULONG* src = reinterpret_cast<XULONG*>(srcBuf.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(srcBuf.Data());
     for (int i = 0; i < width * height; ++i) {
         int alpha = (i * 3) % 256;
         src[i] = (alpha << 24) | 0x00AABBCC;
@@ -518,7 +518,7 @@ TEST_F(BlitEngineAlphaPreservationTest, ARGB_To_ARGB_PreservesAlpha) {
 
     blitter.DoBlit(srcDesc, dstDesc);
 
-    const XULONG* dst = reinterpret_cast<const XULONG*>(dstBuf.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(dstBuf.Data());
     for (int i = 0; i < width * height; ++i) {
         int expectedAlpha = (i * 3) % 256;
         EXPECT_EQ(expectedAlpha, (dst[i] >> 24) & 0xFF)
@@ -532,7 +532,7 @@ TEST_F(BlitEngineAlphaPreservationTest, ARGB_To_1555_ThresholdsAlpha) {
     ImageBuffer dstBuf(width * height * 2);
 
     // Fill with varying alpha: some below 128, some above
-    XULONG* src = reinterpret_cast<XULONG*>(srcBuf.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(srcBuf.Data());
     for (int i = 0; i < width * height; ++i) {
         int alpha = (i < (width * height / 2)) ? 64 : 200;  // Half low, half high
         src[i] = (alpha << 24) | 0x00FF0000;  // Red with varying alpha
@@ -562,7 +562,7 @@ TEST_F(BlitEngineAlphaPreservationTest, ARGB_To_4444_QuantizesAlpha) {
     ImageBuffer dstBuf(width * 2);
 
     // Fill with gradient alpha
-    XULONG* src = reinterpret_cast<XULONG*>(srcBuf.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(srcBuf.Data());
     for (int i = 0; i < width; ++i) {
         int alpha = i * 17;  // 0, 17, 34, ..., 255
         src[i] = (alpha << 24) | 0x00808080;
@@ -590,7 +590,7 @@ TEST_F(BlitEngineAlphaPreservationTest, RGB_To_ARGB_SetsFullAlpha) {
     dstBuf.Fill(0);
 
     // Source is RGB (no alpha mask)
-    XULONG* src = reinterpret_cast<XULONG*>(srcBuf.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(srcBuf.Data());
     for (int i = 0; i < width * height; ++i) {
         src[i] = 0x00AABBCC;  // RGB only, alpha byte is 0
     }
@@ -600,7 +600,7 @@ TEST_F(BlitEngineAlphaPreservationTest, RGB_To_ARGB_SetsFullAlpha) {
 
     blitter.DoBlit(srcDesc, dstDesc);
 
-    const XULONG* dst = reinterpret_cast<const XULONG*>(dstBuf.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(dstBuf.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFF, (dst[i] >> 24) & 0xFF)
             << "RGB->ARGB should set full alpha at pixel " << i;
@@ -644,17 +644,17 @@ TEST_F(BlitEngineColorAccuracyTest, PureColors_32To565_MaintainPurity) {
     auto dstDesc = ImageDescFactory::Create16Bit565(1, 1, dstBuf.Data());
 
     // Test pure red
-    *reinterpret_cast<XULONG*>(srcBuf.Data()) = 0xFFFF0000;
+    *reinterpret_cast<XDWORD*>(srcBuf.Data()) = 0xFFFF0000;
     blitter.DoBlit(srcDesc, dstDesc);
     EXPECT_EQ(0xF800, *reinterpret_cast<XWORD*>(dstBuf.Data())) << "Pure red -> 565 failed";
 
     // Test pure green
-    *reinterpret_cast<XULONG*>(srcBuf.Data()) = 0xFF00FF00;
+    *reinterpret_cast<XDWORD*>(srcBuf.Data()) = 0xFF00FF00;
     blitter.DoBlit(srcDesc, dstDesc);
     EXPECT_EQ(0x07E0, *reinterpret_cast<XWORD*>(dstBuf.Data())) << "Pure green -> 565 failed";
 
     // Test pure blue
-    *reinterpret_cast<XULONG*>(srcBuf.Data()) = 0xFF0000FF;
+    *reinterpret_cast<XDWORD*>(srcBuf.Data()) = 0xFF0000FF;
     blitter.DoBlit(srcDesc, dstDesc);
     EXPECT_EQ(0x001F, *reinterpret_cast<XWORD*>(dstBuf.Data())) << "Pure blue -> 565 failed";
 }
@@ -682,8 +682,8 @@ TEST_F(BlitEngineColorAccuracyTest, Paletted_ExactColorMatch) {
 
     blitter.DoBlit(srcDesc, dstDesc);
 
-    const XULONG* dst = reinterpret_cast<const XULONG*>(dstBuf.Data());
-    XULONG expected[] = {0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFFFF};
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(dstBuf.Data());
+    XDWORD expected[] = {0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFFFF};
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(expected[i % 4], dst[i])
             << "Paletted color mismatch at pixel " << i;

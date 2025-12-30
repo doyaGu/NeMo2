@@ -12,7 +12,7 @@
  * @param n Number of bytes to allocate.
  * @return A pointer to the allocated memory, or null on failure.
  */
-VX_EXPORT void *mynew(unsigned int n);
+VX_EXPORT void *mynew(size_t n);
 
 /**
  * @brief Custom memory deallocation function.
@@ -25,7 +25,7 @@ VX_EXPORT void mydelete(void *a);
  * @param n Number of bytes to allocate.
  * @return A pointer to the allocated memory, or null on failure.
  */
-VX_EXPORT void *mynewrarray(unsigned int n);
+VX_EXPORT void *mynewarray(size_t n);
 
 /**
  * @brief Custom memory deallocation function for arrays.
@@ -41,7 +41,7 @@ VX_EXPORT void mydeletearray(void *a);
  * @param align The alignment boundary. Must be a power of two.
  * @return A pointer to the aligned allocated memory, or null on failure.
  */
-VX_EXPORT void *VxNewAligned(int size, int align);
+VX_EXPORT void *VxNewAligned(size_t size, int align);
 
 /**
  * @brief Deallocates a block of memory that was allocated with VxNewAligned.

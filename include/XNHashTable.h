@@ -922,7 +922,7 @@ public:
      * @return `TRUE` if the key was found, `FALSE` otherwise.
      */
     XBOOL IsHere(const K &key) const {
-        return (XBOOL) XFindIndex(key);
+        return (XFindIndex(key) != 0) ? TRUE : FALSE;
     }
 
     /**

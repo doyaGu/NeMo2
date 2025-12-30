@@ -32,7 +32,7 @@ TEST_F(AlphaBlitTest, SetConstantAlpha_32BitARGB_FullAlpha) {
     // Save output image
     ImageWriter::SaveFromDesc("alpha_const_full", desc, "Alpha");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFF, (pixels[i] >> 24) & 0xFF) 
             << "Alpha should be 255 at pixel " << i;
@@ -54,7 +54,7 @@ TEST_F(AlphaBlitTest, SetConstantAlpha_32BitARGB_ZeroAlpha) {
     // Save output image
     ImageWriter::SaveFromDesc("alpha_const_zero", desc, "Alpha");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0x00, (pixels[i] >> 24) & 0xFF) 
             << "Alpha should be 0 at pixel " << i;
@@ -75,7 +75,7 @@ TEST_F(AlphaBlitTest, SetConstantAlpha_32BitARGB_HalfAlpha) {
     // Save output image
     ImageWriter::SaveFromDesc("alpha_const_half", desc, "Alpha");
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(128, (pixels[i] >> 24) & 0xFF) 
             << "Alpha should be 128 at pixel " << i;
@@ -183,7 +183,7 @@ TEST_F(AlphaBlitTest, CopyAlphaArray_32BitARGB_CopiesCorrectly) {
     
     blitter.DoAlphaBlit(desc, alphaValues.Data());
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(alphaValues[i], (pixels[i] >> 24) & 0xFF) 
             << "Alpha mismatch at pixel " << i;
@@ -259,8 +259,8 @@ TEST_F(AlphaBlitTest, CopyAlphaArray_PreservesColor) {
     
     blitter.DoAlphaBlit(desc, alphaValues.Data());
     
-    const XULONG* original = reinterpret_cast<const XULONG*>(colorCopy.Data());
-    const XULONG* result = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* original = reinterpret_cast<const XDWORD*>(colorCopy.Data());
+    const XDWORD* result = reinterpret_cast<const XDWORD*>(buffer.Data());
     
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(original[i] & 0x00FFFFFF, result[i] & 0x00FFFFFF)
@@ -283,7 +283,7 @@ TEST_F(AlphaBlitTest, BlitPreservesAlpha_32BitARGBToARGB) {
     );
     
     // Create image with varying alpha
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         XBYTE alpha = static_cast<XBYTE>(i);
         src[i] = (alpha << 24) | 0x00FF8040;
@@ -304,7 +304,7 @@ TEST_F(AlphaBlitTest, BlitLosesAlpha_ARGBTo24Bit) {
     );
     
     // Fill with varying alpha
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         src[i] = ((i * 4) << 24) | 0x00AABBCC;
     }
@@ -333,7 +333,7 @@ TEST_F(AlphaBlitTest, BlitRestoresAlpha_24BitToARGB) {
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFF, (dst[i] >> 24) & 0xFF) 
             << "Alpha should be 0xFF after 24->32 conversion";
@@ -348,7 +348,7 @@ TEST_F(AlphaBlitTest, AlphaOnSinglePixel) {
     ImageBuffer buffer(4); // Single 32-bit pixel
     auto desc = ImageDescFactory::Create32BitARGB(1, 1, buffer.Data());
     
-    XULONG* pixel = reinterpret_cast<XULONG*>(buffer.Data());
+    XDWORD* pixel = reinterpret_cast<XDWORD*>(buffer.Data());
     *pixel = 0x00FFAA55;
     
     blitter.DoAlphaBlit(desc, 0xDD);
@@ -365,7 +365,7 @@ TEST_F(AlphaBlitTest, AlphaOnLargeImage) {
     
     blitter.DoAlphaBlit(desc, static_cast<XBYTE>(192));
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     // Sample check
     EXPECT_EQ(192, (pixels[0] >> 24) & 0xFF);
     EXPECT_EQ(192, (pixels[width * height - 1] >> 24) & 0xFF);
@@ -387,7 +387,7 @@ TEST_F(AlphaBlitTest, AlphaWithGradientAlphaArray) {
     
     blitter.DoAlphaBlit(desc, alphaValues.Data());
     
-    const XULONG* pixels = reinterpret_cast<const XULONG*>(buffer.Data());
+    const XDWORD* pixels = reinterpret_cast<const XDWORD*>(buffer.Data());
     for (int i = 0; i < 256; ++i) {
         EXPECT_EQ(i, (pixels[i] >> 24) & 0xFF) 
             << "Alpha gradient mismatch at index " << i;
@@ -405,7 +405,7 @@ TEST_F(AlphaBlitTest, AlphaBlit_AllWidths_UniformAlpha) {
         ImageBuffer buffer(width * 4 * 4);
         auto desc = ImageDescFactory::Create32BitARGB(width, 4, buffer.Data());
         
-        XULONG* pixels = reinterpret_cast<XULONG*>(buffer.Data());
+        XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             pixels[i] = 0x00112233; // Zero alpha initially
         }
@@ -427,7 +427,7 @@ TEST_F(AlphaBlitTest, AlphaBlit_AllWidths_PerPixelAlpha) {
         ImageBuffer alphaValues(width * 4);
         auto desc = ImageDescFactory::Create32BitARGB(width, 4, buffer.Data());
         
-        XULONG* pixels = reinterpret_cast<XULONG*>(buffer.Data());
+        XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             pixels[i] = 0x00112233;
             alphaValues[i] = static_cast<XBYTE>(i & 0xFF);
@@ -468,7 +468,7 @@ TEST_F(AlphaBlitTest, Alpha1555_AllWidths) {
         
         blitter.DoBlit(src, dst);
         
-        const XULONG* dstPixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+        const XDWORD* dstPixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             if (i % 2 == 0) {
                 EXPECT_EQ(0xFF, (dstPixels[i] >> 24) & 0xFF) 
@@ -499,7 +499,7 @@ TEST_F(AlphaBlitTest, Alpha4444_AllWidths) {
         
         blitter.DoBlit(src, dst);
         
-        const XULONG* dstPixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+        const XDWORD* dstPixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             // Alpha should be expanded from 4-bit F (15) to 8-bit FF (255)
             EXPECT_EQ(0xFF, (dstPixels[i] >> 24) & 0xFF) 
@@ -521,7 +521,7 @@ TEST_F(AlphaBlitTest, AlphaPreserved_ARGB32_to_ABGR32) {
         width, height
     );
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         XBYTE alpha = static_cast<XBYTE>(i * 4);
         src[i] = (alpha << 24) | 0x112233;
@@ -529,7 +529,7 @@ TEST_F(AlphaBlitTest, AlphaPreserved_ARGB32_to_ABGR32) {
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         XBYTE expectedAlpha = static_cast<XBYTE>(i * 4);
         EXPECT_EQ(expectedAlpha, (dst[i] >> 24) & 0xFF) 
@@ -546,7 +546,7 @@ TEST_F(AlphaBlitTest, AlphaPreserved_ARGB32_to_RGBA32) {
         width, height
     );
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         XBYTE alpha = static_cast<XBYTE>(255 - i);
         src[i] = (alpha << 24) | 0xAABBCC;
@@ -554,7 +554,7 @@ TEST_F(AlphaBlitTest, AlphaPreserved_ARGB32_to_RGBA32) {
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         XBYTE expectedAlpha = static_cast<XBYTE>(255 - i);
         // RGBA format: alpha is in low byte
@@ -572,7 +572,7 @@ TEST_F(AlphaBlitTest, ZeroAlpha_AllPixels) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
     
-    XULONG* pixels = reinterpret_cast<XULONG*>(buffer.Data());
+    XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFF112233; // Start with full alpha
     }
@@ -589,7 +589,7 @@ TEST_F(AlphaBlitTest, FullAlpha_AllPixels) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
     
-    XULONG* pixels = reinterpret_cast<XULONG*>(buffer.Data());
+    XDWORD* pixels = reinterpret_cast<XDWORD*>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0x00445566; // Start with zero alpha
     }
@@ -610,7 +610,7 @@ TEST_F(AlphaBlitTest, PremultiplyAlpha_FullOpaque) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFFFF8040;
     }
@@ -627,7 +627,7 @@ TEST_F(AlphaBlitTest, PremultiplyAlpha_HalfTransparent) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0x80FF8040;
     }
@@ -651,7 +651,7 @@ TEST_F(AlphaBlitTest, PremultiplyAlpha_FullTransparent) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0x00FF8040;
     }
@@ -672,7 +672,7 @@ TEST_F(AlphaBlitTest, UnpremultiplyAlpha_FullOpaque) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFFFF8040;
     }
@@ -689,7 +689,7 @@ TEST_F(AlphaBlitTest, UnpremultiplyAlpha_HalfTransparent) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0x80804020;
     }
@@ -717,7 +717,7 @@ TEST_F(AlphaBlitTest, PremultiplyUnpremultiply_Roundtrip) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFF112233 + i;
     }
@@ -728,7 +728,7 @@ TEST_F(AlphaBlitTest, PremultiplyUnpremultiply_Roundtrip) {
     blitter.PremultiplyAlpha(desc);
     blitter.UnpremultiplyAlpha(desc);
 
-    const XULONG *origPixels = reinterpret_cast<const XULONG *>(original.Data());
+    const XDWORD *origPixels = reinterpret_cast<const XDWORD *>(original.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_NEAR((pixels[i] >> 16) & 0xFF, (origPixels[i] >> 16) & 0xFF, 1) << "Red at pixel " << i;
         EXPECT_NEAR((pixels[i] >> 8) & 0xFF, (origPixels[i] >> 8) & 0xFF, 1) << "Green at pixel " << i;
@@ -745,7 +745,7 @@ TEST_F(AlphaBlitTest, SwapRedBlue_RedToBlue) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFFFF0000;
     }
@@ -762,7 +762,7 @@ TEST_F(AlphaBlitTest, SwapRedBlue_GreenUnchanged) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFF00FF00;
     }
@@ -779,7 +779,7 @@ TEST_F(AlphaBlitTest, SwapRedBlue_DoubleSwap_Roundtrip) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0x80112233;
     }
@@ -801,7 +801,7 @@ TEST_F(AlphaBlitTest, PremultiplyAlpha_LargeImage) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0x80FF8040;
     }
@@ -817,7 +817,7 @@ TEST_F(AlphaBlitTest, SwapRedBlue_LargeImage) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFFAABBCC;
     }
@@ -838,7 +838,7 @@ TEST_F(AlphaBlitTest, ClearAlpha_AllWidths) {
         ImageBuffer buffer(width * height * 4);
         auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-        XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+        XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
         for (int i = 0; i < width * height; ++i) {
             pixels[i] = 0xFFAABBCC;
         }
@@ -858,7 +858,7 @@ TEST_F(AlphaBlitTest, SetFullAlpha_AllWidths) {
         ImageBuffer buffer(width * height * 4);
         auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-        XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+        XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
         for (int i = 0; i < width * height; ++i) {
             pixels[i] = 0x00AABBCC;
         }
@@ -882,7 +882,7 @@ TEST_F(AlphaBlitTest, InvertColors_AllWidths) {
         ImageBuffer buffer(width * height * 4);
         auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-        XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+        XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
         for (int i = 0; i < width * height; ++i) {
             pixels[i] = 0x80AABBCC;
         }
@@ -901,7 +901,7 @@ TEST_F(AlphaBlitTest, InvertColors_DoubleInvert_Roundtrip) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0x80112233 + i;
     }
@@ -912,7 +912,7 @@ TEST_F(AlphaBlitTest, InvertColors_DoubleInvert_Roundtrip) {
     blitter.InvertColors(desc);
     blitter.InvertColors(desc);
 
-    const XULONG *origPixels = reinterpret_cast<const XULONG *>(original.Data());
+    const XDWORD *origPixels = reinterpret_cast<const XDWORD *>(original.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(pixels[i], origPixels[i]) << "Double invert should restore original at pixel " << i;
     }
@@ -928,7 +928,7 @@ TEST_F(AlphaBlitTest, ConvertToGrayscale_AllWidths) {
         ImageBuffer buffer(width * height * 4);
         auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-        XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+        XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
         for (int i = 0; i < width * height; ++i) {
             pixels[i] = 0x80FF0000;
         }
@@ -953,7 +953,7 @@ TEST_F(AlphaBlitTest, ConvertToGrayscale_White) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFFFFFFFF;
     }
@@ -970,7 +970,7 @@ TEST_F(AlphaBlitTest, ConvertToGrayscale_Black) {
     ImageBuffer buffer(width * height * 4);
     auto desc = ImageDescFactory::Create32BitARGB(width, height, buffer.Data());
 
-    XULONG *pixels = reinterpret_cast<XULONG *>(buffer.Data());
+    XDWORD *pixels = reinterpret_cast<XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0xFF000000;
     }
@@ -993,8 +993,8 @@ TEST_F(AlphaBlitTest, MultiplyBlend_White) {
     auto srcDesc = ImageDescFactory::Create32BitARGB(width, height, srcBuffer.Data());
     auto dstDesc = ImageDescFactory::Create32BitARGB(width, height, dstBuffer.Data());
 
-    XULONG *srcPixels = reinterpret_cast<XULONG *>(srcBuffer.Data());
-    XULONG *dstPixels = reinterpret_cast<XULONG *>(dstBuffer.Data());
+    XDWORD *srcPixels = reinterpret_cast<XDWORD *>(srcBuffer.Data());
+    XDWORD *dstPixels = reinterpret_cast<XDWORD *>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         srcPixels[i] = 0xFFFFFFFF;
         dstPixels[i] = 0xFF804020;
@@ -1014,8 +1014,8 @@ TEST_F(AlphaBlitTest, MultiplyBlend_Black) {
     auto srcDesc = ImageDescFactory::Create32BitARGB(width, height, srcBuffer.Data());
     auto dstDesc = ImageDescFactory::Create32BitARGB(width, height, dstBuffer.Data());
 
-    XULONG *srcPixels = reinterpret_cast<XULONG *>(srcBuffer.Data());
-    XULONG *dstPixels = reinterpret_cast<XULONG *>(dstBuffer.Data());
+    XDWORD *srcPixels = reinterpret_cast<XDWORD *>(srcBuffer.Data());
+    XDWORD *dstPixels = reinterpret_cast<XDWORD *>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         srcPixels[i] = 0xFF000000;
         dstPixels[i] = 0xFFFFFFFF;
@@ -1036,8 +1036,8 @@ TEST_F(AlphaBlitTest, MultiplyBlend_HalfValues) {
     auto srcDesc = ImageDescFactory::Create32BitARGB(width, height, srcBuffer.Data());
     auto dstDesc = ImageDescFactory::Create32BitARGB(width, height, dstBuffer.Data());
 
-    XULONG *srcPixels = reinterpret_cast<XULONG *>(srcBuffer.Data());
-    XULONG *dstPixels = reinterpret_cast<XULONG *>(dstBuffer.Data());
+    XDWORD *srcPixels = reinterpret_cast<XDWORD *>(srcBuffer.Data());
+    XDWORD *dstPixels = reinterpret_cast<XDWORD *>(dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         srcPixels[i] = 0xFF808080;
         dstPixels[i] = 0xFF808080;

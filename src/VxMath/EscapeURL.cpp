@@ -40,11 +40,11 @@ static bool HasProtocol(const char *url) {
     return true;
 }
 
-XULONG VxEscapeURL(char *InURL, XString &OutURL) {
+XDWORD VxEscapeURL(char *InURL, XString &OutURL) {
     // Handle null input
     if (!InURL) {
         OutURL = "";
-        return (XULONG) -1;
+        return (XDWORD) -1;
     }
 
     // Handle empty string
@@ -89,8 +89,8 @@ XULONG VxEscapeURL(char *InURL, XString &OutURL) {
     }
 
     // Calculate required buffer size
-    int originalLen = strlen(InURL);
-    int bufferSize = originalLen + 1 + (2 * specialCharCount); // +1 for null terminator, +2 for each escaped char
+    size_t originalLen = strlen(InURL);
+    size_t bufferSize = originalLen + 1 + (2 * specialCharCount); // +1 for null terminator, +2 for each escaped char
 
     if (!hasProtocol) {
         bufferSize += 7; // Add space for "file://"
@@ -100,7 +100,7 @@ XULONG VxEscapeURL(char *InURL, XString &OutURL) {
     char *buf = new(std::nothrow) char[bufferSize];
     if (!buf) {
         OutURL = "";
-        return (XULONG) -1; // Memory allocation failed
+        return (XDWORD) -1; // Memory allocation failed
     }
 
     // Build the escaped URL

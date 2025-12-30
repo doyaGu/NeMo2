@@ -1,7 +1,7 @@
 #include "VxMemory.h"
 
 // Basic memory allocation functions
-void *mynew(unsigned int n) {
+void *mynew(size_t n) {
     void *ptr = operator new(n);
     return ptr;
 }
@@ -13,7 +13,7 @@ void mydelete(void *a) {
 }
 
 // Array allocation functions
-void *mynewarray(unsigned int n) {
+void *mynewarray(size_t n) {
     void *ptr = operator new[](n);
     return ptr;
 }
@@ -24,7 +24,7 @@ void mydeletearray(void *a) {
     }
 }
 
-void *VxNewAligned(int size, int align) {
+void *VxNewAligned(size_t size, int align) {
 #if VX_COMPILER_MSVC
     return _aligned_malloc(size, align);
 #else

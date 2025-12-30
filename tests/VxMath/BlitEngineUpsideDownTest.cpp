@@ -17,8 +17,8 @@ class UpsideDownBlitTest : public BlitEngineTestBase {
 protected:
     // Verify that rows are flipped
     bool VerifyFlipped32(const XBYTE* src, const XBYTE* dst, int width, int height) {
-        const XULONG* srcPixels = reinterpret_cast<const XULONG*>(src);
-        const XULONG* dstPixels = reinterpret_cast<const XULONG*>(dst);
+        const XDWORD* srcPixels = reinterpret_cast<const XDWORD*>(src);
+        const XDWORD* dstPixels = reinterpret_cast<const XDWORD*>(dst);
         
         for (int y = 0; y < height; ++y) {
             int flippedY = height - 1 - y;
@@ -71,9 +71,9 @@ TEST_F(UpsideDownBlitTest, Basic32_FlipsCorrectly) {
     );
     
     // Create distinct pattern per row
-    XULONG* srcPixels = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* srcPixels = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int y = 0; y < height; ++y) {
-        XULONG rowColor = 0xFF000000 | ((y * 30) << 16);
+        XDWORD rowColor = 0xFF000000 | ((y * 30) << 16);
         for (int x = 0; x < width; ++x) {
             srcPixels[y * width + x] = rowColor;
         }
@@ -242,9 +242,9 @@ TEST_F(UpsideDownBlitTest, CrossFormat_32To24_FlipsAndConverts) {
     auto dst = ImageDescFactory::Create24BitRGB(width, height, dstBuffer.Data());
     
     // Row pattern in 32-bit
-    XULONG* srcPixels = reinterpret_cast<XULONG*>(srcBuffer.Data());
+    XDWORD* srcPixels = reinterpret_cast<XDWORD*>(srcBuffer.Data());
     for (int y = 0; y < height; ++y) {
-        XULONG rowColor = 0xFF000000 | (y * 30 << 16) | (y * 20 << 8) | (y * 10);
+        XDWORD rowColor = 0xFF000000 | (y * 30 << 16) | (y * 20 << 8) | (y * 10);
         for (int x = 0; x < width; ++x) {
             srcPixels[y * width + x] = rowColor;
         }
@@ -255,7 +255,7 @@ TEST_F(UpsideDownBlitTest, CrossFormat_32To24_FlipsAndConverts) {
     // Verify flip by checking row 0 of dst matches row height-1 of src
     for (int y = 0; y < height; ++y) {
         int srcY = height - 1 - y;
-        XULONG srcColor = srcPixels[srcY * width];
+        XDWORD srcColor = srcPixels[srcY * width];
         XBYTE expectedR = (srcColor >> 16) & 0xFF;
         XBYTE expectedG = (srcColor >> 8) & 0xFF;
         XBYTE expectedB = srcColor & 0xFF;
@@ -288,14 +288,14 @@ TEST_F(UpsideDownBlitTest, CrossFormat_24To32_FlipsAndConverts) {
     blitter.DoBlitUpsideDown(src, dst);
     
     // Verify flip
-    const XULONG* dstPixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* dstPixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     for (int y = 0; y < height; ++y) {
         int srcY = height - 1 - y;
         XBYTE expectedR = static_cast<XBYTE>(srcY * 30);
         XBYTE expectedG = static_cast<XBYTE>(srcY * 20);
         XBYTE expectedB = static_cast<XBYTE>(srcY * 10);
         
-        XULONG pixel = dstPixels[y * width];
+        XDWORD pixel = dstPixels[y * width];
         EXPECT_EQ(expectedR, (pixel >> 16) & 0xFF) << "Red row " << y;
         EXPECT_EQ(expectedG, (pixel >> 8) & 0xFF) << "Green row " << y;
         EXPECT_EQ(expectedB, pixel & 0xFF) << "Blue row " << y;
@@ -331,7 +331,7 @@ TEST_F(UpsideDownBlitTest, TwoRows_Swapped) {
         width, height
     );
     
-    XULONG* srcPixels = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* srcPixels = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     // Row 0: all red
     for (int x = 0; x < width; ++x) {
         srcPixels[x] = 0xFFFF0000;
@@ -343,7 +343,7 @@ TEST_F(UpsideDownBlitTest, TwoRows_Swapped) {
     
     blitter.DoBlitUpsideDown(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dstPixels = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dstPixels = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     // Row 0 should now be blue
     EXPECT_EQ(0xFF0000FF, dstPixels[0]);
     // Row 1 should now be red
@@ -357,11 +357,11 @@ TEST_F(UpsideDownBlitTest, SinglePixel) {
         1, 1
     );
     
-    *reinterpret_cast<XULONG*>(pair.srcBuffer.Data()) = 0xFFAABBCC;
+    *reinterpret_cast<XDWORD*>(pair.srcBuffer.Data()) = 0xFFAABBCC;
     
     blitter.DoBlitUpsideDown(pair.srcDesc, pair.dstDesc);
     
-    EXPECT_EQ(0xFFAABBCC, *reinterpret_cast<XULONG*>(pair.dstBuffer.Data()));
+    EXPECT_EQ(0xFFAABBCC, *reinterpret_cast<XDWORD*>(pair.dstBuffer.Data()));
 }
 
 TEST_F(UpsideDownBlitTest, LargeImage) {

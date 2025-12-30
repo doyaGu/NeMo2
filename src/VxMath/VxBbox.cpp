@@ -4,7 +4,7 @@
 
 int VxBbox::Classify(const VxBbox &box2, const VxVector &pt) const {
     // Classify point against this box
-    XULONG ptFlags = 0;
+    XDWORD ptFlags = 0;
     if (pt.x < Min.x) ptFlags |= VXCLIP_LEFT;
     else if (pt.x > Max.x) ptFlags |= VXCLIP_RIGHT;
 
@@ -15,7 +15,7 @@ int VxBbox::Classify(const VxBbox &box2, const VxVector &pt) const {
     else if (pt.z > Max.z) ptFlags |= VXCLIP_FRONT;
 
     // Classify box2 against this box
-    XULONG box2Flags = 0;
+    XDWORD box2Flags = 0;
     if (box2.Max.z < Min.z) box2Flags |= VXCLIP_BACK;
     else if (box2.Min.z > Max.z) box2Flags |= VXCLIP_FRONT;
 
@@ -57,7 +57,7 @@ int VxBbox::Classify(const VxBbox &box2, const VxVector &pt) const {
     return 0;
 }
 
-void VxBbox::ClassifyVertices(const int iVcount, XBYTE *iVertices, XULONG iStride, XULONG *oFlags) const {
+void VxBbox::ClassifyVertices(const int iVcount, XBYTE *iVertices, XDWORD iStride, XDWORD *oFlags) const {
     const float maxX = Max.x;
     const float maxY = Max.y;
     const float maxZ = Max.z;
@@ -68,7 +68,7 @@ void VxBbox::ClassifyVertices(const int iVcount, XBYTE *iVertices, XULONG iStrid
     for (int i = 0; i < iVcount; i++) {
         const float *v = reinterpret_cast<const float *>(iVertices + i * iStride);
 
-        XULONG flag = 0;
+        XDWORD flag = 0;
 
         // Check Z axis
         if (v[2] < minZ) flag |= VXCLIP_BACK;
@@ -86,7 +86,7 @@ void VxBbox::ClassifyVertices(const int iVcount, XBYTE *iVertices, XULONG iStrid
     }
 }
 
-void VxBbox::ClassifyVerticesOneAxis(const int iVcount, XBYTE *iVertices, XULONG iStride, const int iAxis, XULONG *oFlags) const {
+void VxBbox::ClassifyVerticesOneAxis(const int iVcount, XBYTE *iVertices, XDWORD iStride, const int iAxis, XDWORD *oFlags) const {
     if (iAxis < 0 || iAxis > 2) {
         // Invalid axis, set all flags to 0
         for (int i = 0; i < iVcount; i++)
@@ -100,7 +100,7 @@ void VxBbox::ClassifyVerticesOneAxis(const int iVcount, XBYTE *iVertices, XULONG
     for (int i = 0; i < iVcount; i++) {
         const float *v = reinterpret_cast<const float *>(iVertices + i * iStride + iAxis * sizeof(float));
 
-        XULONG flag = 0;
+        XDWORD flag = 0;
         if (*v < minVal) flag = 1;
         else if (*v > maxVal) flag = 2;
 

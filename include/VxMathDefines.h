@@ -2,7 +2,6 @@
 #define VXMATHDEFINES_H
 
 #include "VxMathCompiler.h"
-#include "VxMemory.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -155,54 +154,11 @@
 #endif
 #endif
 
-// ============================================================================
-// Legacy Types (for backwards compatibility)
-// ============================================================================
-
-typedef char *XSTRING;
-typedef char XCHAR;
-typedef int XBOOL;
-typedef unsigned char XBYTE;
-typedef unsigned short XWORD;
-typedef unsigned int XDWORD;
-
-/// @note XULONG is `unsigned long` for API compatibility.
-/// On Windows (32/64-bit), this is 4 bytes.
-/// On Linux/macOS 64-bit, this is 8 bytes.
-/// For serialization, use XUINT32 or XUINT64 instead.
-typedef unsigned long XULONG;
-
-// ============================================================================
-// Portable Fixed-Width Types (for serialization and cross-platform code)
-// ============================================================================
-
-/// @brief 8-bit signed integer (guaranteed 1 byte)
-typedef int8_t XINT8;
-/// @brief 8-bit unsigned integer (guaranteed 1 byte)
-typedef uint8_t XUINT8;
-
-/// @brief 16-bit signed integer (guaranteed 2 bytes)
-typedef int16_t XINT16;
-/// @brief 16-bit unsigned integer (guaranteed 2 bytes)
-typedef uint16_t XUINT16;
-
-/// @brief 32-bit signed integer (guaranteed 4 bytes)
-typedef int32_t XINT32;
-/// @brief 32-bit unsigned integer (guaranteed 4 bytes)
-typedef uint32_t XUINT32;
-
-/// @brief 64-bit signed integer (guaranteed 8 bytes)
-typedef int64_t XINT64;
-/// @brief 64-bit unsigned integer (guaranteed 8 bytes)
-typedef uint64_t XUINT64;
-
-/// @brief Pointer-sized signed integer
-typedef intptr_t XINTPTR;
-/// @brief Pointer-sized unsigned integer
-typedef uintptr_t XUINTPTR;
-
-/// @brief Size type for memory sizes and array indices
-typedef size_t XSIZE;
+// Basic type definitions
+typedef int32_t XBOOL;
+typedef uint8_t XBYTE;
+typedef uint16_t XWORD;
+typedef uint32_t XDWORD;
 
 /// @brief Generic function pointer type.
 typedef int (VX_STDCALL *FUNC_PTR)();

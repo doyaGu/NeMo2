@@ -43,7 +43,7 @@ TEST_F(SystemInfoTest, GetProcessorFrequency_ReturnsPlausibleValue) {
 
 // Test to ensure GetProcessorFeatures returns a set of flags.
 TEST_F(SystemInfoTest, GetProcessorFeatures_ReturnsNonZeroFlags) {
-    XULONG features = GetProcessorFeatures();
+    XDWORD features = GetProcessorFeatures();
     // A modern processor should have at least some basic features detected.
     // PROC_HASFPU is almost guaranteed on any desktop/server platform.
     EXPECT_NE(features, 0);
@@ -54,7 +54,7 @@ TEST_F(SystemInfoTest, GetProcessorFeatures_ReturnsNonZeroFlags) {
 // Test for modifying and reading processor features.
 TEST_F(SystemInfoTest, ModifyProcessorFeatures_AddsAndRemovesFlags) {
     // Save the original features to restore them later.
-    XULONG original_features = GetProcessorFeatures();
+    XDWORD original_features = GetProcessorFeatures();
 
     // --- Test adding a feature ---
     // Let's pretend our CPU has a feature it likely doesn't (PROC_TM - Thermal Monitor)
@@ -116,7 +116,7 @@ TEST_F(SystemInfoTest, GetProcessorType_ReturnsValidEnum) {
 
 // Test to ensure GetInstructionSetExtensions returns a set of flags.
 // TEST_F(SystemInfoTest, GetInstructionSetExtensions_ReturnsPlausibleFlags) {
-//     XULONG extensions = GetInstructionSetExtensions();
+//     XDWORD extensions = GetInstructionSetExtensions();
 //     // Most modern x86/x64 CPUs will have at least SSE and SSE2.
 //     // This check is platform-dependent.
 // #if defined(VX_MSVC) || defined(VX_GCC)

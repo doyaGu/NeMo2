@@ -272,7 +272,21 @@ public:
 
     See Also: FindObject, AddIfNotHere
     *******************************************************/
-    int RemoveObject(CKObject *obj) { return (int)Remove(obj); }
+    int RemoveObject(CKObject *obj) {
+        CKObject **it = Find(obj);
+        if (it >= m_End)
+            return -1;
+
+        const ptrdiff_t index = it - m_Begin;
+        Remove(it);
+
+        if (index < 0)
+            return -1;
+        // Best-effort: arrays in this codebase are not expected to exceed INT_MAX.
+        if (index > INT_MAX)
+            return INT_MAX;
+        return static_cast<int>(index);
+    }
 
     /*******************************************************
     Summary: Checks if given object is in object array.

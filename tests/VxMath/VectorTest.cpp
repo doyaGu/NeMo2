@@ -981,7 +981,7 @@ TEST_F(VxBboxAdvancedTest, ClassifyPoint) {
 
     // Test corner (multiple flags)
     VxVector corner(-2.0f, -2.0f, -2.0f);
-    XULONG corner_flags = unit_box.Classify(corner);
+    XDWORD corner_flags = unit_box.Classify(corner);
     EXPECT_TRUE((corner_flags & VXCLIP_LEFT) != 0);
     EXPECT_TRUE((corner_flags & VXCLIP_BOTTOM) != 0);
     EXPECT_TRUE((corner_flags & VXCLIP_BACK) != 0);
@@ -992,7 +992,7 @@ TEST_F(VxBboxAdvancedTest, ClassifyBox) {
     EXPECT_EQ(unit_box.Classify(small_box), 0u); // Overlapping, no separation
 
     // Test completely separated boxes
-    XULONG separation_flags = unit_box.Classify(offset_box);
+    XDWORD separation_flags = unit_box.Classify(offset_box);
     EXPECT_TRUE(separation_flags != 0); // Should have some separation flags
 }
 
@@ -1014,7 +1014,7 @@ TEST_F(VxBboxAdvancedTest, ClassifyVertices) {
         VxVector(0.0f, -2.0f, 0.0f),  // Outside bottom
         VxVector(2.0f, 2.0f, 2.0f)    // Outside right/top/front
     };
-    XULONG flags[vcount];
+    XDWORD flags[vcount];
 
     unit_box.ClassifyVertices(vcount, reinterpret_cast<XBYTE*>(vertices), sizeof(VxVector), flags);
 

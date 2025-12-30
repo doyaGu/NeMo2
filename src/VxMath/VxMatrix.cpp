@@ -215,7 +215,7 @@ void Vx3DInverseMatrix(VxMatrix &InverseMat, const VxMatrix &Mat) {
 
     const double det = a00 * minor1 + a01 * minor2 + a02 * minor3;
 
-    if (abs(det) < EPSILON) {
+    if (XAbs(det) < EPSILON) {
         InverseMat.SetIdentity();
         return;
     }
@@ -264,7 +264,7 @@ float Vx3DMatrixDeterminant(const VxMatrix &Mat) {
 
 void Vx3DMatrixFromRotation(VxMatrix &ResultMat, const VxVector &Vector, float Angle) {
     // Fast path for zero rotation
-    if (abs(Angle) < EPSILON) {
+    if (XAbs(Angle) < EPSILON) {
         ResultMat.SetIdentity();
         return;
     }
@@ -351,21 +351,21 @@ void Vx3DMatrixFromRotationAndOrigin(VxMatrix &ResultMat, const VxVector &Vector
 void Vx3DMatrixFromEulerAngles(VxMatrix &Mat, float eax, float eay, float eaz) {
     // Calculate trigonometric values
     float cx, sx, cy, sy, cz, sz;
-    if (abs(eax) <= EPSILON) {
+    if (XAbs(eax) <= EPSILON) {
         cx = 1.0f;
         sx = eax;
     } else {
         cx = cosf(eax);
         sx = sinf(eax);
     }
-    if (abs(eay) <= EPSILON) {
+    if (XAbs(eay) <= EPSILON) {
         cy = 1.0f;
         sy = eay;
     } else {
         cy = cosf(eay);
         sy = sinf(eay);
     }
-    if (abs(eaz) <= EPSILON) {
+    if (XAbs(eaz) <= EPSILON) {
         cz = 1.0f;
         sz = eaz;
     } else {

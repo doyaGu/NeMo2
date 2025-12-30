@@ -643,7 +643,7 @@ XBOOL VxConfiguration::ManageSection(char *line, VxConfigurationSection **curren
         return FALSE;
     }
 
-    XString sectionNameStr(line + 1, len - 2);  // Skip brackets, copy substring
+    XString sectionNameStr(line + 1, static_cast<int>(len) - 2);  // Skip brackets, copy substring
     char *sectionName = sectionNameStr.Str();
 
     // Handle dot notation in sections
@@ -1141,7 +1141,7 @@ void VxConfig::CloseSection(char *iSection) {
 
 void VxConfig::WriteStringEntry(const char *iKey, const char *iValue) {
     if (m_CurrentSection && iKey && iValue)
-        ::RegSetValueExA(*(PHKEY) &m_CurrentSection, iKey, 0, REG_SZ, (LPBYTE) iValue, strlen(iValue) + 1);
+        ::RegSetValueExA(*(PHKEY) &m_CurrentSection, iKey, 0, REG_SZ, (LPBYTE) iValue, static_cast<DWORD>(strlen(iValue) + 1));
 }
 
 int VxConfig::ReadStringEntry(char *iKey, char *oData) {

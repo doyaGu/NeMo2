@@ -370,7 +370,7 @@ typedef struct VxDirectXData {
     void *DDClipper;       ///< Pointer to the clipper object
     void *D3DDevice;       ///< Pointer to the IDirect3DDevice object
     void *D3DViewport;     ///< Pointer to the IDirect3DViewport object
-    XULONG DxVersion;      ///< DirectX Version (e.g., 0x0500 for DirectX 5.0)
+    XDWORD DxVersion;      ///< DirectX Version (e.g., 0x0500 for DirectX 5.0)
 } VxDirectXData;
 
 /****************************************************************************/
@@ -625,11 +625,11 @@ typedef enum VXSPRITE_RENDEROPTIONS2 {
  * @see VXSPRITE_RENDEROPTIONS, CKSprite::SetRenderOptions, CKSprite::GetRenderOptions
  */
 struct VxSpriteRenderOptions {
-    XULONG ModulateColor;          ///< A DWORD ARGB Color to use for modulation if VXSPRITE_MODULATE is enabled.
-    XULONG Options            : 4; ///< A combination of VXSPRITE_RENDEROPTIONS.
+    XDWORD ModulateColor;          ///< A DWORD ARGB Color to use for modulation if VXSPRITE_MODULATE is enabled.
+    XDWORD Options            : 4; ///< A combination of VXSPRITE_RENDEROPTIONS.
     VXCMPFUNC AlphaTestFunc   : 4; ///< The alpha test comparison function if VXSPRITE_ALPHATEST is enabled.
     VXBLEND_MODE SrcBlendMode : 4; ///< The source blend mode if VXSPRITE_BLEND is enabled.
-    XULONG Options2           : 4; ///< A combination of VXSPRITE_RENDEROPTIONS2.
+    XDWORD Options2           : 4; ///< A combination of VXSPRITE_RENDEROPTIONS2.
     VXBLEND_MODE DstBlendMode : 8; ///< The destination blend mode if VXSPRITE_BLEND is enabled.
     XBYTE AlphaRefValue       : 8; ///< The reference value for the alpha test if VXSPRITE_ALPHATEST is enabled.
 };
@@ -954,9 +954,9 @@ typedef enum CKRST_RSTFAMILY {
  */
 typedef struct Vx2DCapsDesc {
     CKRST_RSTFAMILY Family;      ///< The type of driver implementation (DirectX, OpenGL, etc.).
-    XULONG MaxVideoMemory;       ///< Maximum video memory (in bytes).
-    XULONG AvailableVideoMemory; ///< Available video memory (in bytes).
-    XULONG Caps;                 ///< General 2D capabilities (CKRST_2DCAPS flags).
+    XDWORD MaxVideoMemory;       ///< Maximum video memory (in bytes).
+    XDWORD AvailableVideoMemory; ///< Available video memory (in bytes).
+    XDWORD Caps;                 ///< General 2D capabilities (CKRST_2DCAPS flags).
 } Vx2DCapsDesc;
 
 /**
@@ -968,32 +968,32 @@ typedef struct Vx2DCapsDesc {
  * @see VxDriverDesc, CKRenderManager::GetRenderDriverDescription
  */
 typedef struct Vx3DCapsDesc {
-    XULONG DevCaps;               ///< Unused device capabilities.
-    XULONG RenderBpps;            ///< Supported pixel formats for a 3D device (combination of VxBpps).
-    XULONG ZBufferBpps;           ///< Supported pixel formats for Z-buffer (combination of VxBpps).
-    XULONG StencilBpps;           ///< Supported pixel formats for Stencil buffer (combination of VxBpps).
-    XULONG StencilCaps;           ///< Stencil capabilities (CKRST_STENCILCAPS flags).
-    XULONG MinTextureWidth;       ///< Minimum allowed width for a texture.
-    XULONG MinTextureHeight;      ///< Minimum allowed height for a texture.
-    XULONG MaxTextureWidth;       ///< Maximum allowed width for a texture.
-    XULONG MaxTextureHeight;      ///< Maximum allowed height for a texture.
-    XULONG MaxClipPlanes;         ///< Maximum number of user-defined clip planes.
-    XULONG VertexCaps;            ///< Vertex Processing capabilities (CKRST_VTXCAPS flags).
-    XULONG MaxActiveLights;       ///< Maximum number of simultaneous active lights.
-    XULONG MaxNumberBlendStage;   ///< Maximum number of blend stages.
-    XULONG MaxNumberTextureStage; ///< Maximum number of simultaneous textures (multi-texturing).
-    XULONG MaxTextureRatio;       ///< Maximum texture aspect ratio (Width/Height).
+    XDWORD DevCaps;               ///< Unused device capabilities.
+    XDWORD RenderBpps;            ///< Supported pixel formats for a 3D device (combination of VxBpps).
+    XDWORD ZBufferBpps;           ///< Supported pixel formats for Z-buffer (combination of VxBpps).
+    XDWORD StencilBpps;           ///< Supported pixel formats for Stencil buffer (combination of VxBpps).
+    XDWORD StencilCaps;           ///< Stencil capabilities (CKRST_STENCILCAPS flags).
+    XDWORD MinTextureWidth;       ///< Minimum allowed width for a texture.
+    XDWORD MinTextureHeight;      ///< Minimum allowed height for a texture.
+    XDWORD MaxTextureWidth;       ///< Maximum allowed width for a texture.
+    XDWORD MaxTextureHeight;      ///< Maximum allowed height for a texture.
+    XDWORD MaxClipPlanes;         ///< Maximum number of user-defined clip planes.
+    XDWORD VertexCaps;            ///< Vertex Processing capabilities (CKRST_VTXCAPS flags).
+    XDWORD MaxActiveLights;       ///< Maximum number of simultaneous active lights.
+    XDWORD MaxNumberBlendStage;   ///< Maximum number of blend stages.
+    XDWORD MaxNumberTextureStage; ///< Maximum number of simultaneous textures (multi-texturing).
+    XDWORD MaxTextureRatio;       ///< Maximum texture aspect ratio (Width/Height).
 
-    XULONG TextureFilterCaps;        ///< Texture filtering capabilities (CKRST_TFILTERCAPS flags).
-    XULONG TextureAddressCaps;       ///< Texture addressing capabilities (CKRST_TADDRESSCAPS flags).
-    XULONG TextureCaps;              ///< General texture capabilities (CKRST_TEXTURECAPS flags).
-    XULONG MiscCaps;                 ///< Miscellaneous capabilities (CKRST_MISCCAPS flags).
-    XULONG AlphaCmpCaps;             ///< Alpha compare function capabilities (CKRST_CMPCAPS flags).
-    XULONG ZCmpCaps;                 ///< Z compare function capabilities (CKRST_CMPCAPS flags).
-    XULONG RasterCaps;               ///< Rasterization capabilities (CKRST_RASTERCAPS flags).
-    XULONG SrcBlendCaps;             ///< Source blend capabilities (CKRST_BLENDCAPS flags).
-    XULONG DestBlendCaps;            ///< Destination blend capabilities (CKRST_BLENDCAPS flags).
-    XULONG CKRasterizerSpecificCaps; ///< Rasterizer-specific capabilities (CKRST_SPECIFICCAPS flags).
+    XDWORD TextureFilterCaps;        ///< Texture filtering capabilities (CKRST_TFILTERCAPS flags).
+    XDWORD TextureAddressCaps;       ///< Texture addressing capabilities (CKRST_TADDRESSCAPS flags).
+    XDWORD TextureCaps;              ///< General texture capabilities (CKRST_TEXTURECAPS flags).
+    XDWORD MiscCaps;                 ///< Miscellaneous capabilities (CKRST_MISCCAPS flags).
+    XDWORD AlphaCmpCaps;             ///< Alpha compare function capabilities (CKRST_CMPCAPS flags).
+    XDWORD ZCmpCaps;                 ///< Z compare function capabilities (CKRST_CMPCAPS flags).
+    XDWORD RasterCaps;               ///< Rasterization capabilities (CKRST_RASTERCAPS flags).
+    XDWORD SrcBlendCaps;             ///< Source blend capabilities (CKRST_BLENDCAPS flags).
+    XDWORD DestBlendCaps;            ///< Destination blend capabilities (CKRST_BLENDCAPS flags).
+    XDWORD CKRasterizerSpecificCaps; ///< Rasterizer-specific capabilities (CKRST_SPECIFICCAPS flags).
 } Vx3DCapsDesc;
 
 /**

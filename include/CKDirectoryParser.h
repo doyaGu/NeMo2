@@ -67,7 +67,7 @@ protected:
     char *m_FullFileName;           ///< Buffer for the full path of the currently found file.
     char *m_StartDir;               ///< The starting directory for the parse operation.
     char *m_FileMask;               ///< The file mask for filtering files.
-    XULONG m_State;                 ///< Internal state of the parser.
+    XDWORD m_State;                 ///< Internal state of the parser.
     CKDirectoryParser *m_SubParser; ///< A parser for handling subdirectories in recursive mode.
 };
 

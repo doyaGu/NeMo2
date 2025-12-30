@@ -15,7 +15,7 @@ extern CRITICAL_SECTION g_CriticalSection;
 // Bit manipulation functions
 //------------------------------------------------------------------------------
 
-XULONG GetBitCount(XULONG dwMask) {
+XDWORD GetBitCount(XDWORD dwMask) {
     if (dwMask == 0) return 0;
 
 #if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
@@ -23,7 +23,7 @@ XULONG GetBitCount(XULONG dwMask) {
 #elif defined(__GNUC__) || defined(__clang__)
     return __builtin_popcount(dwMask);
 #else
-    XULONG count = 0;
+    XDWORD count = 0;
 
     // Skip trailing zeros until first set bit
     while ((dwMask & 1) == 0) {
@@ -40,7 +40,7 @@ XULONG GetBitCount(XULONG dwMask) {
 #endif
 }
 
-XULONG GetBitShift(XULONG dwMask) {
+XDWORD GetBitShift(XDWORD dwMask) {
     if (dwMask == 0) return 0;
 
 #if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
@@ -50,7 +50,7 @@ XULONG GetBitShift(XULONG dwMask) {
 #elif defined(__GNUC__) || defined(__clang__)
     return __builtin_ctz(dwMask);
 #else
-    XULONG shift = 0;
+    XDWORD shift = 0;
 
     // Count trailing zeros until first set bit
     while ((dwMask & 1) == 0) {
@@ -62,14 +62,14 @@ XULONG GetBitShift(XULONG dwMask) {
 #endif
 }
 
-void VxGetBitCounts(const VxImageDescEx &desc, XULONG &Rbits, XULONG &Gbits, XULONG &Bbits, XULONG &Abits) {
+void VxGetBitCounts(const VxImageDescEx &desc, XDWORD &Rbits, XDWORD &Gbits, XDWORD &Bbits, XDWORD &Abits) {
     Abits = GetBitCount(desc.AlphaMask);
     Rbits = GetBitCount(desc.RedMask);
     Gbits = GetBitCount(desc.GreenMask);
     Bbits = GetBitCount(desc.BlueMask);
 }
 
-void VxGetBitShifts(const VxImageDescEx &desc, XULONG &Rshift, XULONG &Gshift, XULONG &Bshift, XULONG &Ashift) {
+void VxGetBitShifts(const VxImageDescEx &desc, XDWORD &Rshift, XDWORD &Gshift, XDWORD &Bshift, XDWORD &Ashift) {
     Ashift = GetBitShift(desc.AlphaMask);
     Rshift = GetBitShift(desc.RedMask);
     Gshift = GetBitShift(desc.GreenMask);
@@ -221,18 +221,18 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
             }
 #endif
             while (h > 0) {
-                XULONG p0 = *(XULONG *) srcPtr;
-                XULONG p1 = *(XULONG *) (srcPtr + BytesPerLine);
+                XDWORD p0 = *(XDWORD *) srcPtr;
+                XDWORD p1 = *(XDWORD *) (srcPtr + BytesPerLine);
 
-                XULONG rb0 = p0 & 0x00FF00FF;
-                XULONG rb1 = p1 & 0x00FF00FF;
-                XULONG ag0 = (p0 & 0xFF00FF00) >> 8;
-                XULONG ag1 = (p1 & 0xFF00FF00) >> 8;
+                XDWORD rb0 = p0 & 0x00FF00FF;
+                XDWORD rb1 = p1 & 0x00FF00FF;
+                XDWORD ag0 = (p0 & 0xFF00FF00) >> 8;
+                XDWORD ag1 = (p1 & 0xFF00FF00) >> 8;
 
-                XULONG rbAvg = ((rb0 + rb1) >> 1) & 0x00FF00FF;
-                XULONG agAvg = ((ag0 + ag1) << 7) & 0xFF00FF00;
+                XDWORD rbAvg = ((rb0 + rb1) >> 1) & 0x00FF00FF;
+                XDWORD agAvg = ((ag0 + ag1) << 7) & 0xFF00FF00;
 
-                *(XULONG *) dstPtr = rbAvg | agAvg;
+                *(XDWORD *) dstPtr = rbAvg | agAvg;
 
                 dstPtr += BytesPerLine;
                 srcPtr += BytesPerLine * 2;
@@ -245,7 +245,7 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
     if (dstHeight == 0) {
         // Height is 0, only horizontal averaging
         XBYTE *dstPtr = Buffer;
-        XULONG *srcPtr = (XULONG *) Image;
+        XDWORD *srcPtr = (XDWORD *) Image;
 
 #if defined(VX_SIMD_SSE2)
         if (useSSE2) {
@@ -275,15 +275,15 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
             }
             // Handle remaining pixel
             while (w > 0) {
-                XULONG p0 = srcPtr[0];
-                XULONG p1 = srcPtr[1];
-                XULONG rb0 = p0 & 0x00FF00FF;
-                XULONG rb1 = p1 & 0x00FF00FF;
-                XULONG ag0 = (p0 & 0xFF00FF00) >> 8;
-                XULONG ag1 = (p1 & 0xFF00FF00) >> 8;
-                XULONG rbAvg = ((rb0 + rb1) >> 1) & 0x00FF00FF;
-                XULONG agAvg = ((ag0 + ag1) << 7) & 0xFF00FF00;
-                *(XULONG *) dstPtr = rbAvg | agAvg;
+                XDWORD p0 = srcPtr[0];
+                XDWORD p1 = srcPtr[1];
+                XDWORD rb0 = p0 & 0x00FF00FF;
+                XDWORD rb1 = p1 & 0x00FF00FF;
+                XDWORD ag0 = (p0 & 0xFF00FF00) >> 8;
+                XDWORD ag1 = (p1 & 0xFF00FF00) >> 8;
+                XDWORD rbAvg = ((rb0 + rb1) >> 1) & 0x00FF00FF;
+                XDWORD agAvg = ((ag0 + ag1) << 7) & 0xFF00FF00;
+                *(XDWORD *) dstPtr = rbAvg | agAvg;
                 srcPtr += 2;
                 dstPtr += 4;
                 --w;
@@ -294,18 +294,18 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
             // Plain C path
             int w = dstWidth;
             do {
-                XULONG p0 = srcPtr[0];
-                XULONG p1 = srcPtr[1];
+                XDWORD p0 = srcPtr[0];
+                XDWORD p1 = srcPtr[1];
 
-                XULONG rb0 = p0 & 0x00FF00FF;
-                XULONG rb1 = p1 & 0x00FF00FF;
-                XULONG ag0 = (p0 & 0xFF00FF00) >> 8;
-                XULONG ag1 = (p1 & 0xFF00FF00) >> 8;
+                XDWORD rb0 = p0 & 0x00FF00FF;
+                XDWORD rb1 = p1 & 0x00FF00FF;
+                XDWORD ag0 = (p0 & 0xFF00FF00) >> 8;
+                XDWORD ag1 = (p1 & 0xFF00FF00) >> 8;
 
-                XULONG rbAvg = ((rb0 + rb1) >> 1) & 0x00FF00FF;
-                XULONG agAvg = ((ag0 + ag1) << 7) & 0xFF00FF00;
+                XDWORD rbAvg = ((rb0 + rb1) >> 1) & 0x00FF00FF;
+                XDWORD agAvg = ((ag0 + ag1) << 7) & 0xFF00FF00;
 
-                *(XULONG *) dstPtr = rbAvg | agAvg;
+                *(XDWORD *) dstPtr = rbAvg | agAvg;
                 srcPtr += 2;
                 dstPtr += 4;
                 --w;
@@ -316,7 +316,7 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
 
     // Both width and height > 0, 2D averaging
     XBYTE *dstPtr = Buffer;
-    XULONG *srcPtr = (XULONG *) Image;
+    XDWORD *srcPtr = (XDWORD *) Image;
 
 #if defined(VX_SIMD_SSE2)
     if (useSSE2) {
@@ -324,7 +324,7 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
         __m128i zero = _mm_setzero_si128();
         int h = dstHeight;
         do {
-            XULONG *rowStart = srcPtr;
+            XDWORD *rowStart = srcPtr;
             int w = dstWidth;
             while (w >= 2) {
                 // Load 4 source pixels from current row
@@ -357,25 +357,25 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
             }
             // Handle remaining pixel
             while (w > 0) {
-                XULONG p0 = srcPtr[0];
-                XULONG p1 = srcPtr[1];
-                XULONG p2 = *(XULONG *) ((XBYTE *) srcPtr + BytesPerLine);
-                XULONG p3 = *(XULONG *) ((XBYTE *) srcPtr + BytesPerLine + 4);
+                XDWORD p0 = srcPtr[0];
+                XDWORD p1 = srcPtr[1];
+                XDWORD p2 = *(XDWORD *) ((XBYTE *) srcPtr + BytesPerLine);
+                XDWORD p3 = *(XDWORD *) ((XBYTE *) srcPtr + BytesPerLine + 4);
 
-                XULONG rb = (p0 & 0x00FF00FF) + (p1 & 0x00FF00FF) +
+                XDWORD rb = (p0 & 0x00FF00FF) + (p1 & 0x00FF00FF) +
                     (p2 & 0x00FF00FF) + (p3 & 0x00FF00FF);
-                XULONG ag = ((p0 & 0xFF00FF00) >> 8) + ((p1 & 0xFF00FF00) >> 8) +
+                XDWORD ag = ((p0 & 0xFF00FF00) >> 8) + ((p1 & 0xFF00FF00) >> 8) +
                     ((p2 & 0xFF00FF00) >> 8) + ((p3 & 0xFF00FF00) >> 8);
 
-                XULONG rbAvg = (rb >> 2) & 0x00FF00FF;
-                XULONG agAvg = ((ag >> 2) << 8) & 0xFF00FF00;
+                XDWORD rbAvg = (rb >> 2) & 0x00FF00FF;
+                XDWORD agAvg = ((ag >> 2) << 8) & 0xFF00FF00;
 
-                *(XULONG *) dstPtr = rbAvg | agAvg;
+                *(XDWORD *) dstPtr = rbAvg | agAvg;
                 srcPtr += 2;
                 dstPtr += 4;
                 --w;
             }
-            srcPtr = (XULONG *) ((XBYTE *) rowStart + BytesPerLine * 2);
+            srcPtr = (XDWORD *) ((XBYTE *) rowStart + BytesPerLine * 2);
             --h;
         } while (h);
     } else
@@ -384,28 +384,28 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
         // Plain C path
         int h = dstHeight;
         do {
-            XULONG *rowStart = srcPtr;
+            XDWORD *rowStart = srcPtr;
             int w = dstWidth;
             do {
-                XULONG p0 = srcPtr[0];
-                XULONG p1 = srcPtr[1];
-                XULONG p2 = *(XULONG *) ((XBYTE *) srcPtr + BytesPerLine);
-                XULONG p3 = *(XULONG *) ((XBYTE *) srcPtr + BytesPerLine + 4);
+                XDWORD p0 = srcPtr[0];
+                XDWORD p1 = srcPtr[1];
+                XDWORD p2 = *(XDWORD *) ((XBYTE *) srcPtr + BytesPerLine);
+                XDWORD p3 = *(XDWORD *) ((XBYTE *) srcPtr + BytesPerLine + 4);
 
-                XULONG rb = (p0 & 0x00FF00FF) + (p1 & 0x00FF00FF) +
+                XDWORD rb = (p0 & 0x00FF00FF) + (p1 & 0x00FF00FF) +
                     (p2 & 0x00FF00FF) + (p3 & 0x00FF00FF);
-                XULONG ag = ((p0 & 0xFF00FF00) >> 8) + ((p1 & 0xFF00FF00) >> 8) +
+                XDWORD ag = ((p0 & 0xFF00FF00) >> 8) + ((p1 & 0xFF00FF00) >> 8) +
                     ((p2 & 0xFF00FF00) >> 8) + ((p3 & 0xFF00FF00) >> 8);
 
-                XULONG rbAvg = (rb >> 2) & 0x00FF00FF;
-                XULONG agAvg = ((ag >> 2) << 8) & 0xFF00FF00;
+                XDWORD rbAvg = (rb >> 2) & 0x00FF00FF;
+                XDWORD agAvg = ((ag >> 2) << 8) & 0xFF00FF00;
 
-                *(XULONG *) dstPtr = rbAvg | agAvg;
+                *(XDWORD *) dstPtr = rbAvg | agAvg;
                 srcPtr += 2;
                 dstPtr += 4;
                 --w;
             } while (w);
-            srcPtr = (XULONG *) ((XBYTE *) rowStart + BytesPerLine * 2);
+            srcPtr = (XDWORD *) ((XBYTE *) rowStart + BytesPerLine * 2);
             --h;
         } while (h);
     }
@@ -417,7 +417,7 @@ void VxGenerateMipMap(const VxImageDescEx &src_desc, XBYTE *Buffer) {
 
 // Helper function to pack normal vector into ARGB pixel
 // Original formula: ((normal * 127.0 + 128.0) for each component, with alpha derived from height
-static XULONG PackNormalToPixel(const float *normal, float height) {
+static XDWORD PackNormalToPixel(const float *normal, float height) {
     // normal[0] = nx, normal[1] = ny, normal[2] = nz
     int nx_color = (int) (normal[0] * 127.0f + 128.0f);
     int ny_color = (int) (normal[1] * 127.0f + 128.0f);
@@ -426,13 +426,13 @@ static XULONG PackNormalToPixel(const float *normal, float height) {
 
     // Pack as ARGB: (alpha << 24) | (red << 16) | (green << 8) | blue
     // Original packs: ((nx - alpha<<8) << 8 + ny) << 8 + nz
-    return (XULONG) (((((nx_color - (alpha << 8)) << 8) + ny_color) << 8) + nz_color);
+    return (XDWORD) (((((nx_color - (alpha << 8)) << 8) + ny_color) << 8) + nz_color);
 }
 
 #if defined(VX_SIMD_SSE2)
 // SSE version: Pack 4 normals to pixels at once
 static void PackNormalToPixelSSE(const __m128 &dx4, const __m128 &dy4, const __m128 &invLen4,
-                                 const __m128 &lum4, XULONG *outPixels) {
+                                 const __m128 &lum4, XDWORD *outPixels) {
     __m128 scale127 = _mm_set1_ps(127.0f);
     __m128 offset128 = _mm_set1_ps(128.0f);
     __m128 scaleNeg255 = _mm_set1_ps(-255.0f);
@@ -463,23 +463,23 @@ static void PackNormalToPixelSSE(const __m128 &dx4, const __m128 &dy4, const __m
     _mm_store_si128((__m128i *) alpha_arr, alpha_i);
 
     for (int i = 0; i < 4; i++) {
-        outPixels[i] = (XULONG) (((((nx_arr[i] - (alpha_arr[i] << 8)) << 8) + ny_arr[i]) << 8) + nz_arr[i]);
+        outPixels[i] = (XDWORD) (((((nx_arr[i] - (alpha_arr[i] << 8)) << 8) + ny_arr[i]) << 8) + nz_arr[i]);
     }
 }
 
 // SSE version: Calculate luminance for 4 pixels (returns float values)
-static __m128 CalculateLuminanceSSE4(const XULONG *pixels, const __m128 &scale) {
+static __m128 CalculateLuminanceSSE4(const XDWORD *pixels, const __m128 &scale) {
     // Extract R, G, B from each pixel and sum them
     alignas(16) float lum[4];
     for (int i = 0; i < 4; i++) {
-        XULONG p = pixels[i];
+        XDWORD p = pixels[i];
         lum[i] = (float) ((p & 0xFF) + ((p >> 8) & 0xFF) + ((p >> 16) & 0xFF));
     }
     return _mm_mul_ps(_mm_load_ps(lum), scale);
 }
 #endif
 
-XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XULONG ColorMask) {
+XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XDWORD ColorMask) {
     if (image.BitsPerPixel != 32) return FALSE;
     if (image.Width == 0 || image.Height == 0) return FALSE;
     if (image.Image == nullptr) return FALSE;
@@ -504,20 +504,20 @@ XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XULONG ColorMask) {
             __m128 one = _mm_set1_ps(1.0f);
 
             for (int y = 0; y < Height - 1; y++) {
-                XULONG *rowCurrent = (XULONG *) (Image + y * image.BytesPerLine);
-                XULONG *rowBelow = (XULONG *) (Image + (y + 1) * image.BytesPerLine);
+                XDWORD *rowCurrent = (XDWORD *) (Image + y * image.BytesPerLine);
+                XDWORD *rowBelow = (XDWORD *) (Image + (y + 1) * image.BytesPerLine);
 
                 int x = 0;
                 // Process 4 pixels at a time
                 for (; x + 4 < Width; x += 4) {
-                    XULONG *pCurrent = rowCurrent + x;
+                    XDWORD *pCurrent = rowCurrent + x;
 
                     // Load 4 current pixels
-                    alignas(16) XULONG current4[4] = {pCurrent[0], pCurrent[1], pCurrent[2], pCurrent[3]};
+                    alignas(16) XDWORD current4[4] = {pCurrent[0], pCurrent[1], pCurrent[2], pCurrent[3]};
                     // Load 4 right pixels
-                    alignas(16) XULONG right4[4] = {pCurrent[1], pCurrent[2], pCurrent[3], pCurrent[4]};
+                    alignas(16) XDWORD right4[4] = {pCurrent[1], pCurrent[2], pCurrent[3], pCurrent[4]};
                     // Load 4 below pixels
-                    alignas(16) XULONG below4[4] = {rowBelow[x], rowBelow[x + 1], rowBelow[x + 2], rowBelow[x + 3]};
+                    alignas(16) XDWORD below4[4] = {rowBelow[x], rowBelow[x + 1], rowBelow[x + 2], rowBelow[x + 3]};
 
                     // Calculate luminances
                     __m128 lum0 = CalculateLuminanceSSE4(current4, scaleVec);
@@ -535,7 +535,7 @@ XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XULONG ColorMask) {
                     __m128 invLen = VxSIMDReciprocalSqrtAccurate(lenSq);
 
                     // Pack and store 4 output pixels
-                    alignas(16) XULONG outPixels[4];
+                    alignas(16) XDWORD outPixels[4];
                     PackNormalToPixelSSE(dx, dy, invLen, lum0, outPixels);
                     pCurrent[0] = outPixels[0];
                     pCurrent[1] = outPixels[1];
@@ -545,17 +545,17 @@ XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XULONG ColorMask) {
 
                 // Handle remaining pixels with scalar code
                 for (; x < Width; x++) {
-                    XULONG *pCurrent = rowCurrent + x;
-                    XULONG *pRight = (x + 1 < Width) ? (pCurrent + 1) : pCurrent;
-                    XULONG *pBelow = rowBelow + x;
+                    XDWORD *pCurrent = rowCurrent + x;
+                    XDWORD *pRight = (x + 1 < Width) ? (pCurrent + 1) : pCurrent;
+                    XDWORD *pBelow = rowBelow + x;
 
-                    XULONG p0 = *pCurrent;
+                    XDWORD p0 = *pCurrent;
                     float lum0f = ((p0 & 0xFF) + ((p0 >> 8) & 0xFF) + ((p0 >> 16) & 0xFF)) * scale;
 
-                    XULONG p1 = *pRight;
+                    XDWORD p1 = *pRight;
                     float lum1f = ((p1 & 0xFF) + ((p1 >> 8) & 0xFF) + ((p1 >> 16) & 0xFF)) * scale;
 
-                    XULONG p2 = *pBelow;
+                    XDWORD p2 = *pBelow;
                     float lum2f = ((p2 & 0xFF) + ((p2 >> 8) & 0xFF) + ((p2 >> 16) & 0xFF)) * scale;
 
                     float dxf = lum1f - lum0f;
@@ -572,20 +572,20 @@ XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XULONG ColorMask) {
             // Scalar fallback
             for (int y = 0; y < Height - 1; y++) {
                 for (int x = 0; x < Width; x++) {
-                    XULONG *pCurrent = (XULONG *) (Image + y * image.BytesPerLine + x * 4);
-                    XULONG *pRight = (XULONG *) (Image + y * image.BytesPerLine + (x + 1) * 4);
-                    XULONG *pBelow = (XULONG *) (Image + (y + 1) * image.BytesPerLine + x * 4);
+                    XDWORD *pCurrent = (XDWORD *) (Image + y * image.BytesPerLine + x * 4);
+                    XDWORD *pRight = (XDWORD *) (Image + y * image.BytesPerLine + (x + 1) * 4);
+                    XDWORD *pBelow = (XDWORD *) (Image + (y + 1) * image.BytesPerLine + x * 4);
 
                     // Calculate luminance for current pixel (R + G + B)
-                    XULONG p0 = *pCurrent;
+                    XDWORD p0 = *pCurrent;
                     float lum0 = ((p0 & 0xFF) + ((p0 >> 8) & 0xFF) + ((p0 >> 16) & 0xFF)) * scale;
 
                     // Calculate luminance for right pixel
-                    XULONG p1 = (x + 1 < Width) ? *pRight : p0;
+                    XDWORD p1 = (x + 1 < Width) ? *pRight : p0;
                     float lum1 = ((p1 & 0xFF) + ((p1 >> 8) & 0xFF) + ((p1 >> 16) & 0xFF)) * scale;
 
                     // Calculate luminance for below pixel
-                    XULONG p2 = *pBelow;
+                    XDWORD p2 = *pBelow;
                     float lum2 = ((p2 & 0xFF) + ((p2 >> 8) & 0xFF) + ((p2 >> 16) & 0xFF)) * scale;
 
                     // Calculate derivatives
@@ -610,20 +610,20 @@ XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XULONG ColorMask) {
 
         for (int y = 0; y < Height - 1; y++) {
             for (int x = 0; x < Width; x++) {
-                XULONG *pCurrent = (XULONG *) (Image + y * image.BytesPerLine + x * 4);
-                XULONG *pRight = (XULONG *) (Image + y * image.BytesPerLine + (x + 1) * 4);
-                XULONG *pBelow = (XULONG *) (Image + (y + 1) * image.BytesPerLine + x * 4);
+                XDWORD *pCurrent = (XDWORD *) (Image + y * image.BytesPerLine + x * 4);
+                XDWORD *pRight = (XDWORD *) (Image + y * image.BytesPerLine + (x + 1) * 4);
+                XDWORD *pBelow = (XDWORD *) (Image + (y + 1) * image.BytesPerLine + x * 4);
 
                 // Extract masked value for current pixel
-                XULONG v0 = ((*pCurrent) & ColorMask) >> BitShift;
+                XDWORD v0 = ((*pCurrent) & ColorMask) >> BitShift;
                 float h0 = (float) v0 * scale;
 
                 // Extract masked value for right pixel
-                XULONG v1 = (x + 1 < Width) ? (((*pRight) & ColorMask) >> BitShift) : v0;
+                XDWORD v1 = (x + 1 < Width) ? (((*pRight) & ColorMask) >> BitShift) : v0;
                 float h1 = (float) v1 * scale;
 
                 // Extract masked value for below pixel
-                XULONG v2 = ((*pBelow) & ColorMask) >> BitShift;
+                XDWORD v2 = ((*pBelow) & ColorMask) >> BitShift;
                 float h2 = (float) v2 * scale;
 
                 // Calculate derivatives
@@ -653,7 +653,7 @@ XBOOL VxConvertToNormalMap(const VxImageDescEx &image, XULONG ColorMask) {
 }
 
 #if defined(VX_SIMD_SSE2)
-static inline int SseLuminance(XULONG pixel) {
+static inline int SseLuminance(XDWORD pixel) {
     return (int) ((pixel & 0xFF) + ((pixel >> 8) & 0xFF) + ((pixel >> 16) & 0xFF));
 }
 #endif
@@ -741,11 +741,11 @@ XBOOL VxConvertToBumpMap(const VxImageDescEx &image) {
 
                 // Process each of 4 pixels
                 for (int i = 0; i < 4; i++) {
-                    XULONG currPx = _mm_cvtsi128_si32(curr4);
-                    XULONG belowPx = _mm_cvtsi128_si32(below4);
-                    XULONG abovePx = _mm_cvtsi128_si32(above4);
-                    XULONG leftPx = _mm_cvtsi128_si32(left4);
-                    XULONG rightPx = _mm_cvtsi128_si32(right4);
+                    XDWORD currPx = _mm_cvtsi128_si32(curr4);
+                    XDWORD belowPx = _mm_cvtsi128_si32(below4);
+                    XDWORD abovePx = _mm_cvtsi128_si32(above4);
+                    XDWORD leftPx = _mm_cvtsi128_si32(left4);
+                    XDWORD rightPx = _mm_cvtsi128_si32(right4);
 
                     int cLum = SseLuminance(currPx);
                     int bLum = SseLuminance(belowPx);

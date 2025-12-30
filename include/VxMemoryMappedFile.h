@@ -58,7 +58,7 @@ public:
      * @brief Returns the size of the mapped file in bytes.
      * @return The size of the file.
      */
-    VX_EXPORT XULONG GetFileSize();
+    VX_EXPORT size_t GetFileSize();
 
     /**
      * @brief Checks if the file was successfully opened and mapped.
@@ -76,7 +76,7 @@ private:
     GENERIC_HANDLE m_hFile;        ///< Handle to the open file.
     GENERIC_HANDLE m_hFileMapping; ///< Handle to the file-mapping object.
     void *m_pMemoryMappedFileBase; ///< Base address of the mapped view of the file.
-    XULONG m_cbFile;               ///< The size of the file.
+    size_t m_cbFile;                ///< The size of the file.
     VxMMF_Error m_errCode;         ///< Stores the error code if an operation fails.
 };
 

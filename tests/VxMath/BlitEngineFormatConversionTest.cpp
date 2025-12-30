@@ -99,9 +99,9 @@ TEST_F(FormatConversionTest, ARGB32_To_RGB32_PreservesColorIgnoresAlpha) {
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
     // Verify colors preserved (alpha byte may be 0x00 or 0xFF depending on implementation)
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
-        XULONG color = dst[i] & 0x00FFFFFF; // Mask out alpha
+        XDWORD color = dst[i] & 0x00FFFFFF; // Mask out alpha
         // 0x008040C0 = R:128, G:64, B:192
         EXPECT_EQ(0x008040C0, color) << "Color mismatch at pixel " << i;
     }
@@ -116,7 +116,7 @@ TEST_F(FormatConversionTest, RGB32_To_ARGB32_SetsFullAlpha) {
     );
 
     // Fill source (no alpha)
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         src[i] = 0x00804CC0; // RGB without alpha
     }
@@ -124,7 +124,7 @@ TEST_F(FormatConversionTest, RGB32_To_ARGB32_SetsFullAlpha) {
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
     // Verify alpha set to 0xFF
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFF804CC0, dst[i]) << "Pixel " << i << " mismatch";
     }
@@ -167,7 +167,7 @@ TEST_F(FormatConversionTest, RGB24_To_ARGB32_AddsAlpha) {
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
     // Verify 32-bit values with full alpha
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFFAABBCC, dst[i]) << "Pixel " << i << " mismatch";
     }
@@ -186,7 +186,7 @@ TEST_F(FormatConversionTest, ARGB32_To_RGB565_QuantizesCorrectly) {
     );
 
     // Test with pure colors
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     src[0] = 0xFFFF0000; // Red
     src[1] = 0xFF00FF00; // Green
     src[2] = 0xFF0000FF; // Blue
@@ -221,7 +221,7 @@ TEST_F(FormatConversionTest, RGB565_To_ARGB32_ExpandsCorrectly) {
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     
     // 565 expansion: 5 bits -> 8 bits (r << 3), 6 bits -> 8 bits (g << 2)
     // Pure red (31 in 5 bits) -> 248 (31 << 3) or 255 with replication
@@ -252,7 +252,7 @@ TEST_F(FormatConversionTest, ARGB32_To_RGB555_QuantizesCorrectly) {
         width, height
     );
 
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     src[0] = 0xFFFF0000; // Red
     src[1] = 0xFF00FF00; // Green
     src[2] = 0xFF0000FF; // Blue
@@ -277,7 +277,7 @@ TEST_F(FormatConversionTest, ARGB32_To_ARGB1555_PreservesAlphaBit) {
         width, height
     );
 
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     src[0] = 0xFFFF0000; // Red, full alpha -> alpha bit = 1
     src[1] = 0x00FF0000; // Red, zero alpha -> alpha bit = 0
     src[2] = 0x80FF0000; // Red, half alpha -> alpha bit = 1
@@ -298,7 +298,7 @@ TEST_F(FormatConversionTest, ARGB32_To_ARGB4444_PreservesAlpha) {
         width, height
     );
 
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     src[0] = 0xFFFF0000; // Red, full alpha
     src[1] = 0x00FF0000; // Red, zero alpha
     src[2] = 0x88888888; // All channels ~50%
@@ -335,8 +335,8 @@ TEST_F(FormatConversionTest, Roundtrip_32To24To32_PreservesColor) {
     blitter.DoBlit(midDesc, dstDesc);
     
     // Compare (allowing for alpha difference since 24-bit doesn't preserve it)
-    const XULONG* orig = reinterpret_cast<const XULONG*>(src32.Data());
-    const XULONG* result = reinterpret_cast<const XULONG*>(dst32.Data());
+    const XDWORD* orig = reinterpret_cast<const XDWORD*>(src32.Data());
+    const XDWORD* result = reinterpret_cast<const XDWORD*>(dst32.Data());
     
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ((orig[i] & 0x00FFFFFF), (result[i] & 0x00FFFFFF))
@@ -380,12 +380,12 @@ TEST_F(FormatConversionTest, SmallImage_1x1) {
         1, 1
     );
 
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     src[0] = 0xAABBCCDD;
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    XULONG* dst = reinterpret_cast<XULONG*>(pair.dstBuffer.Data());
+    XDWORD* dst = reinterpret_cast<XDWORD*>(pair.dstBuffer.Data());
     EXPECT_EQ(0xAABBCCDD, dst[0]);
 }
 
@@ -437,7 +437,7 @@ TEST_F(FormatConversionTest, NonSquareImage_TallRectangle) {
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     EXPECT_EQ(0x00000000, dst[0] & 0x00FFFFFF) << "First row should be dark";
 }
 
@@ -454,14 +454,14 @@ TEST_F(FormatConversionTest, ARGB32_to_ABGR32_ChannelSwap) {
         width, height
     );
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         src[i] = 0xAA112233; // ARGB: A=0xAA, R=0x11, G=0x22, B=0x33
     }
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     // ABGR format: A=0xAA, B=0x33, G=0x22, R=0x11 -> 0xAA332211
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xAA332211, dst[i]) << "Pixel " << i;
@@ -477,14 +477,14 @@ TEST_F(FormatConversionTest, ABGR32_to_ARGB32_ChannelSwap) {
         width, height
     );
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         src[i] = 0xBB445566; // ABGR: A=0xBB, B=0x44, G=0x55, R=0x66
     }
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     // ARGB format: A=0xBB, R=0x66, G=0x55, B=0x44 -> 0xBB665544
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xBB665544, dst[i]) << "Pixel " << i;
@@ -500,14 +500,14 @@ TEST_F(FormatConversionTest, ARGB32_to_RGBA32_ChannelSwap) {
         width, height
     );
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         src[i] = 0xCC778899; // ARGB: A=0xCC, R=0x77, G=0x88, B=0x99
     }
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     // RGBA format: R=0x77, G=0x88, B=0x99, A=0xCC -> 0x778899CC
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0x778899CC, dst[i]) << "Pixel " << i;
@@ -601,14 +601,14 @@ TEST_F(FormatConversionTest, ARGB32_to_RGB32_AllWidths) {
             width, 4
         );
         
-        XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+        XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             src[i] = 0xFF112233;
         }
         
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
         
-        const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+        const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             EXPECT_EQ(0x00112233, dst[i] & 0x00FFFFFF) 
                 << "RGB mismatch at pixel " << i << " (width=" << width << ")";
@@ -626,14 +626,14 @@ TEST_F(FormatConversionTest, RGB32_to_ARGB32_AllWidths) {
             width, 4
         );
         
-        XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+        XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             src[i] = 0x00AABBCC;
         }
         
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
         
-        const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+        const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             EXPECT_EQ(0xFFAABBCC, dst[i]) 
                 << "Pixel mismatch at " << i << " (width=" << width << ")";
@@ -651,7 +651,7 @@ TEST_F(FormatConversionTest, ARGB32_to_RGB24_AllWidths) {
             width, 4
         );
         
-        XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+        XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             XBYTE r = static_cast<XBYTE>(i & 0xFF);
             XBYTE g = static_cast<XBYTE>((i * 7) & 0xFF);
@@ -699,12 +699,12 @@ TEST_F(FormatConversionTest, RGB24_to_ARGB32_AllWidths) {
         
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
         
-        const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+        const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             XBYTE expectedR = static_cast<XBYTE>((i + 50) & 0xFF);
             XBYTE expectedG = static_cast<XBYTE>((i * 3 + 100) & 0xFF);
             XBYTE expectedB = static_cast<XBYTE>((i * 5 + 150) & 0xFF);
-            XULONG expected = 0xFF000000 | (expectedR << 16) | (expectedG << 8) | expectedB;
+            XDWORD expected = 0xFF000000 | (expectedR << 16) | (expectedG << 8) | expectedB;
             
             EXPECT_EQ(expected, dst[i]) 
                 << "Pixel mismatch at " << i << " (width=" << width << ")";
@@ -722,7 +722,7 @@ TEST_F(FormatConversionTest, ARGB32_to_565_AllWidths) {
             width, 4
         );
         
-        XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+        XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
         // Set first few pixels to known colors
         if (width >= 5) {
             src[0] = 0xFFFF0000; // Red
@@ -766,7 +766,7 @@ TEST_F(FormatConversionTest, RGB565_to_ARGB32_AllWidths) {
         
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
         
-        const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+        const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
         if (width >= 5) {
             // Check alpha is always 0xFF
             EXPECT_EQ(0xFF, (dst[0] >> 24) & 0xFF) << "Alpha (width=" << width << ")";
@@ -793,14 +793,14 @@ TEST_F(FormatConversionTest, NoAlphaSource_To_AlphaDest) {
         width, height
     );
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         src[i] = 0x00112233;
     }
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0xFF112233, dst[i]) << "Pixel " << i;
     }
@@ -815,14 +815,14 @@ TEST_F(FormatConversionTest, AlphaSource_To_NoAlphaDest) {
         width, height
     );
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         src[i] = 0xAA112233;
     }
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(0x00112233, dst[i]) << "Pixel " << i;
     }
@@ -845,7 +845,7 @@ TEST_F(FormatConversionTest, ARGB1555_to_ARGB32_AlphaExpansion) {
         
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
         
-        const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+        const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
         EXPECT_EQ(0xFF, (dst[0] >> 24) & 0xFF) << "Full alpha expansion (width=" << width << ")";
         EXPECT_EQ(0x00, (dst[1] >> 24) & 0xFF) << "Zero alpha (width=" << width << ")";
     }
@@ -864,7 +864,7 @@ TEST_F(FormatConversionTest, LargeImage_CorrectOutput) {
         width, height
     );
     
-    XULONG* src = reinterpret_cast<XULONG*>(pair.srcBuffer.Data());
+    XDWORD* src = reinterpret_cast<XDWORD*>(pair.srcBuffer.Data());
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             int idx = y * width + x;
@@ -877,7 +877,7 @@ TEST_F(FormatConversionTest, LargeImage_CorrectOutput) {
     
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
     
-    const XULONG* dst = reinterpret_cast<const XULONG*>(pair.dstBuffer.Data());
+    const XDWORD* dst = reinterpret_cast<const XDWORD*>(pair.dstBuffer.Data());
     for (int y = 0; y < height; y += 100) {
         for (int x = 0; x < width; x += 100) {
             int idx = y * width + x;
@@ -907,7 +907,7 @@ TEST_F(FormatConversionTest, Roundtrip_ARGB32_1555_ARGB32) {
     auto midDesc = ImageDescFactory::Create16Bit1555(width, height, midBuffer.Data());
     auto dstDesc = ImageDescFactory::Create32BitARGB(width, height, dstBuffer.Data());
     
-    XULONG* srcPixels = reinterpret_cast<XULONG*>(srcBuffer.Data());
+    XDWORD* srcPixels = reinterpret_cast<XDWORD*>(srcBuffer.Data());
     srcPixels[0] = 0xFFFF0000; // Red
     srcPixels[1] = 0xFF00FF00; // Green
     srcPixels[2] = 0xFF0000FF; // Blue
@@ -920,7 +920,7 @@ TEST_F(FormatConversionTest, Roundtrip_ARGB32_1555_ARGB32) {
     // 1555 -> ARGB32
     blitter.DoBlit(midDesc, dstDesc);
     
-    const XULONG* dstPixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* dstPixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     
     // Colors should be close (5-bit precision loss)
     EXPECT_GE((dstPixels[0] >> 16) & 0xFF, 248) << "Red should be mostly preserved";
@@ -943,7 +943,7 @@ TEST_F(FormatConversionTest, Roundtrip_ARGB32_4444_ARGB32) {
     auto midDesc = ImageDescFactory::Create16Bit4444(width, height, midBuffer.Data());
     auto dstDesc = ImageDescFactory::Create32BitARGB(width, height, dstBuffer.Data());
     
-    XULONG* srcPixels = reinterpret_cast<XULONG*>(srcBuffer.Data());
+    XDWORD* srcPixels = reinterpret_cast<XDWORD*>(srcBuffer.Data());
     srcPixels[0] = 0xFFFF0000; // Full red
     srcPixels[1] = 0x88888888; // Half gray/alpha
     srcPixels[2] = 0x00000000; // Transparent black
@@ -953,7 +953,7 @@ TEST_F(FormatConversionTest, Roundtrip_ARGB32_4444_ARGB32) {
     // 4444 -> ARGB32
     blitter.DoBlit(midDesc, dstDesc);
     
-    const XULONG* dstPixels = reinterpret_cast<const XULONG*>(dstBuffer.Data());
+    const XDWORD* dstPixels = reinterpret_cast<const XDWORD*>(dstBuffer.Data());
     
     // Full values should expand to near-max
     EXPECT_GE((dstPixels[0] >> 24) & 0xFF, 0xF0) << "Alpha should be near full";
@@ -974,7 +974,7 @@ TEST_F(FormatConversionTest, SinglePixel_AllFormats) {
     
     // 32-bit ARGB source
     ImageBuffer src32(4);
-    XULONG* srcPixel = reinterpret_cast<XULONG*>(src32.Data());
+    XDWORD* srcPixel = reinterpret_cast<XDWORD*>(src32.Data());
     *srcPixel = 0xFFAABBCC; // ARGB
     
     auto src32Desc = ImageDescFactory::Create32BitARGB(1, 1, src32.Data());
@@ -984,7 +984,7 @@ TEST_F(FormatConversionTest, SinglePixel_AllFormats) {
         ImageBuffer dst(4);
         auto dstDesc = ImageDescFactory::Create32BitRGB(1, 1, dst.Data());
         blitter.DoBlit(src32Desc, dstDesc);
-        XULONG* dstPixel = reinterpret_cast<XULONG*>(dst.Data());
+        XDWORD* dstPixel = reinterpret_cast<XDWORD*>(dst.Data());
         EXPECT_EQ(0x00AABBCC, *dstPixel) << "ARGB32->RGB32";
     }
     
@@ -1030,7 +1030,7 @@ TEST_F(FormatConversionTest, FillImage_32Bit_SolidColor) {
 
     blitter.FillImage(desc, 0xFFFF0000);
 
-    const XULONG *pixels = reinterpret_cast<const XULONG *>(buffer.Data());
+    const XDWORD *pixels = reinterpret_cast<const XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(pixels[i], 0xFFFF0000u) << "Pixel " << i << " not filled correctly";
     }
@@ -1043,7 +1043,7 @@ TEST_F(FormatConversionTest, FillImage_32Bit_Transparent) {
 
     blitter.FillImage(desc, 0x00000000);
 
-    const XULONG *pixels = reinterpret_cast<const XULONG *>(buffer.Data());
+    const XDWORD *pixels = reinterpret_cast<const XDWORD *>(buffer.Data());
     for (int i = 0; i < width * height; ++i) {
         EXPECT_EQ(pixels[i], 0x00000000u);
     }
@@ -1087,7 +1087,7 @@ TEST_F(FormatConversionTest, FillImage_LargeImage_Performance) {
 
     blitter.FillImage(desc, 0xFFAABBCC);
 
-    const XULONG *pixels = reinterpret_cast<const XULONG *>(buffer.Data());
+    const XDWORD *pixels = reinterpret_cast<const XDWORD *>(buffer.Data());
     EXPECT_EQ(pixels[0], 0xFFAABBCCu);
     EXPECT_EQ(pixels[width * height - 1], 0xFFAABBCCu);
 }
@@ -1104,14 +1104,14 @@ TEST_F(FormatConversionTest, ChannelSwap_ARGB_to_ABGR_AllWidths) {
             width, 4
         );
 
-        XULONG *srcPixels = reinterpret_cast<XULONG *>(pair.srcBuffer.Data());
+        XDWORD *srcPixels = reinterpret_cast<XDWORD *>(pair.srcBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             srcPixels[i] = 0x80112233;
         }
 
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
 
-        const XULONG *dstPixels = reinterpret_cast<const XULONG *>(pair.dstBuffer.Data());
+        const XDWORD *dstPixels = reinterpret_cast<const XDWORD *>(pair.dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             EXPECT_EQ(dstPixels[i], 0x80332211u) << "Width " << width << ", pixel " << i;
         }
@@ -1126,14 +1126,14 @@ TEST_F(FormatConversionTest, ChannelSwap_ARGB_to_RGBA_AllWidths) {
             width, 4
         );
 
-        XULONG *srcPixels = reinterpret_cast<XULONG *>(pair.srcBuffer.Data());
+        XDWORD *srcPixels = reinterpret_cast<XDWORD *>(pair.srcBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             srcPixels[i] = 0x80112233;
         }
 
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
 
-        const XULONG *dstPixels = reinterpret_cast<const XULONG *>(pair.dstBuffer.Data());
+        const XDWORD *dstPixels = reinterpret_cast<const XDWORD *>(pair.dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             EXPECT_EQ(dstPixels[i], 0x11223380u) << "Width " << width << ", pixel " << i;
         }
@@ -1148,14 +1148,14 @@ TEST_F(FormatConversionTest, ChannelSwap_ABGR_to_ARGB_AllWidths) {
             width, 4
         );
 
-        XULONG *srcPixels = reinterpret_cast<XULONG *>(pair.srcBuffer.Data());
+        XDWORD *srcPixels = reinterpret_cast<XDWORD *>(pair.srcBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             srcPixels[i] = 0x80332211;
         }
 
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
 
-        const XULONG *dstPixels = reinterpret_cast<const XULONG *>(pair.dstBuffer.Data());
+        const XDWORD *dstPixels = reinterpret_cast<const XDWORD *>(pair.dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             EXPECT_EQ(dstPixels[i], 0x80112233u) << "Width " << width << ", pixel " << i;
         }
@@ -1170,14 +1170,14 @@ TEST_F(FormatConversionTest, ChannelSwap_RGBA_to_ARGB_AllWidths) {
             width, 4
         );
 
-        XULONG *srcPixels = reinterpret_cast<XULONG *>(pair.srcBuffer.Data());
+        XDWORD *srcPixels = reinterpret_cast<XDWORD *>(pair.srcBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             srcPixels[i] = 0x33221180;
         }
 
         blitter.DoBlit(pair.srcDesc, pair.dstDesc);
 
-        const XULONG *dstPixels = reinterpret_cast<const XULONG *>(pair.dstBuffer.Data());
+        const XDWORD *dstPixels = reinterpret_cast<const XDWORD *>(pair.dstBuffer.Data());
         for (int i = 0; i < width * 4; ++i) {
             EXPECT_EQ(dstPixels[i], 0x80332211u) << "Width " << width << ", pixel " << i;
         }
@@ -1192,14 +1192,14 @@ TEST_F(FormatConversionTest, ChannelSwap_LargeImage_ARGB_to_ABGR) {
         width, height
     );
 
-    XULONG *srcPixels = reinterpret_cast<XULONG *>(pair.srcBuffer.Data());
+    XDWORD *srcPixels = reinterpret_cast<XDWORD *>(pair.srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         srcPixels[i] = 0xFFAABBCC;
     }
 
     blitter.DoBlit(pair.srcDesc, pair.dstDesc);
 
-    const XULONG *dstPixels = reinterpret_cast<const XULONG *>(pair.dstBuffer.Data());
+    const XDWORD *dstPixels = reinterpret_cast<const XDWORD *>(pair.dstBuffer.Data());
     EXPECT_EQ(dstPixels[0], 0xFFCCBBAAu);
     EXPECT_EQ(dstPixels[width * height - 1], 0xFFCCBBAAu);
 }

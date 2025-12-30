@@ -70,7 +70,7 @@ TEST_F(VxWindowFunctionsTest, ScanCodeToAscii) {
     // Test without shift key
     unsigned char keyState[256] = {0};
     // Scan code for 'A' key (VK_A) on a US keyboard is often 0x1E
-    XULONG scanCodeA = 0x1E;
+    XDWORD scanCodeA = 0x1E;
     EXPECT_EQ(VxScanCodeToAscii(scanCodeA, keyState), 'a');
 
     // Test with shift key pressed
@@ -79,14 +79,14 @@ TEST_F(VxWindowFunctionsTest, ScanCodeToAscii) {
 
     // Test a non-printable key
     keyState[VK_SHIFT] = 0;
-    XULONG scanCodeF1 = 0x3B; // Scan code for F1
+    XDWORD scanCodeF1 = 0x3B; // Scan code for F1
     EXPECT_EQ(VxScanCodeToAscii(scanCodeF1, keyState), 0);
 }
 
 TEST_F(VxWindowFunctionsTest, ScanCodeToName) {
     char keyName[256];
     // This is highly layout-dependent, but we can test special keys
-    XULONG scanCodeLeft = 0xCB;
+    XDWORD scanCodeLeft = 0xCB;
     EXPECT_GT(VxScanCodeToName(scanCodeLeft, keyName), 0);
     // The exact name can vary, but it should be something like "Left" or "Left Arrow"
     std::string name(keyName);
@@ -231,7 +231,7 @@ TEST_F(VxWindowFunctionsTest, ModuleFunctions) {
 
     // Get the file name of the current executable
     char modulePath[MAX_PATH];
-    XULONG pathLen = VxGetModuleFileName(hMod, modulePath, MAX_PATH);
+    XDWORD pathLen = VxGetModuleFileName(hMod, modulePath, MAX_PATH);
     ASSERT_GT(pathLen, 0);
     EXPECT_TRUE(std::filesystem::exists(modulePath));
 }
@@ -329,7 +329,7 @@ TEST_F(VxWindowFunctionsTest, BitmapOperations) {
     ASSERT_NE(hBitmap, nullptr);
 
     // 3. Create source pixel data to copy into the bitmap
-    std::vector<XULONG> pixels = {0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFFFF};
+    std::vector<XDWORD> pixels = {0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFFFF};
     desc.Image = (XBYTE *) pixels.data();
     desc.BytesPerLine = 2 * 4;
 
@@ -345,7 +345,7 @@ TEST_F(VxWindowFunctionsTest, BitmapOperations) {
     EXPECT_EQ(outDesc.Width, desc.Width);
     EXPECT_EQ(outDesc.Height, desc.Height);
     EXPECT_EQ(outDesc.BitsPerPixel, desc.BitsPerPixel);
-    EXPECT_EQ(memcmp(outPixels, pixels.data(), pixels.size() * sizeof(XULONG)), 0);
+    EXPECT_EQ(memcmp(outPixels, pixels.data(), pixels.size() * sizeof(XDWORD)), 0);
 
     // Clean up
     delete[] outPixels;

@@ -20,24 +20,24 @@
 struct VxBlitInfo {
     const XBYTE *srcLine;   ///< Pointer to the source scanline
     XBYTE *dstLine;         ///< Pointer to the destination scanline
-    XULONG srcBytesPerLine; ///< Source bytes per line (stride)
-    XULONG dstBytesPerLine; ///< Destination bytes per line (stride)
+    XDWORD srcBytesPerLine; ///< Source bytes per line (stride)
+    XDWORD dstBytesPerLine; ///< Destination bytes per line (stride)
     int width;              ///< Number of pixels to process
     int copyBytes;          ///< Number of bytes to copy per line
 
     // Source image descriptor (partial copy)
-    XULONG srcBytesPerPixel;
-    XULONG srcRedMask;
-    XULONG srcGreenMask;
-    XULONG srcBlueMask;
-    XULONG srcAlphaMask;
+    XDWORD srcBytesPerPixel;
+    XDWORD srcRedMask;
+    XDWORD srcGreenMask;
+    XDWORD srcBlueMask;
+    XDWORD srcAlphaMask;
 
     // Destination image descriptor (partial copy)
-    XULONG dstBytesPerPixel;
-    XULONG dstRedMask;
-    XULONG dstGreenMask;
-    XULONG dstBlueMask;
-    XULONG dstAlphaMask;
+    XDWORD dstBytesPerPixel;
+    XDWORD dstRedMask;
+    XDWORD dstGreenMask;
+    XDWORD dstBlueMask;
+    XDWORD dstAlphaMask;
 
     // Pre-computed shift values (position of LSB of each mask)
     int redShiftSrc;
@@ -60,10 +60,10 @@ struct VxBlitInfo {
     int alphaBitsDst;
 
     // Inverted alpha mask for clearing
-    XULONG alphaMaskInv;
+    XDWORD alphaMaskInv;
 
     // Alpha value for constant alpha blit
-    XULONG alphaValue;
+    XDWORD alphaValue;
 
     // Color map (for paletted images)
     const XBYTE *colorMap;
@@ -84,8 +84,8 @@ struct VxResizeInfo {
     int h1;            ///< Source height
     int h2;            ///< Destination height
     int srcPitch;      ///< Source bytes per line / 4 (for 32-bit)
-    XULONG *dstRow;    ///< Pointer to destination row
-    const XULONG *srcRow; ///< Pointer to source row
+    XDWORD *dstRow;    ///< Pointer to destination row
+    const XDWORD *srcRow; ///< Pointer to source row
 };
 
 /// Function pointer type for line blitting operations
@@ -201,7 +201,7 @@ public:
      * @param dst_desc Destination image descriptor.
      * @param color The color to fill with (format-dependent, typically ARGB).
      */
-    void FillImage(const VxImageDescEx &dst_desc, XULONG color);
+    void FillImage(const VxImageDescEx &dst_desc, XDWORD color);
 
     /**
      * @brief Converts an image to premultiplied alpha format in-place.
@@ -366,7 +366,7 @@ private:
     VxBlitInfo m_BlitInfo;
 
     // Temporary buffer for resizing operations
-    XArray<XULONG> m_ResizeBuffer;
+    XArray<XDWORD> m_ResizeBuffer;
 };
 
 /**

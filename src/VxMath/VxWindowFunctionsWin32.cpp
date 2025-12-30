@@ -20,7 +20,7 @@
 
 extern void VxDoBlitUpsideDown(const VxImageDescEx &src_desc, const VxImageDescEx &dst_desc);
 
-char VxScanCodeToAscii(XULONG scancode, unsigned char keystate[256]) {
+char VxScanCodeToAscii(XDWORD scancode, unsigned char keystate[256]) {
     unsigned char state[256];
 
     GetKeyboardState(state);
@@ -60,7 +60,7 @@ char VxScanCodeToAscii(XULONG scancode, unsigned char keystate[256]) {
     return (ret != 0) ? ch : '\0';
 }
 
-int VxScanCodeToName(XULONG scancode, char *keyName) {
+int VxScanCodeToName(XDWORD scancode, char *keyName) {
     DWORD code = (scancode & 0x7F) << 16;
     if (scancode > 0x7F)
         code |= 0x1000000;
@@ -247,7 +247,7 @@ XBOOL VxMakePath(char *fullpath, char *path, char *file) {
         return FALSE;
 
     strcpy(fullpath, path);
-    int pathLen = strlen(path);
+    size_t pathLen = strlen(path);
 
     if (pathLen >= MAX_PATH - strlen(file) - 1) return FALSE;
 
@@ -261,7 +261,7 @@ XBOOL VxMakePath(char *fullpath, char *path, char *file) {
     return TRUE;
 }
 
-XBOOL VxTestDiskSpace(const char *dir, XULONG size) {
+XBOOL VxTestDiskSpace(const char *dir, size_t size) {
     HMODULE hKernel32 = GetModuleHandleA("kernel32.dll");
     typedef BOOL (__stdcall *LPFNGETDISKFREESPACEEXA)(LPCSTR, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER);
     LPFNGETDISKFREESPACEEXA lpfnGetDiskFreeSpaceExA = (LPFNGETDISKFREESPACEEXA) GetProcAddress(hKernel32, "GetDiskFreeSpaceExA");
@@ -283,12 +283,12 @@ XBOOL VxTestDiskSpace(const char *dir, XULONG size) {
     }
 }
 
-int VxMessageBox(WIN_HANDLE hWnd, char *lpText, char *lpCaption, XULONG uType) {
+int VxMessageBox(WIN_HANDLE hWnd, char *lpText, char *lpCaption, XDWORD uType) {
     return MessageBoxA((HWND) hWnd, lpText, lpCaption, uType);
 }
 
-XULONG VxGetModuleFileName(INSTANCE_HANDLE Handle, char *string, XULONG StringSize) {
-    return GetModuleFileNameA((HMODULE) Handle, string, StringSize);
+XDWORD VxGetModuleFileName(INSTANCE_HANDLE Handle, char *string, size_t StringSize) {
+    return GetModuleFileNameA((HMODULE) Handle, string, (DWORD) StringSize);
 }
 
 INSTANCE_HANDLE VxGetModuleHandle(const char *filename) {
@@ -312,7 +312,7 @@ XBOOL VxCreateFileTree(char *file) {
     return TRUE;
 }
 
-XULONG VxURLDownloadToCacheFile(char *File, char *CachedFile, int szCachedFile) {
+XDWORD VxURLDownloadToCacheFile(char *File, char *CachedFile, int szCachedFile) {
     char *cachedFile = CachedFile;
     CachedFile[0] = '\0';
 
@@ -320,11 +320,14 @@ XULONG VxURLDownloadToCacheFile(char *File, char *CachedFile, int szCachedFile) 
     if (!sl.Load("Urlmon.dll"))
         return E_FAIL;
 
-    typedef HRESULT (__stdcall *LPFNURLDOWNLOADTOCACHEFILE)(LPUNKNOWN, LPCSTR, LPTSTR, DWORD, DWORD, IBindStatusCallback *);
-    LPFNURLDOWNLOADTOCACHEFILE lpfnURLDownloadToCacheFileA = (LPFNURLDOWNLOADTOCACHEFILE) sl.GetFunctionPtr("URLDownloadToCacheFileA");
-    XULONG ret = E_FAIL;
+    // Use a minimal signature to avoid pulling in urlmon/COM headers.
+    // We always pass NULL for the COM-related parameters.
+    typedef HRESULT(WINAPI *LPFNURLDOWNLOADTOCACHEFILEA)(void *, const char *, char *, DWORD, DWORD, void *);
+    LPFNURLDOWNLOADTOCACHEFILEA lpfnURLDownloadToCacheFileA =
+        (LPFNURLDOWNLOADTOCACHEFILEA) sl.GetFunctionPtr("URLDownloadToCacheFileA");
+    XDWORD ret = E_FAIL;
     if (lpfnURLDownloadToCacheFileA)
-        ret = lpfnURLDownloadToCacheFileA(NULL, File, cachedFile, szCachedFile, 0, NULL);
+        ret = lpfnURLDownloadToCacheFileA(NULL, File, cachedFile, (DWORD) szCachedFile, 0, NULL);
     sl.ReleaseLibrary();
     return ret;
 }
@@ -646,7 +649,7 @@ XBOOL VxGetFontInfo(FONT_HANDLE Font, VXFONTINFO &desc) {
     return TRUE;
 }
 
-XBOOL VxDrawBitmapText(BITMAP_HANDLE Bitmap, FONT_HANDLE Font, char *string, CKRECT *rect, XULONG Align, XULONG BkColor, XULONG FontColor) {
+XBOOL VxDrawBitmapText(BITMAP_HANDLE Bitmap, FONT_HANDLE Font, char *string, CKRECT *rect, XDWORD Align, XDWORD BkColor, XDWORD FontColor) {
     if (!Bitmap || !Font || !string || !rect) return FALSE;
 
     HDC hDC = CreateCompatibleDC(NULL);

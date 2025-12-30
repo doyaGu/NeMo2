@@ -621,8 +621,8 @@ typedef struct VxBbox {
      * @param iPoint The point to classify.
      * @return A bitmask of `VXCLIP_FLAGS` indicating which planes the point is outside of.
      */
-    XULONG Classify(const VxVector &iPoint) const {
-        XULONG flag = 0;
+    XDWORD Classify(const VxVector &iPoint) const {
+        XDWORD flag = 0;
         if (iPoint.x < Min.x) flag |= VXCLIP_LEFT;
         else if (iPoint.x > Max.x) flag |= VXCLIP_RIGHT;
         if (iPoint.y < Min.y) flag |= VXCLIP_BOTTOM;
@@ -637,8 +637,8 @@ typedef struct VxBbox {
      * @param iBox The box to classify.
      * @return A bitmask of `VXCLIP_FLAGS` indicating full exclusion on one or more axes.
      */
-    XULONG Classify(const VxBbox &iBox) const {
-        XULONG flag = 0;
+    XDWORD Classify(const VxBbox &iBox) const {
+        XDWORD flag = 0;
         if (iBox.Max.z < Min.z) flag |= VXCLIP_BACK;
         else if (iBox.Min.z > Max.z) flag |= VXCLIP_FRONT;
         if (iBox.Max.x < Min.x) flag |= VXCLIP_LEFT;
@@ -663,7 +663,7 @@ typedef struct VxBbox {
      * @param iStride The byte offset between consecutive vertices.
      * @param oFlags An output array to be filled with `VXCLIP_FLAGS` for each vertex.
      */
-    VX_EXPORT void ClassifyVertices(const int iVcount, XBYTE *iVertices, XULONG iStride, XULONG *oFlags) const;
+    VX_EXPORT void ClassifyVertices(const int iVcount, XBYTE *iVertices, XDWORD iStride, XDWORD *oFlags) const;
 
     /**
      * @brief Classifies an array of vertices against a single axis of the box.
@@ -673,7 +673,7 @@ typedef struct VxBbox {
      * @param iAxis The axis to test against (0=x, 1=y, 2=z).
      * @param oFlags An output array to be filled with flags (0x01 if < min, 0x10 if > max).
      */
-    VX_EXPORT void ClassifyVerticesOneAxis(const int iVcount, XBYTE *iVertices, XULONG iStride, const int iAxis, XULONG *oFlags) const;
+    VX_EXPORT void ClassifyVerticesOneAxis(const int iVcount, XBYTE *iVertices, XDWORD iStride, const int iAxis, XDWORD *oFlags) const;
 
     /**
      * @brief Calculates the intersection of this box with another box.

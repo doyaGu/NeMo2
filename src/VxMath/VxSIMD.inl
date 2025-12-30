@@ -717,7 +717,7 @@ VX_SIMD_INLINE void VxSIMDInterpolateFloatArray(float *result, const float *a, c
     }
 }
 
-VX_SIMD_INLINE void VxSIMDInterpolateVectorArray(void *result, const void *a, const void *b, float factor, int count, XULONG strideResult, XULONG strideInput) noexcept {
+VX_SIMD_INLINE void VxSIMDInterpolateVectorArray(void *result, const void *a, const void *b, float factor, int count, XDWORD strideResult, XDWORD strideInput) noexcept {
     const char *srcA = static_cast<const char *>(a);
     const char *srcB = static_cast<const char *>(b);
     char *dst = static_cast<char *>(result);
@@ -920,7 +920,7 @@ VX_SIMD_INLINE int VxSIMDBboxClassify(const VxBbox *self, const VxBbox *other, c
     __m128 otherMin = VxSIMDLoadFloat3(&other->Min.x);
     __m128 otherMax = VxSIMDLoadFloat3(&other->Max.x);
 
-    XULONG ptFlags = 0;
+    XDWORD ptFlags = 0;
     __m128 ptLessThanMin = _mm_cmplt_ps(ptVec, selfMin);
     __m128 ptGreaterThanMax = _mm_cmpgt_ps(ptVec, selfMax);
     int ptLessFlags = _mm_movemask_ps(ptLessThanMin);
@@ -933,7 +933,7 @@ VX_SIMD_INLINE int VxSIMDBboxClassify(const VxBbox *self, const VxBbox *other, c
     if (ptLessFlags & 4) ptFlags |= VXCLIP_BACK;
     if (ptGreaterFlags & 4) ptFlags |= VXCLIP_FRONT;
 
-    XULONG box2Flags = 0;
+    XDWORD box2Flags = 0;
     __m128 otherMaxLessThanMin = _mm_cmplt_ps(otherMax, selfMin);
     __m128 otherMinGreaterThanMax = _mm_cmpgt_ps(otherMin, selfMax);
     int box2LessFlags = _mm_movemask_ps(otherMaxLessThanMin);
@@ -982,7 +982,7 @@ VX_SIMD_INLINE int VxSIMDBboxClassify(const VxBbox *self, const VxBbox *other, c
     return 0;
 }
 
-VX_SIMD_INLINE void VxSIMDBboxClassifyVertices(const VxBbox *self, int count, const XBYTE *vertices, XULONG stride, XULONG *flags) noexcept {
+VX_SIMD_INLINE void VxSIMDBboxClassifyVertices(const VxBbox *self, int count, const XBYTE *vertices, XDWORD stride, XDWORD *flags) noexcept {
     __m128 bboxMin = VxSIMDLoadFloat3(&self->Min.x);
     __m128 bboxMax = VxSIMDLoadFloat3(&self->Max.x);
 
@@ -995,7 +995,7 @@ VX_SIMD_INLINE void VxSIMDBboxClassifyVertices(const VxBbox *self, int count, co
         int lessFlags = _mm_movemask_ps(lessThanMin);
         int greaterFlags = _mm_movemask_ps(greaterThanMax);
 
-        XULONG flag = 0;
+        XDWORD flag = 0;
         if (lessFlags & 4) flag |= VXCLIP_BACK;
         else if (greaterFlags & 4) flag |= VXCLIP_FRONT;
         if (lessFlags & 2) flag |= VXCLIP_BOTTOM;
@@ -1177,8 +1177,8 @@ VX_SIMD_INLINE XBOOL VxSIMDTransformBox2D(const VxMatrix *worldProjection, const
         verts[7] = _mm_add_ps(verts[5], deltaY);
     }
 
-    XULONG allOr = 0;
-    XULONG allAnd = 0xFFFFFFFFu;
+    XDWORD allOr = 0;
+    XDWORD allAnd = 0xFFFFFFFFu;
     const __m128 zero = _mm_setzero_ps();
 
     for (int i = 0; i < vertexCount; ++i) {
@@ -1190,7 +1190,7 @@ VX_SIMD_INLINE XBOOL VxSIMDTransformBox2D(const VxMatrix *worldProjection, const
         __m128 y = _mm_shuffle_ps(v, v, _MM_SHUFFLE(1, 1, 1, 1));
         __m128 z = _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 2, 2, 2));
 
-        XULONG flags = 0;
+        XDWORD flags = 0;
         if (_mm_comilt_ss(x, negW)) flags |= VXCLIP_LEFT;
         if (_mm_comigt_ss(x, w)) flags |= VXCLIP_RIGHT;
         if (_mm_comilt_ss(y, negW)) flags |= VXCLIP_BOTTOM;

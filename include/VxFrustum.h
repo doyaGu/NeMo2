@@ -101,8 +101,8 @@ public:
      * @param v The point to classify.
      * @return A bitmask of VXCLIP flags indicating which planes the point is outside of. Returns 0 if inside.
      */
-    XULONG Classify(const VxVector &v) const {
-        XULONG flags = 0;
+    XDWORD Classify(const VxVector &v) const {
+        XDWORD flags = 0;
         // Classification of the vertex to the 6 planes
         if (GetNearPlane().Classify(v) > 0.0f) flags |= VXCLIP_FRONT; // the vertex is fully off near
         else if (GetFarPlane().Classify(v) > 0.0f) flags |= VXCLIP_BACK; // the vertex is fully off back

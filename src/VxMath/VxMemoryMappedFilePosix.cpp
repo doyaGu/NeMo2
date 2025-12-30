@@ -28,7 +28,7 @@ VxMemoryMappedFile::VxMemoryMappedFile(char *pszFileName)
         m_errCode = VxMMF_FileOpen;
         return;
     }
-    m_cbFile = (XULONG)sb.st_size;
+    m_cbFile = static_cast<size_t>(sb.st_size);
 
     m_pMemoryMappedFileBase = mmap(NULL, m_cbFile, PROT_READ, MAP_PRIVATE, fd, 0);
     if (m_pMemoryMappedFileBase == MAP_FAILED) {
@@ -66,7 +66,7 @@ void *VxMemoryMappedFile::GetBase() {
 /***********************************************************************
 Summary: Returns the file size in bytes.
 ***********************************************************************/
-XULONG VxMemoryMappedFile::GetFileSize() {
+size_t VxMemoryMappedFile::GetFileSize() {
     return m_cbFile;
 }
 

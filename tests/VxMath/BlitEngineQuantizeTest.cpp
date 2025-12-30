@@ -35,10 +35,10 @@ private:
 
 class QuantizeTest : public BlitEngineTestBase {
 protected:
-    // Count unique colors in palette (assumes 4 bytes per entry = XULONG)
+    // Count unique colors in palette (assumes 4 bytes per entry = XDWORD)
     int CountUniquePaletteColors(const XBYTE* palette, int maxColors) {
-        const XULONG* paletteDW = reinterpret_cast<const XULONG*>(palette);
-        std::set<XULONG> unique;
+        const XDWORD* paletteDW = reinterpret_cast<const XDWORD*>(palette);
+        std::set<XDWORD> unique;
         for (int i = 0; i < maxColors; ++i) {
             if (paletteDW[i] != 0 || i == 0) { // Include zero if it's first
                 unique.insert(paletteDW[i] & 0x00FFFFFF); // Ignore alpha
@@ -56,14 +56,14 @@ protected:
     }
     
     // Calculate color distance (Euclidean)
-    double ColorDistance(XULONG c1, XULONG c2) {
+    double ColorDistance(XDWORD c1, XDWORD c2) {
         int r1 = (c1 >> 16) & 0xFF, g1 = (c1 >> 8) & 0xFF, b1 = c1 & 0xFF;
         int r2 = (c2 >> 16) & 0xFF, g2 = (c2 >> 8) & 0xFF, b2 = c2 & 0xFF;
         return std::sqrt((r1-r2)*(r1-r2) + (g1-g2)*(g1-g2) + (b1-b2)*(b1-b2));
     }
     
     // Find nearest palette color
-    XBYTE FindNearestPaletteIndex(XULONG color, const XULONG* palette, int paletteSize) {
+    XBYTE FindNearestPaletteIndex(XDWORD color, const XDWORD* palette, int paletteSize) {
         double minDist = 1e9;
         XBYTE bestIndex = 0;
         for (int i = 0; i < paletteSize; ++i) {
@@ -106,7 +106,7 @@ TEST_F(QuantizeTest, SolidColor_SinglePaletteEntry) {
     bool found = false;
     double bestDist = 1e9;
     for (int i = 0; i < 256; ++i) {
-        XULONG palColor = palette.GetColor(i);
+        XDWORD palColor = palette.GetColor(i);
         double dist = ColorDistance(palColor, 0xFF8040C0);
         bestDist = std::min(bestDist, dist);
         if (dist < 50.0) {  // NeuQuant tolerance (was 5.0)
@@ -133,7 +133,7 @@ TEST_F(QuantizeTest, TwoColors_TwoPaletteEntries) {
     auto dst = ImageDescFactory::Create8BitPaletted(width, height, dstBuffer.Data(), palette.Data());
     
     // Fill with two distinct colors (checkerboard)
-    XULONG* pixels = reinterpret_cast<XULONG*>(srcBuffer.Data());
+    XDWORD* pixels = reinterpret_cast<XDWORD*>(srcBuffer.Data());
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             bool isWhite = ((x + y) % 2) == 0;
@@ -237,14 +237,14 @@ TEST_F(QuantizeTest, PaletteQuality_ColorAccuracy) {
     ScopedSamplingFactor sf(1);
     
     // Fill with specific colors that should be preserved
-    XULONG testColors[] = {
+    XDWORD testColors[] = {
         0xFFFF0000, // Red
         0xFF00FF00, // Green
         0xFF0000FF, // Blue
         0xFFFFFF00, // Yellow
     };
     
-    XULONG* pixels = reinterpret_cast<XULONG*>(srcBuffer.Data());
+    XDWORD* pixels = reinterpret_cast<XDWORD*>(srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = testColors[i % 4];
     }
@@ -255,8 +255,8 @@ TEST_F(QuantizeTest, PaletteQuality_ColorAccuracy) {
     
     // Check that palette contains colors close to originals
     // NeuQuant may not perfectly preserve colors, so use larger tolerance
-    const XULONG* paletteColors = reinterpret_cast<const XULONG*>(dst.ColorMap);
-    for (XULONG testColor : testColors) {
+    const XDWORD* paletteColors = reinterpret_cast<const XDWORD*>(dst.ColorMap);
+    for (XDWORD testColor : testColors) {
         double minDist = 1e9;
         for (int i = 0; i < 256; ++i) {
             double dist = ColorDistance(testColor, paletteColors[i]);
@@ -322,7 +322,7 @@ TEST_F(QuantizeTest, FromRGB32_NoAlpha) {
     auto dst = ImageDescFactory::Create8BitPaletted(width, height, dstBuffer.Data(), palette.Data());
     
     // X888 format (alpha ignored)
-    XULONG* pixels = reinterpret_cast<XULONG*>(srcBuffer.Data());
+    XDWORD* pixels = reinterpret_cast<XDWORD*>(srcBuffer.Data());
     for (int i = 0; i < width * height; ++i) {
         pixels[i] = 0x00AABBCC;
     }
@@ -365,8 +365,8 @@ TEST_F(QuantizeTest, Reconstruction_SolidColor) {
     
     // The palette entry should be reasonably close to the source color
     // NeuQuant may not perfectly match, so use larger tolerance
-    const XULONG* paletteColors = reinterpret_cast<const XULONG*>(palette.Data());
-    XULONG srcColor = 0xFF000000 | (srcR << 16) | (srcG << 8) | srcB;
+    const XDWORD* paletteColors = reinterpret_cast<const XDWORD*>(palette.Data());
+    XDWORD srcColor = 0xFF000000 | (srcR << 16) | (srcG << 8) | srcB;
     double dist = ColorDistance(srcColor, paletteColors[firstIndex]);
     EXPECT_LT(dist, 50.0) << "Solid color palette entry should be reasonably close to source (dist: " << dist << ")";
 }
@@ -393,8 +393,8 @@ TEST_F(QuantizeTest, Reconstruction_ColorBars) {
     EXPECT_GE(usedIndices.size(), 6) << "Color bars should produce multiple palette entries";
     
     // Verify the first few pixels map to good palette colors
-    const XULONG* paletteColors = reinterpret_cast<const XULONG*>(palette.Data());
-    const XULONG* srcPixels = reinterpret_cast<const XULONG*>(srcBuffer.Data());
+    const XDWORD* paletteColors = reinterpret_cast<const XDWORD*>(palette.Data());
+    const XDWORD* srcPixels = reinterpret_cast<const XDWORD*>(srcBuffer.Data());
     
     // Sample a few pixels
     for (int i = 0; i < width * height; i += 100) {
@@ -419,7 +419,7 @@ TEST_F(QuantizeTest, SinglePixel) {
     // Use low sampling factor for best quality with single pixel
     ScopedSamplingFactor sf(1);
     
-    *reinterpret_cast<XULONG*>(srcBuffer.Data()) = 0xFFAABBCC;
+    *reinterpret_cast<XDWORD*>(srcBuffer.Data()) = 0xFFAABBCC;
     
     CKERROR result = blitter.QuantizeImage(src, dst);
     EXPECT_EQ(CK_OK, result);
@@ -427,7 +427,7 @@ TEST_F(QuantizeTest, SinglePixel) {
     ImageWriter::SaveFromDesc("quantize_singlepixel", dst, "Quantize");
     
     XBYTE index = dstBuffer[0];
-    const XULONG* paletteColors = reinterpret_cast<const XULONG*>(dst.ColorMap);
+    const XDWORD* paletteColors = reinterpret_cast<const XDWORD*>(dst.ColorMap);
     // NeuQuant has difficulty with single pixel images, use larger tolerance
     double dist = ColorDistance(0xFFAABBCC, paletteColors[index]);
     EXPECT_LT(dist, 50.0) << "Single pixel should map to reasonably close color (dist: " << dist << ")";
@@ -488,7 +488,7 @@ TEST_F(QuantizeTest, MaximumColors_256Unique) {
     auto dst = ImageDescFactory::Create8BitPaletted(width, height, dstBuffer.Data(), palette.Data());
     
     // Create exactly 256 unique colors
-    XULONG* pixels = reinterpret_cast<XULONG*>(srcBuffer.Data());
+    XDWORD* pixels = reinterpret_cast<XDWORD*>(srcBuffer.Data());
     for (int i = 0; i < 256; ++i) {
         XBYTE r = static_cast<XBYTE>(i);
         XBYTE g = static_cast<XBYTE>((i * 7) % 256);
@@ -531,5 +531,5 @@ TEST_F(QuantizeTest, Deterministic_SameResult) {
     
     // Results should be identical
     EXPECT_EQ(0, memcmp(dstBuffer1.Data(), dstBuffer2.Data(), width * height));
-    EXPECT_EQ(0, memcmp(dst1.ColorMap, dst2.ColorMap, 256 * sizeof(XULONG)));
+    EXPECT_EQ(0, memcmp(dst1.ColorMap, dst2.ColorMap, 256 * sizeof(XDWORD)));
 }
