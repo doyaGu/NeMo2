@@ -12,7 +12,7 @@
 #define XASSERT(a) assert(a)
 
 /// @brief A function pointer type for comparison functions used in sorting.
-typedef int (__cdecl *VxSortFunc)(const void *elem1, const void *elem2);
+typedef int (VX_CDECL *VxSortFunc)(const void *elem1, const void *elem2);
 
 /**
  * @brief Selects one of two references based on a condition.
