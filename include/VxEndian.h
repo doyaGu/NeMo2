@@ -60,13 +60,13 @@
  * @param x The value to byte-swap.
  * @return The byte-swapped value.
  */
-inline XUINT16 VxByteSwap16(XUINT16 x) {
+inline uint16_t VxByteSwap16(uint16_t x) {
 #if VX_COMPILER_MSVC
     return _byteswap_ushort(x);
 #elif VX_COMPILER_GCC || VX_COMPILER_CLANG
     return __builtin_bswap16(x);
 #else
-    return static_cast<XUINT16>((x >> 8) | (x << 8));
+    return static_cast<uint16_t>((x >> 8) | (x << 8));
 #endif
 }
 
@@ -75,7 +75,7 @@ inline XUINT16 VxByteSwap16(XUINT16 x) {
  * @param x The value to byte-swap.
  * @return The byte-swapped value.
  */
-inline XUINT32 VxByteSwap32(XUINT32 x) {
+inline uint32_t VxByteSwap32(uint32_t x) {
 #if VX_COMPILER_MSVC
     return _byteswap_ulong(x);
 #elif VX_COMPILER_GCC || VX_COMPILER_CLANG
@@ -93,7 +93,7 @@ inline XUINT32 VxByteSwap32(XUINT32 x) {
  * @param x The value to byte-swap.
  * @return The byte-swapped value.
  */
-inline XUINT64 VxByteSwap64(XUINT64 x) {
+inline uint64_t VxByteSwap64(uint64_t x) {
 #if VX_COMPILER_MSVC
     return _byteswap_uint64(x);
 #elif VX_COMPILER_GCC || VX_COMPILER_CLANG
@@ -119,7 +119,7 @@ inline XUINT64 VxByteSwap64(XUINT64 x) {
  * @param x The value in host byte order.
  * @return The value in little-endian byte order.
  */
-inline XUINT16 VxHostToLE16(XUINT16 x) {
+inline uint16_t VxHostToLE16(uint16_t x) {
 #if VX_ENDIAN_LITTLE
     return x;
 #else
@@ -132,7 +132,7 @@ inline XUINT16 VxHostToLE16(XUINT16 x) {
  * @param x The value in little-endian byte order.
  * @return The value in host byte order.
  */
-inline XUINT16 VxLEToHost16(XUINT16 x) {
+inline uint16_t VxLEToHost16(uint16_t x) {
 #if VX_ENDIAN_LITTLE
     return x;
 #else
@@ -145,7 +145,7 @@ inline XUINT16 VxLEToHost16(XUINT16 x) {
  * @param x The value in host byte order.
  * @return The value in little-endian byte order.
  */
-inline XUINT32 VxHostToLE32(XUINT32 x) {
+inline uint32_t VxHostToLE32(uint32_t x) {
 #if VX_ENDIAN_LITTLE
     return x;
 #else
@@ -158,7 +158,7 @@ inline XUINT32 VxHostToLE32(XUINT32 x) {
  * @param x The value in little-endian byte order.
  * @return The value in host byte order.
  */
-inline XUINT32 VxLEToHost32(XUINT32 x) {
+inline uint32_t VxLEToHost32(uint32_t x) {
 #if VX_ENDIAN_LITTLE
     return x;
 #else
@@ -171,7 +171,7 @@ inline XUINT32 VxLEToHost32(XUINT32 x) {
  * @param x The value in host byte order.
  * @return The value in little-endian byte order.
  */
-inline XUINT64 VxHostToLE64(XUINT64 x) {
+inline uint64_t VxHostToLE64(uint64_t x) {
 #if VX_ENDIAN_LITTLE
     return x;
 #else
@@ -184,7 +184,7 @@ inline XUINT64 VxHostToLE64(XUINT64 x) {
  * @param x The value in little-endian byte order.
  * @return The value in host byte order.
  */
-inline XUINT64 VxLEToHost64(XUINT64 x) {
+inline uint64_t VxLEToHost64(uint64_t x) {
 #if VX_ENDIAN_LITTLE
     return x;
 #else
@@ -201,10 +201,10 @@ inline XUINT64 VxLEToHost64(XUINT64 x) {
  * @param data Pointer to the array of values.
  * @param count Number of elements in the array.
  */
-inline void VxConvertArrayToLE16(void *data, XSIZE count) {
+inline void VxConvertArrayToLE16(void *data, size_t count) {
 #if VX_ENDIAN_BIG
-    XUINT16 *arr = static_cast<XUINT16*>(data);
-    for (XSIZE i = 0; i < count; ++i) {
+    uint16_t *arr = static_cast<uint16_t*>(data);
+    for (size_t i = 0; i < count; ++i) {
         arr[i] = VxByteSwap16(arr[i]);
     }
 #else
@@ -218,7 +218,7 @@ inline void VxConvertArrayToLE16(void *data, XSIZE count) {
  * @param data Pointer to the array of values.
  * @param count Number of elements in the array.
  */
-inline void VxConvertArrayFromLE16(void *data, XSIZE count) {
+inline void VxConvertArrayFromLE16(void *data, size_t count) {
     VxConvertArrayToLE16(data, count); // Swap is symmetric
 }
 
@@ -227,10 +227,10 @@ inline void VxConvertArrayFromLE16(void *data, XSIZE count) {
  * @param data Pointer to the array of values.
  * @param count Number of elements in the array.
  */
-inline void VxConvertArrayToLE32(void *data, XSIZE count) {
+inline void VxConvertArrayToLE32(void *data, size_t count) {
 #if VX_ENDIAN_BIG
-    XUINT32 *arr = static_cast<XUINT32*>(data);
-    for (XSIZE i = 0; i < count; ++i) {
+    uint32_t *arr = static_cast<uint32_t*>(data);
+    for (size_t i = 0; i < count; ++i) {
         arr[i] = VxByteSwap32(arr[i]);
     }
 #else
@@ -244,7 +244,7 @@ inline void VxConvertArrayToLE32(void *data, XSIZE count) {
  * @param data Pointer to the array of values.
  * @param count Number of elements in the array.
  */
-inline void VxConvertArrayFromLE32(void *data, XSIZE count) {
+inline void VxConvertArrayFromLE32(void *data, size_t count) {
     VxConvertArrayToLE32(data, count); // Swap is symmetric
 }
 
@@ -253,10 +253,10 @@ inline void VxConvertArrayFromLE32(void *data, XSIZE count) {
  * @param data Pointer to the array of values.
  * @param count Number of elements in the array.
  */
-inline void VxConvertArrayToLE64(void *data, XSIZE count) {
+inline void VxConvertArrayToLE64(void *data, size_t count) {
 #if VX_ENDIAN_BIG
-    XUINT64 *arr = static_cast<XUINT64*>(data);
-    for (XSIZE i = 0; i < count; ++i) {
+    uint64_t *arr = static_cast<uint64_t*>(data);
+    for (size_t i = 0; i < count; ++i) {
         arr[i] = VxByteSwap64(arr[i]);
     }
 #else
@@ -270,7 +270,7 @@ inline void VxConvertArrayToLE64(void *data, XSIZE count) {
  * @param data Pointer to the array of values.
  * @param count Number of elements in the array.
  */
-inline void VxConvertArrayFromLE64(void *data, XSIZE count) {
+inline void VxConvertArrayFromLE64(void *data, size_t count) {
     VxConvertArrayToLE64(data, count); // Swap is symmetric
 }
 
