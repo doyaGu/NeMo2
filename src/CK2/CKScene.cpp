@@ -957,7 +957,7 @@ size_t CKScene::GetMemoryOccupation() {
     return size;
 }
 
-int CKScene::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
+CKBOOL CKScene::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
     if (m_SceneObjects.IsHere(o->GetID())) return TRUE;
     return CKBeObject::IsObjectUsed(o, cid);
 }

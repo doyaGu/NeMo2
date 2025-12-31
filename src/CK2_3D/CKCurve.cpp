@@ -283,7 +283,7 @@ size_t RCKCurve::GetMemoryOccupation() {
  * @param cid The class ID to check
  * @return TRUE if object is used, FALSE otherwise
  */
-int RCKCurve::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
+CKBOOL RCKCurve::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
     if (cid == CKCID_CURVEPOINT && m_ControlPoints.IsHere(o)) {
         return TRUE;
     }

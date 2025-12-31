@@ -308,7 +308,7 @@ size_t CKParameterOperation::GetMemoryOccupation() {
     return CKObject::GetMemoryOccupation() + (sizeof(CKParameterOperation) - sizeof(CKObject));
 }
 
-int CKParameterOperation::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
+CKBOOL CKParameterOperation::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
     if (m_In1 == o || m_In2 == o || m_Out == o) {
         return TRUE;
     }

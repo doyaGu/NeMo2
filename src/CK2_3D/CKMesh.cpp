@@ -1932,7 +1932,7 @@ size_t RCKMesh::GetMemoryOccupation() {
     return size;
 }
 
-int RCKMesh::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
+CKBOOL RCKMesh::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
     // Match IDA at 0x10026869
     // Check if object is a material
     if (cid == CKCID_MATERIAL) {
@@ -1940,7 +1940,7 @@ int RCKMesh::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
         int matCount = GetMaterialCount();
         for (int i = 0; i < matCount; ++i) {
             if (o == GetMaterial(i)) {
-                return 1;
+                return TRUE;
             }
         }
     }

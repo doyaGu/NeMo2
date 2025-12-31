@@ -1681,7 +1681,7 @@ void RCK3dEntity::CheckPreDeletion() {
     }
 }
 
-int RCK3dEntity::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
+CKBOOL RCK3dEntity::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
     // IDA @ 0x1000A016
     if (cid == CKCID_ANIMATION) {
         if (m_ObjectAnimations && m_ObjectAnimations->FindObject(o))

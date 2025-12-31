@@ -244,7 +244,7 @@ Remarks:
 
 Implementation based on decompilation at 0x10043238:
 *************************************************/
-int RCKSprite3D::IsObjectUsed(CKObject *obj, CK_CLASSID cid) {
+CKBOOL RCKSprite3D::IsObjectUsed(CKObject *obj, CK_CLASSID cid) {
     if (obj == (CKObject *) m_Material) {
         return TRUE;
     }

@@ -69,7 +69,7 @@ public:
     virtual void CheckPreDeletion();
 
     virtual size_t GetMemoryOccupation();
-    virtual int IsObjectUsed(CKObject *o, CK_CLASSID cid);
+    virtual CKBOOL IsObjectUsed(CKObject *o, CK_CLASSID cid);
 
     //--------------------------------------------
     // Dependencies Functions {secret}

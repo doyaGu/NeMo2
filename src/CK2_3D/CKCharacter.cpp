@@ -375,17 +375,17 @@ size_t RCKCharacter::GetMemoryOccupation() {
     return size;
 }
 
-int RCKCharacter::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
+CKBOOL RCKCharacter::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
     // Based on decompilation at 0x10012558
     if (cid == CKCID_ANIMATION) {
         // Check if animation is in our list
         if (m_Animations.FindObject(o)) {
-            return 1;
+            return TRUE;
         }
     } else if (cid == CKCID_BODYPART) {
         // Check if body part is in our list
         if (m_BodyParts.FindObject(o)) {
-            return 1;
+            return TRUE;
         }
     }
 

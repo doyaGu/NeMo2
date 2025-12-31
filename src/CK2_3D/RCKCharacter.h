@@ -58,7 +58,7 @@ public:
     void CheckPreDeletion() override;
 
     size_t GetMemoryOccupation() override;
-    int IsObjectUsed(CKObject *o, CK_CLASSID cid) override;
+    CKBOOL IsObjectUsed(CKObject *o, CK_CLASSID cid) override;
 
     void Show(CK_OBJECT_SHOWOPTION show) override;
 

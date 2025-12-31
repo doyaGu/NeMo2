@@ -256,7 +256,7 @@ size_t CKGroup::GetMemoryOccupation() {
     return size;
 }
 
-int CKGroup::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
+CKBOOL CKGroup::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
     if (!CKIsChildClassOf(o, CKCID_BEOBJECT))
         return CKBeObject::IsObjectUsed(o, cid);
     if (m_ObjectArray.FindObject(o))

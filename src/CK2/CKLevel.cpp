@@ -532,7 +532,7 @@ size_t CKLevel::GetMemoryOccupation() {
     return size;
 }
 
-int CKLevel::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
+CKBOOL CKLevel::IsObjectUsed(CKObject *o, CK_CLASSID cid) {
     CK_CLASSID objClassID = o->GetClassID();
     if (objClassID == CKCID_SCENE) {
         if (m_SceneList.IsHere(o))

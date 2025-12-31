@@ -26,7 +26,7 @@ public:
 
     void CheckPreDeletion() override;
     size_t GetMemoryOccupation() override;
-    int IsObjectUsed(CKObject *obj, CK_CLASSID cid) override;
+    CKBOOL IsObjectUsed(CKObject *obj, CK_CLASSID cid) override;
     CKERROR PrepareDependencies(CKDependenciesContext &context) override;
     CKERROR RemapDependencies(CKDependenciesContext &context) override;
     CKERROR Copy(CKObject &o, CKDependenciesContext &context) override;

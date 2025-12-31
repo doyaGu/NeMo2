@@ -101,7 +101,7 @@ public:
     DLL_EXPORT virtual void CheckPostDeletion();
 
     DLL_EXPORT virtual size_t GetMemoryOccupation();
-    DLL_EXPORT virtual int IsObjectUsed(CKObject *o, CK_CLASSID cid);
+    DLL_EXPORT virtual CKBOOL IsObjectUsed(CKObject *o, CK_CLASSID cid);
 
     //--------------------------------------------
     // Dependencies Functions
