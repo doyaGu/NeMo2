@@ -44,7 +44,7 @@ CKBOOL CKObject::IsHiddenByParent() {
 }
 
 int CKObject::CanBeHide() {
-    return FALSE;
+    return 0;
 }
 
 CKObject::CKObject(CKContext *Context, CKSTRING name) {
