@@ -492,7 +492,7 @@ void CKObjectManager::EndLoadSession() {
     m_InLoadSession = FALSE;
 }
 
-void CKObjectManager::RegisterLoadObject(CKObject *iObject, int ObjectID) {
+void CKObjectManager::RegisterLoadObject(CKObject *iObject, CK_ID ObjectID) {
     if (m_LoadSession && ObjectID >= 0 && static_cast<CKDWORD>(ObjectID) < m_MaxObjectID) {
         m_LoadSession[ObjectID] = iObject ? iObject->GetID() : 0;
     }

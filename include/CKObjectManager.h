@@ -46,7 +46,7 @@ public:
     void StartLoadSession(int MaxObjectID);
     void EndLoadSession();
 
-    void RegisterLoadObject(CKObject *iObject, int ObjectID);
+    void RegisterLoadObject(CKObject *iObject, CK_ID ObjectID);
 
     CK_ID RealId(CK_ID id);
 
