@@ -538,7 +538,7 @@ typedef struct CKUICallbackStruct
     CKDWORD Reason;
     union
     {
-        CKDWORD Param1;
+        uintptr_t Param1;
         int NbObjectsLoaded;
         CKBOOL DoBeep;
         CKMessage *DebugMessageSent;
@@ -548,12 +548,12 @@ typedef struct CKUICallbackStruct
     };
     union
     {
-        CKDWORD Param2;
+        uintptr_t Param2;
         int NbObjectsToLoad;
         CKSTRING ConsoleString;
         int ClearSelection;
     };
-    CKDWORD Param3;
+    uintptr_t Param3;
 } CKUICallbackStruct;
 
 #endif // CKTYPES_H

@@ -122,7 +122,7 @@ public:
     CKERROR ShowSetup(CK_ID id);
     CK_ID ChooseObject(void *dialogParentWnd);
     CKERROR Select(const XObjectArray &o, CKBOOL clearSelection = TRUE);
-    CKDWORD SendInterfaceMessage(CKDWORD reason, CKDWORD param1, CKDWORD param2);
+    CKDWORD SendInterfaceMessage(CKDWORD reason, uintptr_t param1, uintptr_t param2);
 
     CKERROR UICopyObjects(const XObjectArray &iObjects, CKBOOL iClearClipboard = TRUE);
     CKERROR UIPasteObjects(const XObjectArray &oObjects);

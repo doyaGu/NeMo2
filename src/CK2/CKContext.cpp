@@ -544,8 +544,8 @@ CKERROR CKContext::RefreshBuildingBlocks(const XArray<CKGUID> &iGuids) {
 
     CKUICallbackStruct cbs;
     cbs.Reason = CKUIM_REFRESHBUILDINGBLOCKS;
-    cbs.Param1 = (CKDWORD) iGuids.Begin();
-    cbs.Param2 = iGuids.Size();
+    cbs.Param1 = (uintptr_t) iGuids.Begin();
+    cbs.Param2 = (uintptr_t) iGuids.Size();
     return m_UICallBackFct(cbs, m_InterfaceModeData);
 }
 
@@ -565,7 +565,7 @@ CK_ID CKContext::ChooseObject(void *dialogParentWnd) {
 
     CKUICallbackStruct cbs;
     cbs.Reason = CKUIM_CHOOSEOBJECT;
-    cbs.Param1 = (CKDWORD) dialogParentWnd;
+    cbs.Param1 = (uintptr_t) dialogParentWnd;
     m_UICallBackFct(cbs, m_InterfaceModeData);
     return cbs.ObjectID;
 }
@@ -581,7 +581,7 @@ CKERROR CKContext::Select(const XObjectArray &o, CKBOOL clearSelection) {
     return m_UICallBackFct(cbs, m_InterfaceModeData);
 }
 
-CKDWORD CKContext::SendInterfaceMessage(CKDWORD reason, CKDWORD param1, CKDWORD param2) {
+CKDWORD CKContext::SendInterfaceMessage(CKDWORD reason, uintptr_t param1, uintptr_t param2) {
     if (!m_UICallBackFct)
         return CK_OK;
 
