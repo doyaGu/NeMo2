@@ -49,8 +49,7 @@ public:
     XBaseString(const char *iString) : m_Allocated(0) {
         if (iString) {
             m_Buffer = (char *) iString;
-            m_Length = 0xffff;
-            while (m_Buffer[++m_Length]);
+            m_Length = strlen(iString);
         } else {
             m_Buffer = NULL;
             m_Length = 0;
@@ -66,7 +65,7 @@ public:
      * @brief Returns the length of the string.
      * @return The length of the string in characters, excluding the null terminator.
      */
-    XWORD Length() const {
+    size_t Length() const {
         return m_Length;
     }
 
@@ -115,17 +114,7 @@ public:
      * @param i The zero-based index of the character to access.
      * @return The character at the specified index.
      */
-    const char operator[](XWORD i) const {
-        XASSERT(i < m_Length);
-        return m_Buffer[i];
-    }
-
-    /**
-     * @brief Accesses a character by index (read-only).
-     * @param i The zero-based index of the character to access.
-     * @return The character at the specified index.
-     */
-    const char operator[](int i) const {
+    const char operator[](size_t i) const {
         XASSERT(i < m_Length);
         return m_Buffer[i];
     }
@@ -133,10 +122,10 @@ public:
 protected:
     /// The pointer to the character buffer.
     char *m_Buffer;
-    /// The length of the string.
-    XWORD m_Length;
-    /// The allocated size of the buffer (used by XString).
-    XWORD m_Allocated;
+    /// The length of the string (changed from XWORD to size_t for >64KB support).
+    size_t m_Length;
+    /// The allocated size of the buffer (changed from XWORD to size_t for >64KB support).
+    size_t m_Allocated;
 };
 
 /**
@@ -153,15 +142,13 @@ protected:
 class XString : public XBaseString {
 public:
     /// @brief A constant representing a position not found in search operations.
-    enum { NOTFOUND = 0xffff };
+    static const size_t NOTFOUND = static_cast<size_t>(-1);
 
     /// @typedef Iterator A mutable iterator.
     typedef char *Iterator;
     /// @typedef ConstIterator A constant iterator.
     typedef const char *ConstIterator;
 #if VX_HAS_CXX11
-    /// @brief std::string-style npos constant (C++11).
-    static const size_t NPOS = static_cast<size_t>(-1);
     /// @typedef ReverseIterator A mutable reverse iterator.
     typedef std::reverse_iterator<Iterator> ReverseIterator;
     /// @typedef ConstReverseIterator A constant reverse iterator.
@@ -178,13 +165,13 @@ public:
      * @param iString The source C-style string.
      * @param iLength The number of characters to copy. If 0, copies the entire string.
      */
-    VX_EXPORT XString(const char *iString, int iLength = 0);
+    VX_EXPORT XString(const char *iString, size_t iLength = 0);
 
     /**
      * @brief Reserving constructor. Creates an empty string with a pre-allocated capacity.
      * @param iLength The number of characters to reserve space for.
      */
-    VX_EXPORT explicit XString(int iLength);
+    VX_EXPORT explicit XString(size_t iLength);
 
     /**
      * @brief Copy constructor.
@@ -276,9 +263,7 @@ public:
      * @remark Content is copied; embedded NULs are preserved.
      */
     explicit XString(const std::string &s) : XBaseString() {
-        const size_t kMaxLen = 0xffffu;
-        const size_t n = (s.size() < kMaxLen) ? s.size() : kMaxLen;
-        Assign(s.data(), static_cast<int>(n));
+        Assign(s.data(), s.size());
     }
 
     /**
@@ -286,20 +271,19 @@ public:
      * @remark All characters are copied; embedded NULs are preserved.
      */
     XString(std::initializer_list<char> chars) : XBaseString() {
-        const size_t kMaxLen = 0xffffu;
-        const size_t n = (chars.size() < kMaxLen) ? chars.size() : kMaxLen;
+        const size_t n = chars.size();
         if (n == 0) {
             m_Buffer = NULL;
             m_Length = 0;
             m_Allocated = 0;
             return;
         }
-        CheckSize(static_cast<int>(n));
+        CheckSize(n);
         size_t i = 0;
-        for (std::initializer_list<char>::const_iterator it = chars.begin(); it != chars.end() && i < n; ++it, ++i) {
+        for (std::initializer_list<char>::const_iterator it = chars.begin(); it != chars.end(); ++it, ++i) {
             m_Buffer[i] = *it;
         }
-        m_Length = static_cast<XWORD>(n);
+        m_Length = n;
         m_Buffer[m_Length] = '\0';
     }
 
@@ -308,9 +292,7 @@ public:
      * @remark Content is copied; embedded NULs are preserved.
      */
     XString &operator=(const std::string &s) {
-        const size_t kMaxLen = 0xffffu;
-        const size_t n = (s.size() < kMaxLen) ? s.size() : kMaxLen;
-        Assign(s.data(), static_cast<int>(n));
+        Assign(s.data(), s.size());
         return *this;
     }
 
@@ -320,17 +302,13 @@ public:
      */
     XString &operator<<(const std::string &s) {
         if (!s.empty()) {
-            const size_t kMaxLen = 0xffffu;
-            const size_t curLen = static_cast<size_t>(m_Length);
-            const size_t remaining = (curLen < kMaxLen) ? (kMaxLen - curLen) : 0;
-            const size_t toCopy = (s.size() < remaining) ? s.size() : remaining;
-            if (toCopy > 0) {
-                const size_t newLen = curLen + toCopy;
-                CheckSize(static_cast<int>(newLen));
-                memcpy(&m_Buffer[curLen], s.data(), toCopy);
-                m_Length = static_cast<XWORD>(newLen);
-                m_Buffer[m_Length] = '\0';
-            }
+            const size_t curLen = m_Length;
+            const size_t toCopy = s.size();
+            const size_t newLen = curLen + toCopy;
+            CheckSize(newLen);
+            memcpy(&m_Buffer[curLen], s.data(), toCopy);
+            m_Length = newLen;
+            m_Buffer[m_Length] = '\0';
         }
         return *this;
     }
@@ -353,7 +331,7 @@ public:
      * @param iLength The number of characters to copy. If 0, copies the entire string.
      * @return A reference to this string.
      */
-    VX_EXPORT XString &Create(const char *iString, int iLength = 0);
+    VX_EXPORT XString &Create(const char *iString, size_t iLength = 0);
 
     /**
      * @brief Gets the string as a mutable C-style string.
@@ -400,7 +378,7 @@ public:
      * @param i The zero-based index of the character to access.
      * @return A reference to the character at the specified index.
      */
-    char &operator[](XWORD i) {
+    char &operator[](size_t i) {
         XASSERT(i < m_Length);
         return m_Buffer[i];
     }
@@ -410,7 +388,12 @@ public:
      * @param i The zero-based index of the character to access.
      * @return A reference to the character at the specified index.
      */
-    char &operator[](int i) {
+    /**
+     * @brief Accesses a character by index (read-only).
+     * @param i The zero-based index of the character to access.
+     * @return The character at the specified index.
+     */
+    char operator[](size_t i) const {
         XASSERT(i < m_Length);
         return m_Buffer[i];
     }
@@ -420,21 +403,6 @@ public:
      * @param i The zero-based index of the character to access.
      * @return The character at the specified index.
      */
-    char operator[](XWORD i) const {
-        XASSERT(i < m_Length);
-        return m_Buffer[i];
-    }
-
-    /**
-     * @brief Accesses a character by index (read-only).
-     * @param i The zero-based index of the character to access.
-     * @return The character at the specified index.
-     */
-    char operator[](int i) const {
-        XASSERT(i < m_Length);
-        return m_Buffer[i];
-    }
-
     /**
      * @brief Accesses a character by index with bounds checking.
      * @param i The zero-based index of the character to access.
@@ -442,8 +410,8 @@ public:
      * @throw std::out_of_range If the index `i` is out of bounds (C++11 only).
      */
 #if VX_HAS_CXX11
-    char &At(int i) {
-        if (i < 0 || i >= m_Length)
+    char &At(size_t i) {
+        if (i >= m_Length)
             throw std::out_of_range("Index out of range in XString::At");
         return m_Buffer[i];
     }
@@ -454,8 +422,8 @@ public:
      * @return A constant reference to the character if the index is valid.
      * @throw std::out_of_range If the index `i` is out of bounds (C++11 only).
      */
-    const char &At(int i) const {
-        if (i < 0 || i >= m_Length)
+    const char &At(size_t i) const {
+        if (i >= m_Length)
             throw std::out_of_range("Index out of range in XString::At");
         return m_Buffer[i];
     }
@@ -499,7 +467,7 @@ public:
         char *s1 = m_Buffer;
         char *s2 = iStr.m_Buffer;
 
-        int Lenght4 = (m_Length > iStr.m_Length) ? (iStr.m_Length >> 2) : (m_Length >> 2);
+        size_t Lenght4 = (m_Length > iStr.m_Length) ? (iStr.m_Length >> 2) : (m_Length >> 2);
         //--- Compare dwords by dwords....
         while ((Lenght4-- > 0) && (*(XDWORD *) s1 == *(XDWORD *) s2))
             s1 += 4, s2 += 4;
@@ -520,7 +488,7 @@ public:
      * - `> 0`: if this string's substring is greater than `iStr`'s.
      * @see ICompare, NICompare
      */
-    int NCompare(const XBaseString &iStr, int iN) const {
+    int NCompare(const XBaseString &iStr, size_t iN) const {
         if (m_Length == 0)
             return -iStr.m_Length; // Null strings
         if (iStr.m_Length == 0)
@@ -550,7 +518,7 @@ public:
      * - `> 0`: if this string's substring is greater than `iStr`'s.
      * @see ICompare, NCompare
      */
-    int NICompare(const XBaseString &iStr, int iN) const {
+    int NICompare(const XBaseString &iStr, size_t iN) const {
         if (m_Length == 0)
             return -iStr.m_Length; // Null strings
         if (iStr.m_Length == 0)
@@ -559,7 +527,7 @@ public:
         char *s1 = m_Buffer;
         char *s2 = iStr.m_Buffer;
 
-        int index = 0;
+        size_t index = 0;
         char c1, c2;
 
         while (index < iN) {
@@ -663,7 +631,7 @@ public:
      * @param iStart The position to start the search from.
      * @return The zero-based index of the first occurrence, or `NOTFOUND`.
      */
-    VX_EXPORT XWORD Find(char iCar, XWORD iStart = 0) const;
+    VX_EXPORT size_t Find(char iCar, size_t iStart = 0) const;
 
     /**
      * @brief Finds the first occurrence of a substring (case-sensitive).
@@ -671,7 +639,7 @@ public:
      * @param iStart The position to start the search from.
      * @return The zero-based index of the first occurrence, or `NOTFOUND`.
      */
-    VX_EXPORT XWORD Find(const XBaseString &iStr, XWORD iStart = 0) const;
+    VX_EXPORT size_t Find(const XBaseString &iStr, size_t iStart = 0) const;
 
     /**
      * @brief Finds the first occurrence of a substring (case-insensitive).
@@ -679,7 +647,7 @@ public:
      * @param iStart The position to start the search from.
      * @return The zero-based index of the first occurrence, or `NOTFOUND`.
      */
-    // VX_EXPORT XWORD IFind(const XBaseString &iStr, XWORD iStart = 0) const;
+    // VX_EXPORT size_t IFind(const XBaseString &iStr, size_t iStart = 0) const;
 
     /**
      * @brief Finds the last occurrence of a character in the string.
@@ -687,7 +655,7 @@ public:
      * @param iStart The position to start the search from (searches backwards). If NOTFOUND, starts from the end.
      * @return The zero-based index of the last occurrence, or `NOTFOUND`.
      */
-    VX_EXPORT XWORD RFind(char iCar, XWORD iStart = NOTFOUND) const;
+    VX_EXPORT size_t RFind(char iCar, size_t iStart = NOTFOUND) const;
 
     /**
      * @brief Extracts a substring.
@@ -695,7 +663,7 @@ public:
      * @param iLength The length of the substring. If 0, extracts to the end of the string.
      * @return A new XString object containing the substring.
      */
-    VX_EXPORT XString Substring(XWORD iStart, XWORD iLength = 0) const;
+    VX_EXPORT XString Substring(size_t iStart, size_t iLength = 0) const;
 
     /**
      * @brief Modifies the string to be a substring of itself.
@@ -703,7 +671,7 @@ public:
      * @param iLength The length of the new string.
      * @return A reference to this string.
      */
-    VX_EXPORT XString &Crop(XWORD iStart, XWORD iLength);
+    VX_EXPORT XString &Crop(size_t iStart, size_t iLength);
 
     /**
      * @brief Removes a part of the string.
@@ -711,7 +679,7 @@ public:
      * @param iLength The number of characters to remove.
      * @return A reference to this string.
      */
-    VX_EXPORT XString &Cut(XWORD iStart, XWORD iLength);
+    VX_EXPORT XString &Cut(size_t iStart, size_t iLength);
 
     /**
      * @brief Replaces all occurrences of a character with another character.
@@ -719,7 +687,7 @@ public:
      * @param iDest The character to replace with.
      * @return The number of replacements made.
      */
-    VX_EXPORT int Replace(char iSrc, char iDest);
+    VX_EXPORT size_t Replace(char iSrc, char iDest);
 
     /**
      * @brief Replaces all occurrences of a substring with another string.
@@ -727,7 +695,7 @@ public:
      * @param iDest The string to replace with.
      * @return The number of replacements made.
      */
-    VX_EXPORT int Replace(const XBaseString &iSrc, const XBaseString &iDest);
+    VX_EXPORT size_t Replace(const XBaseString &iSrc, const XBaseString &iDest);
 
     /**
      * @brief Splits the string into a collection of substrings based on a delimiter.
@@ -735,14 +703,14 @@ public:
      * @param[out] parts A `XClassArray<XString>` that will be filled with the substrings.
      * @return The number of substrings found.
      */
-    int Split(char delimiter, XClassArray<XString> &parts) const {
+    size_t Split(char delimiter, XClassArray<XString> &parts) const {
         if (m_Length == 0)
             return 0;
 
         parts.Clear();
 
-        XWORD start = 0;
-        XWORD pos;
+        size_t start = 0;
+        size_t pos;
 
         while ((pos = Find(delimiter, start)) != NOTFOUND) {
             // Handle the case where we need an empty string (consecutive delimiters)
@@ -776,11 +744,11 @@ public:
             return XString();
 
         XString result;
-        int delimLen = delimiter ? strlen(delimiter) : 0;
+        size_t delimLen = delimiter ? strlen(delimiter) : 0;
 
         // Calculate total size
-        XWORD totalSize = 0;
-        for (int i = 0; i < parts.Size(); i++) {
+        size_t totalSize = 0;
+        for (size_t i = 0; i < parts.Size(); i++) {
             totalSize += parts[i].Length();
             if (i < parts.Size() - 1 && delimLen > 0)
                 totalSize += delimLen;
@@ -790,7 +758,7 @@ public:
         result.Reserve(totalSize);
 
         // Join strings
-        for (int i = 0; i < parts.Size(); i++) {
+        for (size_t i = 0; i < parts.Size(); i++) {
             result << parts[i];
             if (i < parts.Size() - 1 && delimLen > 0)
                 result << delimiter;
@@ -996,24 +964,24 @@ public:
      * @return The number of characters that can be stored without reallocation.
      * @see Reserve
      */
-    XWORD Capacity() {
+    size_t Capacity() {
         return m_Allocated;
     }
 
     /** @brief Const overload for Capacity(). */
-    XWORD Capacity() const { return m_Allocated; }
+    size_t Capacity() const { return m_Allocated; }
 
     /**
      * @brief Requests that the string capacity be at least enough to contain `iLength` characters.
      * @param iLength The new capacity of the string.
      */
-    VX_EXPORT void Reserve(XWORD iLength);
+    VX_EXPORT void Reserve(size_t iLength);
 
     /**
      * @brief Resizes the string to a length of `iLength` characters.
      * @param iLength The new length for the string.
      */
-    void Resize(XWORD iLength) {
+    void Resize(size_t iLength) {
         Reserve(iLength);
         if (iLength != 0)
             m_Buffer[iLength] = '\0';
@@ -1106,14 +1074,14 @@ protected:
      * @brief Ensures the internal buffer has enough space for a given length.
      * @param iLength The required length, excluding the null terminator.
      */
-    VX_EXPORT void CheckSize(int iLength);
+    VX_EXPORT void CheckSize(size_t iLength);
 
     /**
      * @brief Assigns a new value to the string from a buffer and length.
      * @param iBuffer The source buffer to copy from.
      * @param iLength The number of characters to copy.
      */
-    VX_EXPORT void Assign(const char *iBuffer, int iLength);
+    VX_EXPORT void Assign(const char *iBuffer, size_t iLength);
 };
 
 #endif // XSTRING_H
