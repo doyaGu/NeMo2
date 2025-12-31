@@ -2758,7 +2758,7 @@ void VxBlitEngine::DoBlitWithResize(const VxImageDescEx &src_desc, const VxImage
     m_BlitInfo.copyBytes = dst_desc.Width * 4;
 
     // Ensure resize buffer is large enough
-    size_t bufferSize = src_desc.Width + dst_desc.Width + 1;
+    int bufferSize = src_desc.Width + dst_desc.Width + 1;
     if (m_ResizeBuffer.Size() < bufferSize) {
         m_ResizeBuffer.Reserve(bufferSize);
     }
