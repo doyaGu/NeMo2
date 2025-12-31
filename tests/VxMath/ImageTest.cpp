@@ -75,32 +75,32 @@ TEST(VxColorTests, IntegerConstructors) {
 
 TEST(VxColorTests, UnsignedLongConstructor) {
     // Test various ARGB values
-    VxColor c_long(0x80FFC040UL); // A=128, R=255, G=192, B=64
+    VxColor c_long(0x80FFC040U); // A=128, R=255, G=192, B=64
     EXPECT_NEAR(c_long.a, 128.0f / 255.0f, EPSILON);
     EXPECT_NEAR(c_long.r, 255.0f / 255.0f, EPSILON);
     EXPECT_NEAR(c_long.g, 192.0f / 255.0f, EPSILON);
     EXPECT_NEAR(c_long.b, 64.0f / 255.0f, EPSILON);
 
     // Test pure colors
-    VxColor red(0xFFFF0000UL);
+    VxColor red(0xFFFF0000U);
     EXPECT_EQ(red.a, 1.0f);
     EXPECT_EQ(red.r, 1.0f);
     EXPECT_EQ(red.g, 0.0f);
     EXPECT_EQ(red.b, 0.0f);
 
-    VxColor green(0xFF00FF00UL);
+    VxColor green(0xFF00FF00U);
     EXPECT_EQ(green.a, 1.0f);
     EXPECT_EQ(green.r, 0.0f);
     EXPECT_EQ(green.g, 1.0f);
     EXPECT_EQ(green.b, 0.0f);
 
-    VxColor blue(0xFF0000FFUL);
+    VxColor blue(0xFF0000FFU);
     EXPECT_EQ(blue.a, 1.0f);
     EXPECT_EQ(blue.r, 0.0f);
     EXPECT_EQ(blue.g, 0.0f);
     EXPECT_EQ(blue.b, 1.0f);
 
-    VxColor transparent(0x00000000UL);
+    VxColor transparent(0x00000000U);
     EXPECT_EQ(transparent.a, 0.0f);
     EXPECT_EQ(transparent.r, 0.0f);
     EXPECT_EQ(transparent.g, 0.0f);
@@ -140,8 +140,8 @@ TEST(VxColorTests, SetterMethods) {
     EXPECT_COLOR_NEAR(c, VxColor(1.0f, 128.0f / 255.0f, 0.0f, 1.0f));
 
     // Test unsigned long setter
-    c.Set(0xAABBCCDDUL); // ARGB
-    EXPECT_COLOR_NEAR(c, VxColor(0xAABBCCDDUL));
+    c.Set(0xAABBCCDDU); // ARGB
+    EXPECT_COLOR_NEAR(c, VxColor(0xAABBCCDDU));
 
     // Test Clear method
     c.Clear();
@@ -1097,7 +1097,7 @@ TEST_F(UtilityFunctionTest, VxIndexedCopy_4Bytes) {
 
     uint32_t src_data[] = {0x41414141, 0x42424242, 0x43434343, 0x44444444}; // AAAA, BBBB, CCCC, DDDD
     uint32_t dst_data[4];
-    int indices[] = {3, 0, 2, 1}; // Copy D, A, C, B
+    size_t indices[] = {3, 0, 2, 1}; // Copy D, A, C, B
 
     src.Ptr = src_data;
     src.Stride = sizeof(uint32_t);
@@ -1121,7 +1121,7 @@ TEST_F(UtilityFunctionTest, VxIndexedCopy_8Bytes) {
 
     TestData src_data[] = {{0x11, 0x12}, {0x21, 0x22}, {0x31, 0x32}};
     TestData dst_data[3];
-    int indices[] = {2, 0, 1}; // Copy element 2, 0, 1
+    size_t indices[] = {2, 0, 1}; // Copy element 2, 0, 1
 
     src.Ptr = src_data;
     src.Stride = sizeof(TestData);
@@ -1154,7 +1154,7 @@ TEST_F(UtilityFunctionTest, VxIndexedCopy_WithStride) {
 
     SrcStruct src_data[] = {{0x111, 0, 0}, {0x222, 0, 0}, {0x333, 0, 0}};
     DstStruct dst_data[3];
-    int indices[] = {1, 2, 0};
+    size_t indices[] = {1, 2, 0};
 
     src.Ptr = src_data;
     src.Stride = sizeof(SrcStruct);
@@ -1171,7 +1171,7 @@ TEST_F(UtilityFunctionTest, VxIndexedCopy_WithStride) {
 TEST_F(UtilityFunctionTest, VxIndexedCopy_InvalidParams) {
     VxStridedData src, dst;
     uint32_t src_data[4], dst_data[4];
-    int indices[] = {0, 1, 2, 3};
+    size_t indices[] = {0, 1, 2, 3};
 
     src.Ptr = src_data;
     src.Stride = 4;

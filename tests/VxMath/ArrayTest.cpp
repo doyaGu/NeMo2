@@ -496,7 +496,7 @@ TEST_F(XArrayTest, GetPosition) {
     EXPECT_EQ(arr.GetPosition(100), 0);
     EXPECT_EQ(arr.GetPosition(200), 1);
     EXPECT_EQ(arr.GetPosition(300), 2);
-    EXPECT_EQ(arr.GetPosition(999), -1);
+    EXPECT_EQ(arr.GetPosition(999), static_cast<size_t>(-1));
 }
 
 TEST_F(XArrayTest, FastRemove) {
@@ -1488,7 +1488,7 @@ TEST_F(XBitArrayTest, GetSetBitPosition) {
     EXPECT_EQ(arr.GetSetBitPosition(0), 5);   // First set bit
     EXPECT_EQ(arr.GetSetBitPosition(1), 10);  // Second set bit
     EXPECT_EQ(arr.GetSetBitPosition(2), 20);  // Third set bit
-    EXPECT_EQ(arr.GetSetBitPosition(3), -1);  // Fourth set bit (doesn't exist)
+    EXPECT_EQ(arr.GetSetBitPosition(3), static_cast<size_t>(-1));  // Fourth set bit (doesn't exist)
 }
 
 TEST_F(XBitArrayTest, GetUnsetBitPosition) {
@@ -1498,8 +1498,8 @@ TEST_F(XBitArrayTest, GetUnsetBitPosition) {
     arr.Unset(5);
     arr.Unset(10);
     
-    EXPECT_EQ(arr.GetUnsetBitPosition(0), 5);   // First unset bit
-    EXPECT_EQ(arr.GetUnsetBitPosition(1), 10);  // Second unset bit
+    EXPECT_EQ(arr.GetUnsetBitPosition(0), static_cast<size_t>(5));   // First unset bit
+    EXPECT_EQ(arr.GetUnsetBitPosition(1), static_cast<size_t>(10));  // Second unset bit
 }
 
 TEST_F(XBitArrayTest, ConvertToString) {

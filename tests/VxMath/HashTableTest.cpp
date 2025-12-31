@@ -294,7 +294,7 @@ TEST(XHashTable, GetOccupationMatchesExpectedForSingleBucket) {
     for (int i = 0; i < 5; ++i)
         t.Insert(i, i);
 
-    XArray<int> occ;
+    XArray<size_t> occ;
     t.GetOccupation(occ);
 
     ASSERT_GE(occ.Size(), 6);

@@ -370,7 +370,7 @@ TEST(XStringTest, Split) {
     XString s("a,b,,c,");
     XClassArray<XString> parts;
 
-    int count = s.Split(',', parts);
+    size_t count = s.Split(',', parts);
     EXPECT_EQ(count, 5);
     ASSERT_EQ(parts.Size(), 5);
     EXPECT_STREQ(parts[0].CStr(), "a");
@@ -383,7 +383,7 @@ TEST(XStringTest, Split) {
 TEST(XStringTest, SplitNoDelimiter) {
     XString s("abc");
     XClassArray<XString> parts;
-    int count = s.Split(',', parts);
+    size_t count = s.Split(',', parts);
     EXPECT_EQ(count, 1);
     ASSERT_EQ(parts.Size(), 1);
     EXPECT_STREQ(parts[0].CStr(), "abc");
@@ -420,4 +420,3 @@ TEST(XStringTest, BaseStringConversions) {
     EXPECT_EQ(s_invalid.ToInt(), 0);
     EXPECT_FLOAT_EQ(s_invalid.ToFloat(), 0.0f);
 }
-
