@@ -170,7 +170,7 @@ void CKBufferParser::ExtractChunk(int Size, CKFile *f, CKFileChunk *chunk) {
 }
 
 CKDWORD CKBufferParser::ComputeCRC(int Size, CKDWORD PrevCRC) {
-    return CKComputeDataCRC(&m_Buffer[m_CursorPos], Size, PrevCRC);
+    return CKComputeDataCRC(reinterpret_cast<const CKBYTE *>(&m_Buffer[m_CursorPos]), Size, PrevCRC);
 }
 
 CKBufferParser *CKBufferParser::Extract(int Size) {
@@ -203,7 +203,7 @@ CKBOOL CKBufferParser::ExtractFile(char *Filename, int Size) {
 CKBufferParser *CKBufferParser::ExtractDecoded(int Size, CKDWORD *Key) { return nullptr; }
 
 CKBufferParser *CKBufferParser::UnPack(int UnpackSize, int PackSize) {
-    char *buffer = CKUnPackData(UnpackSize, &m_Buffer[m_CursorPos], PackSize);
+    char *buffer = CKUnPackData(UnpackSize, reinterpret_cast<const CKBYTE *>(&m_Buffer[m_CursorPos]), PackSize);
     if (!buffer) {
         return nullptr;
     }
@@ -227,8 +227,8 @@ CKBufferParser *CKBufferParser::Pack(int Size, int CompressionLevel) {
     if (Size <= 0)
         return nullptr;
 
-    int newSize = 0;
-    char *buffer = CKPackData(&m_Buffer[m_CursorPos], Size, newSize, CompressionLevel);
+    size_t newSize = 0;
+    char *buffer = CKPackData(reinterpret_cast<const CKBYTE *>(&m_Buffer[m_CursorPos]), Size, newSize, CompressionLevel);
     if (!buffer) {
         return nullptr;
     }
@@ -441,7 +441,7 @@ CKERROR CKFile::ReadFileHeaders(CKBufferParser **ParserPtr) {
 
     if (header.Part0.FileVersion >= 8) {
         header.Part0.Crc = 0;
-        CKDWORD crc = CKComputeDataCRC((char *) (&header.Part0), sizeof(CKFileHeaderPart0), 0);
+        CKDWORD crc = CKComputeDataCRC((const CKBYTE *) (&header.Part0), sizeof(CKFileHeaderPart0), 0);
         int prev = parser->CursorPos();
         parser->Seek(sizeof(CKFileHeaderPart0));
         crc = parser->ComputeCRC(sizeof(CKFileHeaderPart1), crc);
@@ -1140,8 +1140,8 @@ CKERROR CKFile::EndSave() {
         }
     }
 
-    CKDWORD crc = CKComputeDataCRC((char *) &header.Part0, sizeof(CKFileHeaderPart0));
-    crc = CKComputeDataCRC((char *) &header.Part1, sizeof(CKFileHeaderPart1), crc);
+    CKDWORD crc = CKComputeDataCRC((const CKBYTE *) &header.Part0, sizeof(CKFileHeaderPart0));
+    crc = CKComputeDataCRC((const CKBYTE *) &header.Part1, sizeof(CKFileHeaderPart1), crc);
     crc = hdr1BufferParser->ComputeCRC(hdr1BufferParser->Size(), crc);
     crc = dataBufferParser->ComputeCRC(dataBufferParser->Size(), crc);
     header.Part0.Crc = crc;
