@@ -331,7 +331,7 @@ Remarks:
 
 Implementation based on decompilation at 0x1000f380.
 *************************************************/
-int RCKCamera::GetMemoryOccupation() {
+size_t RCKCamera::GetMemoryOccupation() {
     return RCK3dEntity::GetMemoryOccupation() + (sizeof(RCKCamera) - sizeof(RCK3dEntity));
 }
 
