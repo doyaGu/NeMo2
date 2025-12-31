@@ -1,8 +1,8 @@
 #include "CKMemoryPool.h"
 
-CKMemoryPool::CKMemoryPool(CKContext *Context, int ByteCount) {
+CKMemoryPool::CKMemoryPool(CKContext *Context, size_t ByteCount) {
     m_Context = Context;
-    m_Index = -1;
+    m_Index = static_cast<size_t>(-1);
     if (Context) {
         m_Memory = m_Context->AllocateMemoryPool(ByteCount, m_Index);
     } else {

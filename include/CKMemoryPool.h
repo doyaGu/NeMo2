@@ -7,7 +7,7 @@
 class DLL_EXPORT CKMemoryPool
 {
 public:
-    explicit CKMemoryPool(CKContext *Context, int ByteCount = 0);
+    explicit CKMemoryPool(CKContext *Context, size_t ByteCount = 0);
     ~CKMemoryPool();
 
     void *Mem() const;
@@ -15,7 +15,7 @@ public:
 protected:
     CKContext *m_Context;
     void *m_Memory;
-    int m_Index;
+    size_t m_Index;
 };
 
 #endif // CKMEMORYPOOL_H
