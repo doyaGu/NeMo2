@@ -62,7 +62,7 @@ public:
     void ConvertToObjects(CKContext *Context, XSArray<CKObject *> &array) const
     {
         array.Clear();
-        for (CK_ID *ids = m_Begin; ids != m_End; ++ids)
+        for (CK_ID *ids = Begin(); ids != End(); ++ids)
         {
             CKObject *obj = CKGetObject(Context, *ids);
             if (obj)
@@ -133,7 +133,7 @@ public:
 
     See Also: GetObjectID
     *******************************************************/
-    DLL_EXPORT CKObject *GetObject(CKContext *Context, unsigned int i) const;
+    DLL_EXPORT CKObject *GetObject(CKContext *Context, size_t i) const;
 
     /***************************************************************************
     Summary: Gives Object Id at given position in the Object Id Array.
@@ -146,11 +146,11 @@ public:
 
     See Also: GetObject
     *******************************************************/
-    CK_ID GetObjectID(unsigned int i) const
+    CK_ID GetObjectID(size_t i) const
     {
-        if (i < (unsigned int)(m_End - m_Begin))
+        if (i < Size())
         {
-            return *(m_Begin + i);
+            return (*this)[i];
         }
         return 0;
     }
@@ -213,7 +213,7 @@ See Also:XSObjectPointerArray,XObjectArray,CKObjectArray
 class XObjectPointerArray : public XArray<CKObject *>
 {
 public:
-    XObjectPointerArray(const int iSize = 0) : XArray<CKObject *>(iSize) {}
+    XObjectPointerArray(const size_t iSize = 0) : XArray<CKObject *>(iSize) {}
 
     /*******************************************************
     Summary: Adds given object to object array only if it is not in array.
@@ -248,11 +248,11 @@ public:
 
     See Also: GetObjectID
     *******************************************************/
-    CKObject *GetObject(unsigned int i) const
+    CKObject *GetObject(size_t i) const
     {
-        if (i < (unsigned int)(m_End - m_Begin))
+        if (i < Size())
         {
-            return *(m_Begin + i);
+            return (*this)[i];
         }
         return NULL;
     }
@@ -272,20 +272,15 @@ public:
 
     See Also: FindObject, AddIfNotHere
     *******************************************************/
-    int RemoveObject(CKObject *obj) {
+    size_t RemoveObject(CKObject *obj) {
         CKObject **it = Find(obj);
-        if (it >= m_End)
-            return -1;
+        if (it >= End())
+            return static_cast<size_t>(-1);
 
-        const ptrdiff_t index = it - m_Begin;
+        const size_t index = static_cast<size_t>(it - Begin());
         Remove(it);
 
-        if (index < 0)
-            return -1;
-        // Best-effort: arrays in this codebase are not expected to exceed INT_MAX.
-        if (index > INT_MAX)
-            return INT_MAX;
-        return static_cast<int>(index);
+        return index;
     }
 
     /*******************************************************
@@ -312,7 +307,7 @@ public:
 
     See Also: GetObject
     *******************************************************/
-    DLL_EXPORT CK_ID GetObjectID(unsigned int i) const;
+    DLL_EXPORT CK_ID GetObjectID(size_t i) const;
 
     /*******************************************************
     Summary: Checks the CKObject*'s array to remove objects that don't
@@ -349,7 +344,7 @@ See Also: XSObjectPointerArray,XObjectArray,CKObjectArray
 class XObjectArray : public XArray<CK_ID>
 {
 public:
-    XObjectArray(const int iSize = 0) : XArray<CK_ID>(iSize) {}
+    XObjectArray(const size_t iSize = 0) : XArray<CK_ID>(iSize) {}
 
     /***************************************************************************
     Summary: Converts an XObjectArray into an XObjectPointerArray.
@@ -441,7 +436,7 @@ public:
 
     See Also: GetObjectID
     *******************************************************/
-    DLL_EXPORT CKObject *GetObject(CKContext *Context, unsigned int i) const;
+    DLL_EXPORT CKObject *GetObject(CKContext *Context, size_t i) const;
 
     /***************************************************************************
     Summary: Returns Object Id at given position in the Object Id Array.
@@ -454,11 +449,11 @@ public:
 
     See Also: GetObject
     *******************************************************/
-    CK_ID GetObjectID(unsigned int i) const
+    CK_ID GetObjectID(size_t i) const
     {
-        if (i < (unsigned int)(m_End - m_Begin))
+        if (i < Size())
         {
-            return *(m_Begin + i);
+            return (*this)[i];
         }
         return 0;
     }
@@ -556,11 +551,11 @@ public:
 
     See Also: GetObjectID
     *******************************************************/
-    CKObject *GetObject(unsigned int i) const
+    CKObject *GetObject(size_t i) const
     {
-        if (i < (unsigned int)(m_End - m_Begin))
+        if (i < Size())
         {
-            return *(m_Begin + i);
+            return (*this)[i];
         }
         return NULL;
     }
@@ -607,7 +602,7 @@ public:
 
     See Also: GetObject
     *******************************************************/
-    DLL_EXPORT CK_ID GetObjectID(unsigned int i) const;
+    DLL_EXPORT CK_ID GetObjectID(size_t i) const;
 
     /*******************************************************
     Summary: Checks the CKObject*'s array to remove objects that don't

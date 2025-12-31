@@ -2,7 +2,7 @@
 
 #include "CKStateChunk.h"
 
-CK_ID XObjectPointerArray::GetObjectID(unsigned int i) const {
+CK_ID XObjectPointerArray::GetObjectID(size_t i) const {
     if (i >= Size())
         return 0;
     return m_Begin[i]->m_ID;
@@ -10,9 +10,9 @@ CK_ID XObjectPointerArray::GetObjectID(unsigned int i) const {
 
 CKBOOL XObjectPointerArray::Check() {
     CKObject **it = m_Begin;
-    const int size = Size();
-    int keptCount = 0;
-    int i;
+    const size_t size = Size();
+    size_t keptCount = 0;
+    size_t i;
     for (i = 0; i < size; ++i) {
         CKObject *obj = *it++;
         if (obj->IsToBeDeleted())
@@ -20,9 +20,9 @@ CKBOOL XObjectPointerArray::Check() {
         ++keptCount;
     }
 
-    const int firstDeletedIndex = i + 1;
+    const size_t firstDeletedIndex = i + 1;
     if (firstDeletedIndex < size) {
-        int remaining = size - firstDeletedIndex;
+        size_t remaining = size - firstDeletedIndex;
         do {
             CKObject *obj = *it++;
             if (!obj->IsToBeDeleted())
@@ -63,7 +63,7 @@ void XObjectPointerArray::Remap(CKDependenciesContext &context) {
 
 void XSObjectArray::ConvertFromObjects(const XSArray<CKObject *> &array) {
     Clear();
-    for (auto it = array.Begin(); it != array.End(); ++it) {
+    for (CKObject **it = array.Begin(); it != array.End(); ++it) {
         if (it && *it)
             PushBack((*it)->GetID());
     }
@@ -73,8 +73,8 @@ CKBOOL XSObjectArray::Check(CKContext *Context) {
     if (!Context)
         return FALSE;
 
-    const int size = Size();
-    const int newSize = Context->m_ObjectManager->CheckIDArray(Begin(), size);
+    const size_t size = Size();
+    const size_t newSize = Context->m_ObjectManager->CheckIDArray(Begin(), size);
     Resize(newSize);
     return newSize != size;
 }
@@ -101,7 +101,7 @@ CKBOOL XSObjectArray::AddIfNotHere(CKObject *obj) {
     return TRUE;
 }
 
-CKObject *XSObjectArray::GetObject(CKContext *Context, unsigned int i) const {
+CKObject *XSObjectArray::GetObject(CKContext *Context, size_t i) const {
     if (!Context || i >= Size())
         return nullptr;
     return Context->GetObject(m_Begin[i]);
@@ -112,7 +112,7 @@ CKBOOL XSObjectArray::RemoveObject(CKObject *obj) {
         return FALSE;
     for (CK_ID *it = m_Begin; it != m_End; ++it) {
         if (*it == obj->GetID()) {
-            RemoveAt(it - m_Begin);
+            RemoveAt(static_cast<size_t>(it - m_Begin));
             return TRUE;
         }
     }
@@ -129,22 +129,22 @@ CKBOOL XSObjectArray::FindObject(CKObject *obj) const {
 }
 
 void XSObjectArray::Load(CKStateChunk *chunk) {
-    const int count = chunk->StartReadSequence();
+    const size_t count = chunk->StartReadSequence();
     if (count == 0)
         return;
 
     if (chunk->GetChunkVersion() >= 4) {
         Resize(count);
-        for (int i = 0; i < count; ++i) {
+        for (size_t i = 0; i < count; ++i) {
             m_Begin[i] = chunk->ReadObjectID();
         }
     } else {
         chunk->Skip(sizeof(CKDWORD));
 
-        const int objectCount = chunk->ReadInt();
+        const CKDWORD objectCount = chunk->ReadDword();
         Resize(objectCount);
-        for (int i = 0; i < objectCount; ++i) {
-            m_Begin[i] = chunk->ReadInt();
+        for (CKDWORD i = 0; i < objectCount; ++i) {
+            m_Begin[i] = chunk->ReadDword();
         }
     }
 }
@@ -192,8 +192,8 @@ CKBOOL XObjectArray::Check(CKContext *Context) {
     if (!Context)
         return FALSE;
 
-    const int size = Size();
-    const int newSize = Context->m_ObjectManager->CheckIDArray(Begin(), size);
+    const size_t size = Size();
+    const size_t newSize = Context->m_ObjectManager->CheckIDArray(Begin(), size);
     m_End = &m_Begin[newSize];
     return size != newSize;
 }
@@ -220,7 +220,7 @@ CKBOOL XObjectArray::AddIfNotHere(CKObject *obj) {
     return TRUE;
 }
 
-CKObject *XObjectArray::GetObject(CKContext *Context, unsigned int i) const {
+CKObject *XObjectArray::GetObject(CKContext *Context, size_t i) const {
     if (!Context || i >= Size())
         return nullptr;
     return Context->GetObject(m_Begin[i]);
@@ -276,9 +276,9 @@ void XObjectArray::Remap(CKDependenciesContext &context) {
 
 CKBOOL XSObjectPointerArray::Check() {
     CKObject **it = m_Begin;
-    const int size = Size();
-    int keptCount = 0;
-    int i;
+    const size_t size = Size();
+    size_t keptCount = 0;
+    size_t i;
     for (i = 0; i < size; ++i) {
         CKObject *obj = *it++;
         if (obj->IsToBeDeleted())
@@ -286,9 +286,9 @@ CKBOOL XSObjectPointerArray::Check() {
         ++keptCount;
     }
 
-    const int firstDeletedIndex = i + 1;
+    const size_t firstDeletedIndex = i + 1;
     if (firstDeletedIndex < size) {
-        int remaining = size - firstDeletedIndex;
+        size_t remaining = size - firstDeletedIndex;
         do {
             if (!(*it)->IsToBeDeleted())
                 m_Begin[keptCount++] = *it;
@@ -305,12 +305,12 @@ void XSObjectPointerArray::Load(CKContext *Context, CKStateChunk *chunk) {
     if (!Context || !chunk)
         return;
 
-    const int count = chunk->StartReadSequence();
+    const size_t count = chunk->StartReadSequence();
     if (count == 0)
         return;
 
     if (chunk->GetChunkVersion() >= 4) {
-        for (int i = 0; i < count; ++i) {
+        for (size_t i = 0; i < count; ++i) {
             CKObject *obj = chunk->ReadObject(Context);
             if (obj)
                 PushBack(obj);
@@ -319,6 +319,8 @@ void XSObjectPointerArray::Load(CKContext *Context, CKStateChunk *chunk) {
         chunk->Skip(sizeof(CKDWORD));
 
         const int objectCount = chunk->ReadInt();
+        if (objectCount < 0)
+            return;
         for (int i = 0; i < objectCount; ++i) {
             CK_ID id = chunk->ReadDword();
             CKObject *obj = Context->GetObject(id);
