@@ -292,7 +292,7 @@ CKERROR CK2dCurve::Read(CKStateChunk *chunk) {
 
             if (point.m_Flags & 0x10000000) {
                 // Clear legacy flags
-                point.m_Flags &= ~0x10;
+                point.m_Flags &= ~0x10000000;
 
                 // Read position and spline parameters
                 point.m_Position.x = chunk->ReadFloat();
