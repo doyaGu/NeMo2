@@ -309,9 +309,9 @@ public:
 
     // operators
     /// @brief Provides const access to a row of the matrix.
-    const VxVector4 &operator[](size_t i) const { return (const VxVector4 &) (*(VxVector4 *) (m_Data + i)); }
+    const VxVector4 &operator[](int i) const { return (const VxVector4 &) (*(VxVector4 *) (m_Data + i)); }
     /// @brief Provides mutable access to a row of the matrix.
-    VxVector4 &operator[](size_t i) { return (VxVector4 &) (*(VxVector4 *) (m_Data + i)); }
+    VxVector4 &operator[](int i) { return (VxVector4 &) (*(VxVector4 *) (m_Data + i)); }
 
     /// @brief Implicitly converts the matrix to a const void pointer to its data.
     operator const void *() const { return &m_Data[0]; }
