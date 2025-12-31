@@ -238,14 +238,14 @@ XHashTable<VxThread *, GENERIC_HANDLE> &VxThread::GetHashThread() {
     return hashThread;
 }
 
-XDWORD VxThread::ThreadFunc(void *args) {
+unsigned long VxThread::ThreadFunc(void *args) {
     if (!args)
         return VXTERROR_NULLTHREAD;
 
     VxThread *thread = (VxThread *) args;
     thread->m_State |= VXTS_STARTED;
 
-    XDWORD ret;
+    unsigned long ret;
     if (thread->m_Func)
         ret = thread->m_Func(thread->m_Args);
     else
