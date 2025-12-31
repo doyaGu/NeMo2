@@ -38,7 +38,7 @@ public:
      * @brief Constructs an empty array, optionally reserving space.
      * @param ss The initial number of elements to reserve space for.
      */
-    explicit XArray(int ss = 0) {
+    explicit XArray(size_t ss = 0) {
         if (ss > 0) {
             m_Begin = Allocate(ss);
             m_End = m_Begin;
@@ -54,7 +54,7 @@ public:
      * @param a The array to copy from.
      */
     XArray(const XArray<T> &a) {
-        int size = a.Size();
+        size_t size = a.Size();
         if (size > 0) {
             m_Begin = Allocate(size);
             m_End = m_Begin + size;
@@ -72,7 +72,7 @@ public:
      * @param init The initializer list.
      */
     XArray(std::initializer_list<T> init) {
-        int size = (int) init.size();
+        size_t size = init.size();
         if (size > 0) {
             m_Begin = Allocate(size);
             m_End = m_Begin;
@@ -116,7 +116,7 @@ public:
      */
     XArray<T> &operator=(const XArray<T> &a) {
         if (this != &a) {
-            int size = a.Size();
+            size_t size = a.Size();
             if (size == 0) {
                 m_End = m_Begin;
                 if (!m_Begin) {
@@ -143,7 +143,7 @@ public:
      * @return A reference to this array.
      */
     XArray<T> &operator=(std::initializer_list<T> init) {
-        int size = (int) init.size();
+        size_t size = init.size();
         if (size == 0) {
             m_End = m_Begin;
             if (!m_Begin) {
@@ -193,10 +193,10 @@ public:
      * @return A reference to this array.
      */
     XArray<T> &operator+=(const XArray<T> &a) {
-        int size = a.Size();
+        size_t size = a.Size();
         if (size) {
-            int oldsize = Size();
-            int newSize = oldsize + size + 1;
+            size_t oldsize = Size();
+            size_t newSize = oldsize + size + 1;
             if (newSize <= Allocated()) {
                 // we recopy the new array
                 XCopy(m_End, a.m_Begin, a.m_End);
@@ -229,9 +229,9 @@ public:
      * @return A reference to this array.
      */
     XArray<T> &operator-=(const XArray<T> &a) {
-        int size = a.Size();
+        size_t size = a.Size();
         if (size) {
-            int oldsize = Size();
+            size_t oldsize = Size();
             if (oldsize) {
                 T *newarray = Allocate(oldsize + 1);
                 T *temp = newarray;
@@ -271,7 +271,7 @@ public:
     void Compact() {
         if (!m_Begin) return;
         if (m_AllocatedEnd > m_End) {
-            int size = Size();
+            size_t size = Size();
             if (size == 0)
                 return;
             T *newData = Allocate(size);
@@ -287,15 +287,21 @@ public:
      * @remarks If the new size is smaller than the current size, elements are discarded.
      * @param size The number of elements to reserve space for.
      */
-    void Reserve(int size) {
+    void Reserve(size_t size) {
+        // Check for overflow
+        if (size > SIZE_MAX) {
+            // Capacity exceeds indexable range
+            return;
+        }
+
         T *newData = Allocate(size);
 
         // Recopy of old elements
-        int oldCount = Size();
+        size_t oldCount = Size();
         if (oldCount > 0) {
             T *last = XMin(m_Begin + size, m_End);
             XCopy(newData, m_Begin, last);
-            oldCount = (int) (last - m_Begin);
+            oldCount = (last - m_Begin);
         } else {
             oldCount = 0;
         }
@@ -316,8 +322,7 @@ public:
      * if you intend to add more elements later.
      * @see Reserve
      */
-    void Resize(int size) {
-        XASSERT(size >= 0);
+    void Resize(size_t size) {
         if (size == 0 && !m_Begin) {
             m_End = NULL;
             return;
@@ -333,10 +338,10 @@ public:
      * @param e The number of elements to add to the size.
      * @remarks Memory is reallocated if necessary. The new elements are uninitialized.
      */
-    void Expand(int e = 1) {
-        int newSize = Size() + e;
+    void Expand(size_t e = 1) {
+        size_t newSize = Size() + e;
         if (newSize > Allocated()) {
-            int newCapacity = Allocated() ? Allocated() * 2 : 2;
+            size_t newCapacity = Allocated() ? Allocated() * 2 : 2;
             while (newSize > newCapacity) {
                 newCapacity *= 2;
             }
@@ -349,7 +354,7 @@ public:
      * @brief Decreases the size of the array by a given number of elements from the end.
      * @param e The number of elements to remove from the size.
      */
-    void Compress(int e = 1) {
+    void Compress(size_t e = 1) {
         if (m_Begin + e <= m_End) {
             m_End -= e;
         } else {
@@ -439,7 +444,7 @@ public:
      * @param pos The index at which to insert the element.
      * @param o The element to insert.
      */
-    void Insert(int pos, const T &o) {
+    void Insert(size_t pos, const T &o) {
         Insert(m_Begin + pos, o);
     }
 
@@ -447,7 +452,7 @@ public:
     /**
      * @brief Inserts an element at a specified index by moving it (C++11).
      */
-    void Insert(int pos, T &&o) {
+    void Insert(size_t pos, T &&o) {
         Insert(m_Begin + pos, std::move(o));
     }
 #endif
@@ -477,7 +482,7 @@ public:
      */
     void Move(T *i, T *n) {
         if (i >= m_Begin && i <= m_End && n >= m_Begin && n < m_End) {
-            int insertpos = static_cast<int>(i - m_Begin);
+            size_t insertpos = i - m_Begin;
             if (n < i) --insertpos;
             T tn = *n;
 #if VX_HAS_CXX11
@@ -515,7 +520,7 @@ public:
      * @param old A reference to store the value of the removed element.
      * @return TRUE if an element was removed, FALSE if the index was out of bounds.
      */
-    XBOOL RemoveAt(unsigned int pos, T &old) {
+    XBOOL RemoveAt(size_t pos, T &old) {
         T *t = m_Begin + pos;
         if (t >= m_End) return FALSE;
         old = *t;
@@ -528,7 +533,7 @@ public:
      * @param pos The index of the element to erase.
      * @return TRUE if the element was erased, FALSE otherwise.
      */
-    XBOOL EraseAt(int pos) {
+    XBOOL EraseAt(size_t pos) {
         return (XBOOL) Remove(m_Begin + pos);
     }
 
@@ -537,7 +542,7 @@ public:
      * @param pos The index of the element to remove.
      * @return An iterator to the element that followed the removed element.
      */
-    T *RemoveAt(int pos) {
+    T *RemoveAt(size_t pos) {
         return Remove(m_Begin + pos);
     }
 
@@ -605,7 +610,7 @@ public:
      * @brief Quickly removes an element at a given index. Does not preserve order.
      * @param pos The index of the element to remove.
      */
-    void FastRemoveAt(int pos) {
+    void FastRemoveAt(size_t pos) {
         FastRemove(Begin() + pos);
     }
 
@@ -632,8 +637,8 @@ public:
      * @return A const reference to the element.
      * @remarks Asserts that the index is in bounds in debug builds.
      */
-    const T &operator[](int i) const {
-        XASSERT(i >= 0 && i < Size());
+    const T &operator[](size_t i) const {
+        XASSERT(i < Size());
         return *(m_Begin + i);
     }
 
@@ -643,8 +648,8 @@ public:
      * @return A reference to the element.
      * @remarks Asserts that the index is in bounds in debug builds.
      */
-    T &operator[](int i) {
-        XASSERT(i >= 0 && i < Size());
+    T &operator[](size_t i) {
+        XASSERT(i < Size());
         return *(m_Begin + i);
     }
 
@@ -653,7 +658,7 @@ public:
      * @param i The index of the element.
      * @return A pointer to the element, or End() if the index is out of bounds.
      */
-    T *At(unsigned int i) {
+    T *At(size_t i) {
         T *t = m_Begin + i;
         return (t < m_End) ? t : m_End;
     }
@@ -663,7 +668,7 @@ public:
      * @param i The index of the element.
      * @return A const pointer to the element, or End() if the index is out of bounds.
      */
-    const T *At(unsigned int i) const {
+    const T *At(size_t i) const {
         const T *t = m_Begin + i;
         return (t < m_End) ? t : m_End;
     }
@@ -686,10 +691,10 @@ public:
      * @remarks The array must be sorted in increasing order for this to work correctly.
      */
     T *BinaryFind(const T &o) const {
-        int low = 0;
-        int high = Size() - 1;
+        int64_t low = 0;
+        int64_t high = Size() - 1;
         while (low <= high) {
-            int mid = (low + high) >> 1;
+            int64_t mid = (low + high) >> 1;
             if (m_Begin[mid] > o) {
                 high = mid - 1;
             } else if (m_Begin[mid] < o) {
@@ -713,11 +718,11 @@ public:
     /**
      * @brief Gets the index of the first occurrence of an element.
      * @param o The element to find.
-     * @return The zero-based index of the element, or -1 if not found.
+     * @return The zero-based index of the element, or `static_cast<size_t>(-1)` if not found.
      */
-    int GetPosition(const T &o) const {
+    size_t GetPosition(const T &o) const {
         T *t = Find(o);
-        return (t == m_End) ? -1 : static_cast<int>(t - m_Begin);
+        return (t == m_End) ? static_cast<size_t>(-1) : t - m_Begin;
     }
 
     /**
@@ -725,7 +730,7 @@ public:
      * @param pos1 The index of the first element.
      * @param pos2 The index of the second element.
      */
-    void Swap(int pos1, int pos2) {
+    void Swap(size_t pos1, size_t pos2) {
         char buffer[sizeof(T)];
         memcpy(buffer, m_Begin + pos1, sizeof(T));
         memcpy(m_Begin + pos1, m_Begin + pos2, sizeof(T));
@@ -747,7 +752,7 @@ public:
      * @param iArray Pointer to the external array.
      * @param iCount The number of elements in the external array.
      */
-    void Attach(T *iArray, int iCount) {
+    void Attach(T *iArray, size_t iCount) {
         Clear();
         m_Begin = iArray;
         m_End = m_Begin + iCount;
@@ -820,7 +825,7 @@ public:
     /**
      * @brief Returns the number of elements in the array.
      */
-    int Size() const { return m_Begin ? (int) (m_End - m_Begin) : 0; }
+    size_t Size() const { return m_Begin ? (m_End - m_Begin) : 0; }
 
     /**
      * @brief Checks if the array is empty.
@@ -834,14 +839,14 @@ public:
      * @param addstatic If TRUE, adds the `sizeof(XArray)` to the result.
      * @return The memory size in bytes.
      */
-    int GetMemoryOccupation(XBOOL addstatic = FALSE) const {
+    size_t GetMemoryOccupation(XBOOL addstatic = FALSE) const {
         return Allocated() * sizeof(T) + (addstatic ? sizeof(*this) : 0);
     }
 
     /**
      * @brief Returns the number of elements the array can hold without reallocating.
      */
-    int Allocated() const { return m_Begin ? (int) (m_AllocatedEnd - m_Begin) : 0; }
+    size_t Allocated() const { return m_Begin ? m_AllocatedEnd - m_Begin : 0; }
 
     /**
      * @brief A default comparison function for sorting.
@@ -899,7 +904,7 @@ protected:
      */
     void XCopy(T *dest, T *start, T *end) {
         if (start == end) return;
-        size_t size = static_cast<size_t>((XBYTE *) end - (XBYTE *) start);
+        size_t size = ((XBYTE *) end - (XBYTE *) start);
         if (size > 0) memcpy(dest, start, size);
     }
 
@@ -909,7 +914,7 @@ protected:
      */
     void XMove(T *dest, T *start, T *end) {
         if (start == end) return;
-        size_t size = static_cast<size_t>((XBYTE *) end - (XBYTE *) start);
+        size_t size = ((XBYTE *) end - (XBYTE *) start);
         if (size > 0) memmove(dest, start, size);
     }
 
@@ -923,7 +928,7 @@ protected:
 
         // Test For Reallocation
         if (m_End == m_AllocatedEnd) {
-            int newSize = Allocated() * 2;
+            size_t newSize = Allocated() * 2;
             if (newSize == 0)
                 newSize = 2;
             T *newData = Allocate(newSize);
@@ -963,7 +968,7 @@ protected:
 
         // Test For Reallocation
         if (m_End == m_AllocatedEnd) {
-            int newSize = Allocated() * 2;
+            size_t newSize = Allocated() * 2;
             if (newSize == 0)
                 newSize = 2;
             T *newData = Allocate(newSize);
@@ -1007,15 +1012,20 @@ protected:
      * @brief Allocates raw memory for a given number of elements.
      * @internal
      */
-    T *Allocate(int size) {
-        if (size > 0)
+    T *Allocate(size_t size) {
+        if (size > 0) {
+            // Check for overflow before allocation
+            if (size > SIZE_MAX / sizeof(T)) {
+                return NULL;  // Allocation would overflow
+            }
 #ifndef VX_MALLOC
             return new T[size];
 #else
             return (T *) VxMalloc(sizeof(T) * size);
 #endif
-        else
+        } else {
             return NULL;
+        }
     }
 
     /**

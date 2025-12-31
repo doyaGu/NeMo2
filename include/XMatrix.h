@@ -18,7 +18,7 @@ public:
      * @param iWidth The width (number of columns) of the matrix.
      * @param iHeight The height (number of rows) of the matrix.
      */
-    XMatrix(int iWidth = 0, int iHeight = 0) : m_Data(NULL), m_Width(0), m_Height(0) {
+    XMatrix(size_t iWidth = 0, size_t iHeight = 0) : m_Data(NULL), m_Width(0), m_Height(0) {
         Allocate(iWidth, iHeight);
     }
 
@@ -35,17 +35,17 @@ public:
     /**
      * @brief Returns the width of the matrix (number of columns).
      */
-    int GetWidth() const { return m_Width; }
+    size_t GetWidth() const { return m_Width; }
 
     /**
      * @brief Returns the height of the matrix (number of rows).
      */
-    int GetHeight() const { return m_Height; }
+    size_t GetHeight() const { return m_Height; }
 
     /**
      * @brief Returns the total memory size of the matrix data in bytes.
      */
-    int Size() const { return m_Width * m_Height * sizeof(T); }
+    size_t Size() const { return m_Width * m_Height * sizeof(T); }
 
     /**
      * @brief Frees the memory used by the matrix and resets its dimensions to zero.
@@ -62,7 +62,7 @@ public:
      * @param iWidth The new width.
      * @param iHeight The new height.
      */
-    void Create(int iWidth, int iHeight) {
+    void Create(size_t iWidth, size_t iHeight) {
         Clear();
         Allocate(iWidth, iHeight);
     }
@@ -73,7 +73,7 @@ public:
      * @param iY The row index.
      * @return A const reference to the element at (iX, iY).
      */
-    const T &operator()(const int iX, const int iY) const {
+    const T &operator()(const size_t iX, const size_t iY) const {
         XASSERT(iX < m_Width && iY < m_Height);
         return m_Data[iY * m_Width + iX];
     }
@@ -84,7 +84,7 @@ public:
      * @param iY The row index.
      * @return A reference to the element at (iX, iY).
      */
-    T &operator()(const int iX, const int iY) {
+    T &operator()(const size_t iX, const size_t iY) {
         XASSERT(iX < m_Width && iY < m_Height);
         return m_Data[iY * m_Width + iX];
     }
@@ -97,8 +97,8 @@ private:
      * @param iWidth The width of the matrix.
      * @param iHeight The height of the matrix.
      */
-    void Allocate(int iWidth, int iHeight) {
-        int count = iWidth * iHeight;
+    void Allocate(size_t iWidth, size_t iHeight) {
+        size_t count = iWidth * iHeight;
         if (count > 0) {
             m_Data = new T[count];
             XASSERT(m_Data); // Assert on allocation failure
@@ -114,9 +114,9 @@ private:
     T *m_Data;
 
     /// @brief The width of the matrix (number of columns).
-    int m_Width;
+    size_t m_Width;
     /// @brief The height of the matrix (number of rows).
-    int m_Height;
+    size_t m_Height;
     ///@}
 };
 

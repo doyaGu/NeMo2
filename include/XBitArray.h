@@ -28,7 +28,7 @@ public:
      * @param initialize The initial number of 32-bit `XDWORD`s to allocate.
      *                   Defaults to 1, creating an array with a capacity of 32 bits.
      */
-    explicit XBitArray(int initialize = 1) {
+    explicit XBitArray(size_t initialize = 1) {
         if (initialize < 1) initialize = 1;
         m_Size = (initialize << 5); // size in bits
         m_Data = Allocate(initialize);
@@ -51,17 +51,17 @@ public:
      * @brief Constructs a bit array and sets the given bit indices (C++11).
      * @param setBits Bit indices to set to 1.
      */
-    XBitArray(std::initializer_list<int> setBits) : m_Data(NULL), m_Size(0) {
-        int maxBit = -1;
-        for (int b : setBits) {
+    XBitArray(std::initializer_list<size_t> setBits) : m_Data(NULL), m_Size(0) {
+        size_t maxBit = 0;
+        for (size_t b : setBits) {
             if (b > maxBit) maxBit = b;
         }
 
-        int dwords = (maxBit >= 0) ? ((maxBit >> 5) + 1) : 1;
+        size_t dwords = setBits.size() ? ((maxBit >> 5) + 1) : 1;
         m_Size = (dwords << 5);
         m_Data = Allocate(dwords);
         Clear();
-        for (int b : setBits) {
+        for (size_t b : setBits) {
             Set(b);
         }
     }
@@ -111,21 +111,21 @@ public:
      * @param setBits Bit indices to set to 1.
      * @return A reference to this object.
      */
-    XBitArray &operator=(std::initializer_list<int> setBits) {
-        int maxBit = -1;
-        for (int b : setBits) {
+    XBitArray &operator=(std::initializer_list<size_t> setBits) {
+        size_t maxBit = 0;
+        for (size_t b : setBits) {
             if (b > maxBit) maxBit = b;
         }
 
-        int dwords = (maxBit >= 0) ? ((maxBit >> 5) + 1) : 1;
-        int newSize = (dwords << 5);
+        size_t dwords = setBits.size() ? ((maxBit >> 5) + 1) : 1;
+        size_t newSize = (dwords << 5);
         if (m_Size != newSize) {
             Free();
             m_Size = newSize;
             m_Data = Allocate(dwords);
         }
         Clear();
-        for (int b : setBits) {
+        for (size_t b : setBits) {
             Set(b);
         }
         return *this;
@@ -164,10 +164,10 @@ public:
      * until it is large enough. New bits are initialized to 0.
      * @param n The bit index to check for.
      */
-    void CheckSize(int n) {
+    void CheckSize(size_t n) {
         while (n >= m_Size) {
-            int dwords = (m_Size >> 5);
-            int newDwords = dwords ? dwords * 2 : 1;
+            size_t dwords = (m_Size >> 5);
+            size_t newDwords = dwords ? dwords * 2 : 1;
             XDWORD *temp = Allocate(newDwords);
 
             if (temp && m_Data) {
@@ -188,8 +188,8 @@ public:
      */
     void CheckSameSize(XBitArray &a) {
         if (m_Size < a.m_Size) {
-            int newDwords = a.m_Size >> 5;
-            int dwords = m_Size >> 5;
+            size_t newDwords = a.m_Size >> 5;
+            size_t dwords = m_Size >> 5;
             XDWORD *temp = Allocate(newDwords);
 
             if (temp && m_Data) {
@@ -209,9 +209,9 @@ public:
      * @param n The index of the bit to check.
      * @return A non-zero value if the bit is set, or 0 if it is not set or `n` is out of range.
      */
-    int IsSet(int n) const {
+    size_t IsSet(size_t n) const {
         if (n >= m_Size) return 0;
-        return (m_Data[n >> 5] & (1U << (n & 31)));
+        return (m_Data[n >> 5] & (1U << static_cast<XDWORD>(n & 31U)));
     }
 
     /**
@@ -219,7 +219,7 @@ public:
      * @param n The index of the bit to check.
      * @return The result of `IsSet(n)`.
      */
-    int operator[](int n) const {
+    size_t operator[](size_t n) const {
         return IsSet(n);
     }
 
@@ -229,10 +229,10 @@ public:
      * @param v The integer containing the source bits.
      * @param bitcount The number of bits to append from `v`.
      */
-    void AppendBits(int n, int v, int bitcount) {
-        int mask = 1;
-        int end = n + bitcount;
-        for (int i = n; i < end; ++i, mask <<= 1) {
+    void AppendBits(size_t n, int v, size_t bitcount) {
+        XDWORD mask = 1U;
+        size_t end = n + bitcount;
+        for (size_t i = n; i < end; ++i, mask <<= 1) {
             if (mask & v) Set(i);
             else Unset(i);
         }
@@ -242,10 +242,9 @@ public:
      * @brief Sets the n-th bit to 1.
      * @param n The index of the bit to set. The array will be resized if necessary.
      */
-    void Set(int n) {
-        if (n < 0) return;
+    void Set(size_t n) {
         CheckSize(n);
-        m_Data[n >> 5] |= (1U << (n & 31));
+        m_Data[n >> 5] |= (1U << static_cast<XDWORD>(n & 31U));
     }
 
     /**
@@ -253,15 +252,14 @@ public:
      * @param n The index of the bit to set.
      * @return 1 if the bit was previously 0, or 0 if it was already 1.
      */
-    int TestSet(int n) {
-        if (n < 0) return 0;
+    size_t TestSet(size_t n) {
         if (n >= m_Size) {
             CheckSize(n);
-            m_Data[n >> 5] |= (1U << (n & 31));
+            m_Data[n >> 5] |= (1U << static_cast<XDWORD>(n & 31U));
             return 1;
         } else {
-            int pos = n >> 5;
-            unsigned int mask = 1U << (n & 31);
+            size_t pos = n >> 5;
+            XDWORD mask = 1U << static_cast<XDWORD>(n & 31U);
             if (m_Data[pos] & mask)
                 return 0;
             m_Data[pos] |= mask;
@@ -273,9 +271,9 @@ public:
      * @brief Sets the n-th bit to 0.
      * @param n The index of the bit to unset.
      */
-    void Unset(int n) {
-        if (n < m_Size && n >= 0) {
-            m_Data[n >> 5] &= ~(1U << (n & 31));
+    void Unset(size_t n) {
+        if (n < m_Size) {
+            m_Data[n >> 5] &= ~(1U << static_cast<XDWORD>(n & 31U));
         }
     }
 
@@ -284,10 +282,10 @@ public:
      * @param n The index of the bit to unset.
      * @return 1 if the bit was previously 1, or 0 if it was already 0.
      */
-    int TestUnset(int n) {
-        if (n < m_Size && n >= 0) {
-            int pos = n >> 5;
-            unsigned int mask = 1U << (n & 31);
+    size_t TestUnset(size_t n) {
+        if (n < m_Size) {
+            size_t pos = n >> 5;
+            XDWORD mask = 1U << static_cast<XDWORD>(n & 31U);
             if (m_Data[pos] & mask) {
                 m_Data[pos] &= ~mask;
                 return 1;
@@ -299,7 +297,7 @@ public:
     /**
      * @brief Returns the total number of allocated bits (the capacity).
      */
-    int Size() const {
+    size_t Size() const {
         return m_Size;
     }
 
@@ -322,12 +320,11 @@ public:
      * @param a The other XBitArray.
      */
     void And(XBitArray &a) {
-        int dwords1 = m_Size >> 5;
-        int dwords2 = a.m_Size >> 5;
-        int dwords = XMin(dwords1, dwords2);
-        int i;
-        for (i = 0; i < dwords; ++i) m_Data[i] &= a.m_Data[i];
-        for (i = dwords; i < dwords1; ++i) m_Data[i] = 0;
+        size_t dwords1 = m_Size >> 5;
+        size_t dwords2 = a.m_Size >> 5;
+        size_t dwords = XMin(dwords1, dwords2);
+        for (size_t i = 0; i < dwords; ++i) m_Data[i] &= a.m_Data[i];
+        for (size_t i = dwords; i < dwords1; ++i) m_Data[i] = 0;
     }
 
     /**
@@ -336,10 +333,10 @@ public:
      * @return A reference to this modified array.
      */
     XBitArray &operator-=(XBitArray &a) {
-        int dwords1 = m_Size >> 5;
-        int dwords2 = a.m_Size >> 5;
-        int dwords = XMin(dwords1, dwords2);
-        for (int i = 0; i < dwords; ++i) {
+        size_t dwords1 = m_Size >> 5;
+        size_t dwords2 = a.m_Size >> 5;
+        size_t dwords = XMin(dwords1, dwords2);
+        for (size_t i = 0; i < dwords; ++i) {
             m_Data[i] &= ~a.m_Data[i];
         }
         return *this;
@@ -351,10 +348,10 @@ public:
      * @return TRUE if `(this & a)` is not zero, FALSE otherwise.
      */
     XBOOL CheckCommon(XBitArray &a) {
-        int dwords1 = m_Size >> 5;
-        int dwords2 = a.m_Size >> 5;
-        int dwords = XMin(dwords1, dwords2);
-        for (int i = 0; i < dwords; ++i) {
+        size_t dwords1 = m_Size >> 5;
+        size_t dwords2 = a.m_Size >> 5;
+        size_t dwords = XMin(dwords1, dwords2);
+        for (size_t i = 0; i < dwords; ++i) {
             if (m_Data[i] & a.m_Data[i]) return TRUE;
         }
         return FALSE;
@@ -366,8 +363,8 @@ public:
      */
     void Or(XBitArray &a) {
         CheckSameSize(a);
-        int size = a.m_Size >> 5;
-        for (int i = 0; i < size; ++i) m_Data[i] |= a.m_Data[i];
+        size_t size = a.m_Size >> 5;
+        for (size_t i = 0; i < size; ++i) m_Data[i] |= a.m_Data[i];
     }
 
     /**
@@ -376,28 +373,28 @@ public:
      */
     void XOr(XBitArray &a) {
         CheckSameSize(a);
-        int size = a.m_Size >> 5;
-        for (int i = 0; i < size; ++i) m_Data[i] ^= a.m_Data[i];
+        size_t size = a.m_Size >> 5;
+        for (size_t i = 0; i < size; ++i) m_Data[i] ^= a.m_Data[i];
     }
 
     /**
      * @brief Inverts all bits in the array.
      */
     void Invert() {
-        int size = m_Size >> 5;
-        for (int i = 0; i < size; ++i) m_Data[i] = ~m_Data[i];
+        size_t size = m_Size >> 5;
+        for (size_t i = 0; i < size; ++i) m_Data[i] = ~m_Data[i];
     }
 
     /**
      * @brief Counts the number of set bits (1s) in the array.
      * @return The total number of set bits.
      */
-    int BitSet() {
-        int set = 0;
-        int size = m_Size >> 5;
-        for (int i = 0; i < size; ++i) {
-            int mask = 1;
-            for (int j = 0; j < 32; ++j) {
+    size_t BitSet() {
+        size_t set = 0;
+        size_t size = m_Size >> 5;
+        for (size_t i = 0; i < size; ++i) {
+            XDWORD mask = 1U;
+            for (size_t j = 0; j < 32; ++j) {
                 if (m_Data[i] & mask) ++set;
                 mask <<= 1;
             }
@@ -408,15 +405,15 @@ public:
     /**
      * @brief Finds the index of the n-th set bit (1).
      * @param n The zero-based index of the set bit to find (e.g., n=0 for the first set bit).
-     * @return The bit index of the n-th set bit, or -1 if not found.
+     * @return The bit index of the n-th set bit, or `static_cast<size_t>(-1)` if not found.
      */
-    int GetSetBitPosition(int n) {
-        int set = 0;
-        int pos = 0;
-        int size = m_Size >> 5;
-        for (int i = 0; i < size; ++i) {
-            int mask = 1;
-            for (int j = 0; j < 32; ++j, ++pos) {
+    size_t GetSetBitPosition(size_t n) {
+        size_t set = 0;
+        size_t pos = 0;
+        size_t size = m_Size >> 5;
+        for (size_t i = 0; i < size; ++i) {
+            XDWORD mask = 1U;
+            for (size_t j = 0; j < 32; ++j, ++pos) {
                 if (m_Data[i] & mask) {
                     if (set == n) return pos;
                     ++set;
@@ -424,7 +421,7 @@ public:
                 mask <<= 1;
             }
         }
-        return -1;
+        return static_cast<size_t>(-1);
     }
 
     /**
@@ -432,13 +429,13 @@ public:
      * @param n The zero-based index of the unset bit to find.
      * @return The bit index of the n-th unset bit. The array may be resized if not found within the current capacity.
      */
-    int GetUnsetBitPosition(int n) {
-        int unset = 0;
-        int pos = 0;
-        int size = m_Size >> 5;
-        for (int i = 0; i < size; ++i) {
-            int mask = 1;
-            for (int j = 0; j < 32; ++j, ++pos) {
+    size_t GetUnsetBitPosition(size_t n) {
+        size_t unset = 0;
+        size_t pos = 0;
+        size_t size = m_Size >> 5;
+        for (size_t i = 0; i < size; ++i) {
+            XDWORD mask = 1U;
+            for (size_t j = 0; j < 32; ++j, ++pos) {
                 if (!(m_Data[i] & mask)) {
                     if (unset == n) return pos;
                     ++unset;
@@ -458,8 +455,8 @@ public:
      */
     char *ConvertToString(char *buffer) {
         if (buffer) {
-            for (int i = 0; i < m_Size; i++) {
-                buffer[i] = (m_Data[i >> 5] & (1U << (i & 31))) ? '1' : '0';
+            for (size_t i = 0; i < m_Size; i++) {
+                buffer[i] = (m_Data[i >> 5] & (1U << static_cast<XDWORD>(i & 31U))) ? '1' : '0';
             }
             buffer[m_Size] = '\0';
         }
@@ -471,7 +468,7 @@ public:
      * @param addstatic If TRUE, adds the `sizeof(XBitArray)` to the result.
      * @return The memory size in bytes.
      */
-    int GetMemoryOccupation(XBOOL addstatic = FALSE) const {
+    size_t GetMemoryOccupation(XBOOL addstatic = FALSE) const {
         return (m_Size >> 5) * sizeof(XDWORD) + (addstatic ? sizeof(*this) : 0);
     }
 
@@ -480,7 +477,7 @@ private:
      * @brief Allocates raw memory for a given number of XDWORDs.
      * @internal
      */
-    XDWORD *Allocate(int size) {
+    XDWORD *Allocate(size_t size) {
 #ifndef VX_MALLOC
         return new XDWORD[size];
 #else
@@ -504,7 +501,7 @@ private:
     }
 
     XDWORD *m_Data; ///< @internal Pointer to the array of 32-bit integers storing the bits.
-    int m_Size;     ///< @internal The total allocated size of the array, in bits.
+    size_t m_Size;  ///< @internal The total allocated size of the array, in bits.
 };
 
 #endif // XBITARRAY_H

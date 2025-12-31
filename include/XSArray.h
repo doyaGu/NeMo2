@@ -34,7 +34,7 @@ public:
      * @param a The array to copy from.
      */
     XSArray(const XSArray<T> &a) {
-        int size = a.Size();
+        size_t size = a.Size();
         if (size > 0) {
             m_Begin = Allocate(size);
             m_End = m_Begin + size;
@@ -51,7 +51,7 @@ public:
      * @param init The initializer list.
      */
     XSArray(std::initializer_list<T> init) {
-        int size = (int) init.size();
+        size_t size = init.size();
         if (size > 0) {
             m_Begin = Allocate(size);
             m_End = m_Begin;
@@ -91,7 +91,7 @@ public:
     XSArray<T> &operator=(const XSArray<T> &a) {
         if (this != &a) {
             Free();
-            int size = a.Size();
+            size_t size = a.Size();
             if (size > 0) {
                 m_Begin = Allocate(size);
                 m_End = m_Begin + size;
@@ -112,7 +112,7 @@ public:
      */
     XSArray<T> &operator=(std::initializer_list<T> init) {
         Free();
-        int size = (int) init.size();
+        size_t size = init.size();
         if (size > 0) {
             m_Begin = Allocate(size);
             m_End = m_Begin;
@@ -151,9 +151,9 @@ public:
      * @return A reference to this array.
      */
     XSArray<T> &operator+=(const XSArray<T> &a) {
-        int size = a.Size();
+        size_t size = a.Size();
         if (size > 0) {
-            int oldsize = Size();
+            size_t oldsize = Size();
             T *temp = Allocate(oldsize + size);
 
             // we recopy the old array
@@ -195,7 +195,7 @@ public:
         // we free the memory
         Free();
         // the resize
-        int size = temp - newarray;
+        size_t size = temp - newarray;
         m_Begin = Allocate(size);
         m_End = m_Begin + size;
         // The copy
@@ -224,13 +224,19 @@ public:
      * @brief Resizes the array, reallocating memory.
      * @param size The new size of the array.
      */
-    void Resize(int size) {
+    void Resize(size_t size) {
         if (size == Size()) return;
+
+        // Check for overflow
+        if (size > SIZE_MAX) {
+            return;  // Size exceeds indexable range
+        }
+
         T *newdata = Allocate(size);
 
         // Recopy of old elements
-        int oldCount = Size();
-        int toCopy = XMin(oldCount, size);
+        size_t oldCount = Size();
+        size_t toCopy = XMin(oldCount, size);
         if (toCopy > 0) {
             XCopy(newdata, m_Begin, m_Begin + toCopy);
         }
@@ -283,17 +289,17 @@ public:
 #endif
 
     /// @brief Inserts an element at a specified index.
-    void Insert(int pos, const T &o) { Insert(m_Begin + pos, o); }
+    void Insert(size_t pos, const T &o) { Insert(m_Begin + pos, o); }
 
 #if VX_HAS_CXX11
     /// @brief Inserts an element at a specified index by moving it (C++11).
-    void Insert(int pos, T &&o) { Insert(m_Begin + pos, std::move(o)); }
+    void Insert(size_t pos, T &&o) { Insert(m_Begin + pos, std::move(o)); }
 #endif
 
     /// @brief Moves an element from one position to another.
     void Move(T *i, T *n) {
         if (i >= m_Begin && i <= m_End && n >= m_Begin && n < m_End) {
-            int insertpos = static_cast<int>(i - m_Begin);
+            size_t insertpos = static_cast<size_t>(i - m_Begin);
             if (n < i) --insertpos;
             T tn = *n;
 #if VX_HAS_CXX11
@@ -321,7 +327,7 @@ public:
     }
 
     /// @brief Removes an element at a given index and returns its value.
-    XBOOL RemoveAt(unsigned int pos, T &old) {
+    XBOOL RemoveAt(size_t pos, T &old) {
         T *t = m_Begin + pos;
         if (t >= m_End) return FALSE;
         old = *t;
@@ -330,8 +336,8 @@ public:
     }
 
     /// @brief Removes an element at a given index.
-    T *RemoveAt(int pos) {
-        if (pos >= 0 && m_Begin + pos < m_End) return XRemove(m_Begin + pos);
+    T *RemoveAt(size_t pos) {
+        if (m_Begin + pos < m_End) return XRemove(m_Begin + pos);
         return NULL;
     }
 
@@ -346,11 +352,11 @@ public:
     }
 
     /// @brief Provides access to an element by its index.
-    T &operator[](unsigned int i) const { return *(m_Begin + i); }
+    T &operator[](size_t i) const { return *(m_Begin + i); }
 
     /// @brief Provides safe access to an element by its index.
-    T *At(unsigned int i) const {
-        if (i >= (unsigned int) Size()) return m_End;
+    T *At(size_t i) const {
+        if (i >= Size()) return m_End;
         return m_Begin + i;
     }
 
@@ -366,13 +372,14 @@ public:
     XBOOL IsHere(const T &o) const { return Find(o) != m_End; }
 
     /// @brief Gets the index of the first occurrence of an element.
-    int GetPosition(const T &o) const {
+    /// @return The index or `static_cast<size_t>(-1)` if not found.
+    size_t GetPosition(const T &o) const {
         T *t = Find(o);
-        return (t == m_End) ? -1 : (t - m_Begin);
+        return (t == m_End) ? static_cast<size_t>(-1) : static_cast<size_t>(t - m_Begin);
     }
 
     /// @brief Swaps two elements in the array.
-    void Swap(int pos1, int pos2) {
+    void Swap(size_t pos1, size_t pos2) {
         T temp = *(m_Begin + pos1);
         *(m_Begin + pos1) = *(m_Begin + pos2);
         *(m_Begin + pos2) = temp;
@@ -426,10 +433,10 @@ public:
     const T *end() const { return m_End; }
     const T *cend() const { return m_End; }
     /// @brief Returns the number of elements in the array.
-    int Size() const { return m_Begin ? (int) (m_End - m_Begin) : 0; }
+    size_t Size() const { return m_Begin ? (m_End - m_Begin) : 0; }
 
     /// @brief Returns the memory occupied by the array in bytes.
-    int GetMemoryOccupation(XBOOL addstatic = FALSE) const {
+    size_t GetMemoryOccupation(XBOOL addstatic = FALSE) const {
         return Size() * sizeof(T) + (addstatic ? sizeof(*this) : 0);
     }
 
@@ -451,11 +458,11 @@ protected:
 
     void XInsert(T *i, const T &o) {
         // Reallocation
-        int oldSize = Size();
-        int newsize = oldSize + 1;
+        size_t oldSize = Size();
+        size_t newsize = oldSize + 1;
         T *newdata = Allocate(newsize);
 
-        int insertOffset = (oldSize > 0) ? (int) (i - m_Begin) : 0;
+        size_t insertOffset = (oldSize > 0) ? static_cast<size_t>(i - m_Begin) : 0;
 
         // copy before insertion point
         if (insertOffset > 0) {
@@ -479,12 +486,11 @@ protected:
 
 #if VX_HAS_CXX11
     void XInsert(T *i, T &&o) {
-        int oldSize = Size();
-        int newsize = oldSize + 1;
+        size_t oldSize = Size();
+        size_t newsize = oldSize + 1;
         T *newdata = Allocate(newsize);
 
-        int insertOffset = (oldSize > 0) ? (int) (i - m_Begin) : 0;
-
+        size_t insertOffset = (oldSize > 0) ? (i - m_Begin) : 0;
         if (insertOffset > 0) {
             XCopy(newdata, m_Begin, m_Begin + insertOffset);
         }
@@ -504,11 +510,11 @@ protected:
 
     T *XRemove(T *i) {
         // Reallocation
-        int oldSize = Size();
-        int newsize = oldSize - 1;
+        size_t oldSize = Size();
+        size_t newsize = oldSize - 1;
         T *newdata = Allocate(newsize);
 
-        int deleteOffset = (oldSize > 0) ? (int) (i - m_Begin) : 0;
+        size_t deleteOffset = (oldSize > 0) ? (i - m_Begin) : 0;
 
         // copy before deletion point
         if (deleteOffset > 0) {
@@ -530,15 +536,20 @@ protected:
         return i;
     }
 
-    T *Allocate(int size) {
-        if (size > 0)
+    T *Allocate(size_t size) {
+        if (size > 0) {
+            // Check for overflow before allocation
+            if (size > SIZE_MAX / sizeof(T)) {
+                return NULL;  // Allocation would overflow
+            }
 #ifndef VX_MALLOC
             return new T[size];
 #else
-        return (T *) VxMalloc(sizeof(T) * size);
+            return (T *) VxMalloc(sizeof(T) * size);
 #endif
-        else
+        } else {
             return NULL;
+        }
     }
 
     void Free() {

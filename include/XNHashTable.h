@@ -173,7 +173,7 @@ public:
         if (!m_Node) {
             // end of linked list, we have to find next filled bucket
             // OPTIM : maybe keep the index current : save a %
-            int index = m_Table->Index(old->m_Key);
+            size_t index = m_Table->Index(old->m_Key);
             while (!m_Node && ++index < m_Table->m_Table.Size())
                 m_Node = m_Table->m_Table[index];
         }
@@ -298,7 +298,7 @@ public:
         if (!m_Node) {
             // end of linked list, we have to find next filled bucket
             // OPTIM : maybe keep the index current : save a %
-            int index = m_Table->Index(old->m_Key);
+            size_t index = m_Table->Index(old->m_Key);
             while (!m_Node && ++index < m_Table->m_Table.Size())
                 m_Node = m_Table->m_Table[index];
         }
@@ -348,7 +348,7 @@ public:
      * @param it Iterator to the element.
      * @param n A boolean value; TRUE if the element was newly inserted, FALSE if it already existed.
      */
-    XNHashTablePair(XNHashTableIt<T, K, H, Eq> it, int n) : m_Iterator(it), m_New(n) {}
+    XNHashTablePair(XNHashTableIt<T, K, H, Eq> it, XBOOL n) : m_Iterator(it), m_New(n) {}
 
     /// An iterator pointing to the inserted or found element.
     XNHashTableIt<T, K, H, Eq> m_Iterator;
@@ -401,18 +401,18 @@ public:
      * @param initialize The initial number of buckets (should be a power of 2, otherwise it will be adjusted).
      * @param l The load factor, which determines when the table is resized.
      */
-    XNHashTable(int initialize = 16, float l = 0.75f) {
-        int dec = -1;
-        while (initialize) {
-            initialize >>= 1;
-            dec++;
-        }
-        if (dec > -1)
-            initialize = 1 << dec;
-        else
-            initialize = 1; // No Zero size allowed
+    XNHashTable(size_t initialize = 16, float l = 0.75f) {
+        if (initialize < 1)
+            initialize = 1; // No zero size allowed
 
-        m_Table.Resize(initialize);
+        size_t buckets = 1;
+        size_t tmp = initialize;
+        while (tmp > 1) {
+            tmp >>= 1;
+            buckets <<= 1;
+        }
+
+        m_Table.Resize(buckets);
         m_Table.Memset(0);
 
         if (l <= 0.0)
@@ -420,7 +420,7 @@ public:
 
         m_LoadFactor = l;
         m_Count = 0;
-        m_Threshold = (int) (m_Table.Size() * m_LoadFactor);
+        m_Threshold = static_cast<size_t>(m_Table.Size() * m_LoadFactor);
     }
 
     /**
@@ -440,8 +440,8 @@ public:
     /**
      * @brief Constructs the table from an initializer list of key/value pairs (C++11).
      */
-    XNHashTable(std::initializer_list<std::pair<K, T>> init, int initialize = 16, float l = 0.75f)
-        : XNHashTable(((int) init.size() * 2 > initialize) ? (int) init.size() * 2 : initialize, l) {
+    XNHashTable(std::initializer_list<std::pair<K, T>> init, size_t initialize = 16, float l = 0.75f)
+        : XNHashTable(((init.size() * 2) > initialize) ? (init.size() * 2) : initialize, l) {
         for (const auto &kv : init) {
             Insert(kv.first, kv.second);
         }
@@ -522,7 +522,7 @@ public:
      * @return TRUE if the element was inserted or updated, FALSE otherwise.
      */
     XBOOL Insert(const K &key, const T &o, XBOOL override) {
-        int index = Index(key);
+        size_t index = Index(key);
 
         // we look for existing key
         tEntry e = XFind(index, key);
@@ -552,7 +552,7 @@ public:
         Eq equalFunc;
 
         while (true) {
-            int index = Index(key);
+            size_t index = Index(key);
 
             for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
                 if (equalFunc(e->m_Key, key)) {
@@ -582,7 +582,7 @@ public:
      * @remarks If the key already exists, its value is overwritten.
      */
     tIterator Insert(const K &key, const T &o) {
-        int index = Index(key);
+        size_t index = Index(key);
         Eq equalFunc;
 
         // we look for existing key
@@ -611,7 +611,7 @@ public:
         Eq equalFunc;
 
         while (true) {
-            int index = Index(key);
+            size_t index = Index(key);
             for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
                 if (equalFunc(e->m_Key, key)) {
                     e->m_Data = std::move(o);
@@ -637,7 +637,7 @@ public:
      * The boolean is TRUE if the element was newly inserted, FALSE if the key already existed.
      */
     tPair TestInsert(const K &key, const T &o) {
-        int index = Index(key);
+        size_t index = Index(key);
         Eq equalFunc;
 
         // we look for existing key
@@ -666,7 +666,7 @@ public:
         Eq equalFunc;
 
         while (true) {
-            int index = Index(key);
+            size_t index = Index(key);
             for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
                 if (equalFunc(e->m_Key, key)) {
                     return tPair(tIterator(e, this), 0);
@@ -691,7 +691,7 @@ public:
      * @remarks This function will not overwrite an existing element.
      */
     tIterator InsertUnique(const K &key, const T &o) {
-        int index = Index(key);
+        size_t index = Index(key);
         Eq equalFunc;
 
         // we look for existing key
@@ -724,7 +724,7 @@ public:
         Eq equalFunc;
 
         while (true) {
-            int index = Index(key);
+            size_t index = Index(key);
             for (tEntry e = m_Table[index]; e != 0; e = e->m_Next) {
                 if (equalFunc(e->m_Key, key)) {
                     return tIterator(e, this);
@@ -783,7 +783,7 @@ public:
      * @param key The key of the element to remove.
      */
     void Remove(const K &key) {
-        int index = Index(key);
+        size_t index = Index(key);
         Eq equalFunc;
 
         // we look for existing key
@@ -811,7 +811,7 @@ public:
      * @return An iterator to the element following the one that was removed.
      */
     tIterator Remove(const tIterator &it) {
-        int index = Index(it.m_Node->m_Key);
+        size_t index = Index(it.m_Node->m_Key);
         if (index >= m_Table.Size())
             return tIterator(0, this);
 
@@ -852,7 +852,7 @@ public:
      * with a default-constructed value (`T()`) and inserted into the table.
      */
     T &operator[](const K &key) {
-        int index = Index(key);
+        size_t index = Index(key);
 
         // we look for existing key
         tEntry e = XFind(index, key);
@@ -980,7 +980,7 @@ public:
      * @param key The key to hash.
      * @return The index of the bucket in the hash table.
      */
-    int Index(const K &key) const {
+    size_t Index(const K &key) const {
         H hashfun;
         return XIndex(hashfun(key), m_Table.Size());
     }
@@ -989,7 +989,7 @@ public:
      * @brief Returns the number of elements in the hash table.
      * @return The total number of elements.
      */
-    int Size() const {
+    size_t Size() const {
         return m_Count;
     }
 
@@ -998,7 +998,7 @@ public:
      * @param addstatic If TRUE, includes the size of the `XNHashTable` object itself in the calculation.
      * @return The total memory occupied in bytes.
      */
-    int GetMemoryOccupation(XBOOL addstatic = FALSE) const {
+    size_t GetMemoryOccupation(XBOOL addstatic = FALSE) const {
         return m_Table.GetMemoryOccupation() + m_Count * sizeof(XNHashTableEntry<T, K>) + (
             addstatic ? sizeof(*this) : 0);
     }
@@ -1015,20 +1015,20 @@ private:
      * @param size The new number of buckets for the table.
      */
     void
-    Rehash(int size) {
-        int oldsize = m_Table.Size();
-        m_Threshold = (int) (size * m_LoadFactor);
+    Rehash(size_t size) {
+        size_t oldsize = m_Table.Size();
+        m_Threshold = static_cast<size_t>(size * m_LoadFactor);
 
         // Temporary table
         XArray<tEntry> tmp;
         tmp.Resize(size);
         tmp.Memset(0);
 
-        for (int index = 0; index < oldsize; ++index) {
+        for (size_t index = 0; index < oldsize; ++index) {
             tEntry first = m_Table[index];
             while (first) {
                 H hashfun;
-                int newindex = XIndex(hashfun(first->m_Key), size);
+                size_t newindex = XIndex(hashfun(first->m_Key), size);
                 m_Table[index] = first->m_Next;
                 first->m_Next = tmp[newindex];
                 tmp[newindex] = first;
@@ -1044,8 +1044,8 @@ private:
      * @param size The size of the table (must be a power of 2).
      * @return The bucket index.
      */
-    int XIndex(int key, int size) const {
-        return key & (size - 1);
+    size_t XIndex(int key, size_t size) const {
+        return static_cast<size_t>(static_cast<unsigned int>(key)) & (size - 1);
     }
 
     /**
@@ -1109,7 +1109,7 @@ private:
      * @return A pointer to the found entry, or NULL if not found.
      */
     tEntry XFindIndex(const K &key) const {
-        int index = Index(key);
+        size_t index = Index(key);
         return XFind(index, key);
     }
 
@@ -1119,7 +1119,7 @@ private:
      * @param key The key to find.
      * @return A pointer to the found entry, or NULL if not found.
      */
-    tEntry XFind(int index, const K &key) const {
+    tEntry XFind(size_t index, const K &key) const {
         Eq equalFunc;
 
         // we look for existing key
@@ -1138,7 +1138,7 @@ private:
      * @param o The value of the new entry.
      * @return A pointer to the newly created entry.
      */
-    tEntry XInsert(int index, const K &key, const T &o) {
+    tEntry XInsert(size_t index, const K &key, const T &o) {
         tEntry newe = new XNHashTableEntry<T, K>(key, o);
         newe->m_Next = m_Table[index];
         m_Table[index] = newe;
@@ -1147,7 +1147,7 @@ private:
     }
 
 #if VX_HAS_CXX11
-    tEntry XInsert(int index, const K &key, T &&o) {
+    tEntry XInsert(size_t index, const K &key, T &&o) {
         tEntry newe = new XNHashTableEntry<T, K>(key, std::move(o));
         newe->m_Next = m_Table[index];
         m_Table[index] = newe;
@@ -1173,9 +1173,9 @@ private:
     /// @brief The array of buckets, where each bucket is a pointer to the first entry in a linked list.
     XArray<tEntry> m_Table;
     /// @brief The total number of entries in the hash table.
-    int m_Count;
+    size_t m_Count;
     /// @brief The threshold at which the table will be rehashed (m_Table.Size() * m_LoadFactor).
-    int m_Threshold;
+    size_t m_Threshold;
     /// @brief The load factor for the hashtable.
     float m_LoadFactor;
 };

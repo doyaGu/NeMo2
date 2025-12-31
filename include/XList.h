@@ -108,9 +108,11 @@ public:
      * @param iOffset The number of elements to advance.
      * @return A new iterator at the advanced position.
      */
-    XListIt<T> operator+(int iOffset) const {
+    XListIt<T> operator+(size_t iOffset) const {
         XListIt<T> tmp = *this;
-        while (iOffset--) ++tmp;
+        for (size_t i = 0; i < iOffset; ++i) {
+            ++tmp;
+        }
         return tmp;
     }
 
@@ -119,9 +121,11 @@ public:
      * @param iOffset The number of elements to move backward.
      * @return A new iterator at the new position.
      */
-    XListIt<T> operator-(int iOffset) const {
+    XListIt<T> operator-(size_t iOffset) const {
         XListIt<T> tmp = *this;
-        while (iOffset--) --tmp;
+        for (size_t i = 0; i < iOffset; ++i) {
+            --tmp;
+        }
         return tmp;
     }
 
@@ -258,7 +262,7 @@ public:
     /**
      * @brief Returns the number of elements in the list.
      */
-    int Size() const { return m_Count; }
+    size_t Size() const { return m_Count; }
 
     /**
      * @brief Returns a copy of the first element.
@@ -514,7 +518,7 @@ private:
     /// @name Members
     ///@{
     XNode<T> *m_Node; ///< The sentinel node. `m_Node->m_Next` is the head, `m_Node->m_Prev` is the tail.
-    int m_Count;      ///< The number of elements in the list.
+    size_t m_Count;   ///< The number of elements in the list.
     ///@}
 };
 

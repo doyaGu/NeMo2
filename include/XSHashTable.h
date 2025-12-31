@@ -539,17 +539,17 @@ public:
      * @param initialize The initial number of buckets (will be rounded up to the next power of 2).
      * @param l The load factor, which determines when the table is resized.
      */
-    explicit XSHashTable(int initialize = 8, float l = 0.75f) {
-        int dec = -1;
-        while (initialize) {
-            initialize >>= 1;
-            dec++;
-        }
-        if (dec > -1)
-            initialize = 1 << dec;
-        else
+    explicit XSHashTable(size_t initialize = 8, float l = 0.75f) {
+        if (initialize < 1)
             initialize = 1; // No 0 size allowed
-        m_Table.Resize(initialize);
+
+        size_t buckets = 1;
+        size_t tmp = initialize;
+        while (tmp > 1) {
+            tmp >>= 1;
+            buckets <<= 1;
+        }
+        m_Table.Resize(buckets);
 
         if (l <= 0.0)
             l = 0.75f;
@@ -557,7 +557,7 @@ public:
         m_LoadFactor = l;
         m_Count = 0;
         m_Occupation = 0;
-        m_Threshold = (int) (m_Table.Size() * m_LoadFactor);
+        m_Threshold = static_cast<size_t>(m_Table.Size() * m_LoadFactor);
     }
 
     /**
@@ -577,8 +577,8 @@ public:
      * @brief Constructs the table from an initializer list of key/value pairs (C++11).
      * @remarks Existing entries are inserted using Insert(key, value, TRUE).
      */
-    XSHashTable(std::initializer_list<std::pair<K, T>> init, int initialize = 8, float l = 0.75f)
-        : XSHashTable((initialize > (int) init.size() * 2) ? initialize : (int) init.size() * 2, l) {
+    XSHashTable(std::initializer_list<std::pair<K, T>> init, size_t initialize = 8, float l = 0.75f)
+        : XSHashTable((initialize > (init.size() * 2)) ? initialize : (init.size() * 2), l) {
         for (const auto &kv : init) {
             Insert(kv.first, kv.second, TRUE);
         }
@@ -659,7 +659,7 @@ public:
      */
     XBOOL Insert(const K &key, const T &o, XBOOL override) {
         // Insert x as active
-        int index = XFindPos(key);
+        size_t index = XFindPos(key);
 
         if (m_Table[index].m_Status != STATUS_OCCUPIED) {
             // If the element was deleted, we remove an element
@@ -691,7 +691,7 @@ public:
      * @brief Inserts an element by moving the value (C++11).
      */
     XBOOL Insert(const K &key, T &&o, XBOOL override) {
-        int index = XFindPos(key);
+        size_t index = XFindPos(key);
 
         if (m_Table[index].m_Status != STATUS_OCCUPIED) {
             if ((m_Table[index].m_Status != STATUS_DELETED)) {
@@ -723,7 +723,7 @@ public:
      */
     tIterator InsertUnique(const K &key, const T &o) {
         // Insert x as active
-        int index = XFindPos(key);
+        size_t index = XFindPos(key);
 
         if (m_Table[index].m_Status != STATUS_OCCUPIED) {
             // If the element was deleted, we remove an element
@@ -755,7 +755,7 @@ public:
      * @brief Inserts an element only if the key does not already exist by moving the value (C++11).
      */
     tIterator InsertUnique(const K &key, T &&o) {
-        int index = XFindPos(key);
+        size_t index = XFindPos(key);
 
         if (m_Table[index].m_Status == STATUS_OCCUPIED) {
             return tIterator(&m_Table[index], this);
@@ -782,7 +782,7 @@ public:
      * @brief Inserts an element only if the key does not already exist and reports whether it was new (C++11).
      */
     tPair TestInsert(const K &key, const T &o) {
-        int index = XFindPos(key);
+        size_t index = XFindPos(key);
 
         if (m_Table[index].m_Status == STATUS_OCCUPIED) {
             return tPair(tIterator(&m_Table[index], this), FALSE);
@@ -808,7 +808,7 @@ public:
      * @brief Inserts an element only if the key does not already exist and reports whether it was new by moving the value (C++11).
      */
     tPair TestInsert(const K &key, T &&o) {
-        int index = XFindPos(key);
+        size_t index = XFindPos(key);
 
         if (m_Table[index].m_Status == STATUS_OCCUPIED) {
             return tPair(tIterator(&m_Table[index], this), FALSE);
@@ -871,7 +871,7 @@ public:
      * @remarks The element is not physically removed but marked as DELETED to preserve the probing chain.
      */
     void Remove(const K &key) {
-        int index = XFindPos(key);
+        size_t index = XFindPos(key);
         if (m_Table[index].m_Status == STATUS_OCCUPIED) {
             m_Table[index].m_Status = STATUS_DELETED;
             --m_Count;
@@ -914,7 +914,7 @@ public:
      */
     T &operator[](const K &key) {
         // Insert x as active
-        int index = XFindPos(key);
+        size_t index = XFindPos(key);
 
         if (m_Table[index].m_Status != STATUS_OCCUPIED) {
             // If the element was deleted, we remove an element
@@ -1037,7 +1037,7 @@ public:
      * @param key The key to hash.
      * @return The initial index of the bucket in the hash table.
      */
-    int Index(const K &key) const {
+    size_t Index(const K &key) const {
         H hashfun;
         return XIndex(hashfun(key), m_Table.Size());
     }
@@ -1046,7 +1046,7 @@ public:
      * @brief Returns the number of elements in the hash table.
      * @return The total number of occupied elements.
      */
-    int Size() const {
+    size_t Size() const {
         return m_Count;
     }
 
@@ -1062,9 +1062,9 @@ private:
      * @param size The new number of buckets for the table.
      */
     void
-    Rehash(int size) {
-        int oldsize = m_Table.Size();
-        m_Threshold = (int) (size * m_LoadFactor);
+    Rehash(size_t size) {
+        size_t oldsize = m_Table.Size();
+        m_Threshold = static_cast<size_t>(size * m_LoadFactor);
 
         // Temporary table
         XClassArray<tEntry> tmp;
@@ -1074,7 +1074,7 @@ private:
         m_Count = 0;
         m_Occupation = 0;
 
-        for (int index = 0; index < oldsize; ++index) {
+        for (size_t index = 0; index < oldsize; ++index) {
             pEntry first = &tmp[index];
 
             if (first->m_Status == STATUS_OCCUPIED) {
@@ -1089,8 +1089,8 @@ private:
      * @param size The size of the table (must be a power of 2).
      * @return The bucket index.
      */
-    int XIndex(int key, int size) const {
-        return key & (size - 1);
+    size_t XIndex(int key, size_t size) const {
+        return static_cast<size_t>(static_cast<unsigned int>(key)) & (size - 1);
     }
 
     /**
@@ -1129,8 +1129,8 @@ private:
      * @return A pointer to the found entry, or NULL if not found or the entry is not occupied.
      */
     pEntry XFindIndex(const K &key) const {
-        int index = XFindPos(key);
-        if (index < 0)
+        size_t index = XFindPos(key);
+        if (index == static_cast<size_t>(-1))
             return NULL;
         pEntry e = &m_Table[index];
         if (e->m_Status == STATUS_OCCUPIED)
@@ -1144,9 +1144,9 @@ private:
      * @param key The key to find.
      * @return The index of the bucket where the key is or should be inserted. Returns -1 if the table is full and the key is not found.
      */
-    int XFindPos(const K &key) const {
-        int index = Index(key);
-        int oldindex = index;
+    size_t XFindPos(const K &key) const {
+        size_t index = Index(key);
+        size_t oldindex = index;
 
         Eq eqaulFunc;
 
@@ -1157,7 +1157,7 @@ private:
             if (index == m_Table.Size())
                 index = 0;
             if (index == oldindex)
-                return -1;
+                return static_cast<size_t>(-1);
         }
         return index;
     }
@@ -1165,11 +1165,11 @@ private:
     /// @brief The array of entries that holds the hash table data.
     XClassArray<tEntry> m_Table;
     /// @brief The number of elements currently in the hash table (occupied entries).
-    int m_Count;
+    size_t m_Count;
     /// @brief The number of occupied or deleted entries. Used to decide when to rehash.
-    int m_Occupation;
+    size_t m_Occupation;
     /// @brief The threshold at which the table will be rehashed (m_Table.Size() * m_LoadFactor).
-    int m_Threshold;
+    size_t m_Threshold;
     /// @brief The load factor for the hashtable.
     float m_LoadFactor;
 };
