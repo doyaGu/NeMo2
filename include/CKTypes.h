@@ -19,7 +19,7 @@ Remarks:
     objects, etc..
 See also: CKObject::GetClassID,CKIsChildClassOf,Class Identifiers
 *************************************************/
-typedef int32_t CK_CLASSID;
+typedef uint32_t CK_CLASSID;
 
 /*************************************************
 Summary: Unique Identifier for all Objects instantiated in a given CKContext

@@ -6,7 +6,7 @@
 #include "CKParameterOut.h"
 #include "CKParameterManager.h"
 
-CK_ID CKParameterOperation::m_ClassID = CKCID_PARAMETEROPERATION;
+CK_CLASSID CKParameterOperation::m_ClassID = CKCID_PARAMETEROPERATION;
 
 CKSTRING CKParameterOperation::m_In1Name = "Pin 0";
 CKSTRING CKParameterOperation::m_In2Name = "Pin 1";
