@@ -60,7 +60,7 @@ void VxDetectProcessor();
  * @param factor Interpolation factor, from 0.0 (array1) to 1.0 (array2).
  * @param count The number of floats in the arrays.
  */
-VX_EXPORT void InterpolateFloatArray(void *Res, void *array1, void *array2, float factor, size_t count);
+VX_EXPORT void InterpolateFloatArray(void *Res, void *array1, void *array2, float factor, XDWORD count);
 
 /**
  * @brief Performs linear interpolation between two vector arrays with specified strides.
@@ -72,7 +72,7 @@ VX_EXPORT void InterpolateFloatArray(void *Res, void *array1, void *array2, floa
  * @param StrideRes The stride in bytes for the result array.
  * @param StrideIn The stride in bytes for the input arrays.
  */
-VX_EXPORT void InterpolateVectorArray(void *Res, void *Inarray1, void *Inarray2, float factor, size_t count, XDWORD StrideRes, XDWORD StrideIn);
+VX_EXPORT void InterpolateVectorArray(void *Res, void *Inarray1, void *Inarray2, float factor, XDWORD count, XDWORD StrideRes, XDWORD StrideIn);
 
 /**
  * @brief Transforms a 3D bounding box to 2D screen space extents.
@@ -104,7 +104,7 @@ VX_EXPORT void VxProjectBoxZExtents(const VxMatrix &World_ProjectionMat, const V
  * @param Src Pointer to the source data block.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxFillStructure(size_t Count, void *Dst, XDWORD Stride, XDWORD SizeSrc, void *Src);
+VX_EXPORT XBOOL VxFillStructure(XDWORD Count, void *Dst, XDWORD Stride, XDWORD SizeSrc, const void *Src);
 
 /**
  * @brief Copies data from one strided array to another.
@@ -116,7 +116,7 @@ VX_EXPORT XBOOL VxFillStructure(size_t Count, void *Dst, XDWORD Stride, XDWORD S
  * @param InStride The stride in bytes of the source array.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxCopyStructure(size_t Count, void *Dst, XDWORD OutStride, XDWORD SizeSrc, void *Src, XDWORD InStride);
+VX_EXPORT XBOOL VxCopyStructure(XDWORD Count, void *Dst, XDWORD OutStride, XDWORD SizeSrc, const void *Src, XDWORD InStride);
 
 /**
  * @brief Copies elements from a source array to a destination array using an index list.
@@ -127,7 +127,7 @@ VX_EXPORT XBOOL VxCopyStructure(size_t Count, void *Dst, XDWORD OutStride, XDWOR
  * @param IndexCount The number of indices in the `Indices` array.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxIndexedCopy(const VxStridedData &Dst, const VxStridedData &Src, XDWORD SizeSrc, size_t *Indices, size_t IndexCount);
+VX_EXPORT XBOOL VxIndexedCopy(const VxStridedData &Dst, const VxStridedData &Src, XDWORD SizeSrc, XDWORD *Indices, XDWORD IndexCount);
 
 /**
  * @brief Performs a bit-block transfer (blit) from a source image to a destination image.
@@ -313,6 +313,6 @@ VX_EXPORT XBOOL VxPtInRect(CKRECT *rect, CKPOINT *pt);
  * @param AdditionalBorder A value to expand the computed box by.
  * @return TRUE on success, FALSE otherwise.
  */
-VX_EXPORT XBOOL VxComputeBestFitBBox(const XBYTE *Points, XDWORD Stride, size_t Count, VxMatrix &BBoxMatrix, float AdditionalBorder);
+VX_EXPORT XBOOL VxComputeBestFitBBox(const XBYTE *Points, XDWORD Stride, XDWORD Count, VxMatrix &BBoxMatrix, float AdditionalBorder);
 
 #endif // VXMATH_H
