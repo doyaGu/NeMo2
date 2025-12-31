@@ -130,7 +130,7 @@ CK_CLASSID RCKRenderObject::GetClassID() {
     return m_ClassID;
 }
 
-int RCKRenderObject::GetMemoryOccupation() {
+size_t RCKRenderObject::GetMemoryOccupation() {
     return CKBeObject::GetMemoryOccupation() + (sizeof(RCKRenderObject) - sizeof(CKBeObject));
 }
 

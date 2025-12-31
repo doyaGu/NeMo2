@@ -677,10 +677,10 @@ void CKBeObject::PreDelete() {
     m_Attributes.Clear();
 }
 
-int CKBeObject::GetMemoryOccupation() {
+size_t CKBeObject::GetMemoryOccupation() {
     // Base object + in-object members + owned buffers.
-    int size = CKSceneObject::GetMemoryOccupation();
-    size += static_cast<int>(sizeof(CKBeObject) - sizeof(CKSceneObject));
+    size_t size = CKSceneObject::GetMemoryOccupation();
+    size += (sizeof(CKBeObject) - sizeof(CKSceneObject));
     size += m_Groups.GetMemoryOccupation(FALSE);
     size += m_Attributes.GetMemoryOccupation(FALSE);
 

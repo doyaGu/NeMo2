@@ -215,9 +215,9 @@ CKERROR RCKGrid::Load(CKStateChunk *chunk, CKFile *file) {
  * @return Memory size in bytes
  * IDA: 0x1001970b
  */
-int RCKGrid::GetMemoryOccupation() {
+size_t RCKGrid::GetMemoryOccupation() {
     // Base class memory + grid specific fields
-    int size = RCK3dEntity::GetMemoryOccupation() + (sizeof(RCKGrid) - sizeof(RCK3dEntity));
+    size_t size = RCK3dEntity::GetMemoryOccupation() + (sizeof(RCKGrid) - sizeof(RCK3dEntity));
 
     // Add memory for layers array internal storage
     size += m_Layers.GetMemoryOccupation(FALSE);

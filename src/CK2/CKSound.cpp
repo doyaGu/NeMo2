@@ -74,10 +74,10 @@ CKERROR CKSound::Load(CKStateChunk *chunk, CKFile *file) {
     return CK_OK;
 }
 
-int CKSound::GetMemoryOccupation() {
-    int size = CKBeObject::GetMemoryOccupation() + (int) (sizeof(CKSound) - sizeof(CKBeObject));
+size_t CKSound::GetMemoryOccupation() {
+    size_t size = CKBeObject::GetMemoryOccupation() + (sizeof(CKSound) - sizeof(CKBeObject));
     if (m_FileName) {
-        size += (int) (strlen(m_FileName) + 1);
+        size += strlen(m_FileName) + 1;
     }
     return size;
 }

@@ -659,8 +659,10 @@ CKERROR RCKTexture::Load(CKStateChunk *chunk, CKFile *file) {
     return CK_OK;
 }
 
-int RCKTexture::GetMemoryOccupation() {
-    return CKBeObject::GetMemoryOccupation() + (sizeof(RCKTexture) - sizeof(CKBeObject)) + GetWidth() * GetHeight() * GetSlotCount() * sizeof(CKDWORD);
+size_t RCKTexture::GetMemoryOccupation() {
+    size_t size = CKBeObject::GetMemoryOccupation() + (sizeof(RCKTexture) - sizeof(CKBeObject));
+    size += GetWidth() * GetHeight() * GetSlotCount() * sizeof(CKDWORD);
+    return size;
 }
 
 CKERROR RCKTexture::Copy(CKObject &o, CKDependenciesContext &context) {

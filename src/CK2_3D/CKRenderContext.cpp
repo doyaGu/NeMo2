@@ -54,8 +54,8 @@ void RCKRenderContext::CheckPreDeletion() {
     }
 }
 
-int RCKRenderContext::GetMemoryOccupation() {
-    int size = CKObject::GetMemoryOccupation() + (sizeof(RCKRenderContext) - sizeof(CKObject));
+size_t RCKRenderContext::GetMemoryOccupation() {
+    size_t size = CKObject::GetMemoryOccupation() + (sizeof(RCKRenderContext) - sizeof(CKObject));
     size += m_RenderedScene->m_3DEntities.GetMemoryOccupation();
     size += m_RenderedScene->m_Cameras.GetMemoryOccupation();
     size += m_RenderedScene->m_Lights.GetMemoryOccupation();

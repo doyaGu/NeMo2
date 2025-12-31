@@ -951,8 +951,8 @@ void CKScene::CheckPostDeletion() {
         m_StartingCamera = 0;
 }
 
-int CKScene::GetMemoryOccupation() {
-    int size = CKBeObject::GetMemoryOccupation() + (int) (sizeof(CKScene) - sizeof(CKBeObject));
+size_t CKScene::GetMemoryOccupation() {
+    size_t size = CKBeObject::GetMemoryOccupation() + (sizeof(CKScene) - sizeof(CKBeObject));
     size += m_SceneObjects.GetMemoryOccupation(FALSE);
     return size;
 }

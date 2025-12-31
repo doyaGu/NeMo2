@@ -111,7 +111,7 @@ Remarks:
 
 Implementation based on decompilation at 0x10044412.
 *************************************************/
-int RCKTargetLight::GetMemoryOccupation() {
+size_t RCKTargetLight::GetMemoryOccupation() {
     return RCKLight::GetMemoryOccupation() + (sizeof(RCKTargetLight) - sizeof(RCKLight));
 }
 

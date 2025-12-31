@@ -103,14 +103,11 @@ void CKSynchroObject::CheckPostDeletion() {
     m_Passed.Check(m_Context);
 }
 
-int CKSynchroObject::GetMemoryOccupation() {
+size_t CKSynchroObject::GetMemoryOccupation() {
     // Base object + in-object members + owned linked-list nodes.
-    const int nodeBytes = static_cast<int>(sizeof(CKObjectArray::Node));
-    const int nodes = m_Arrived.GetCount() + m_Passed.GetCount();
-
-    return CKObject::GetMemoryOccupation() +
-        static_cast<int>(sizeof(CKSynchroObject) - sizeof(CKObject)) +
-        nodeBytes * nodes;
+    size_t size = CKObject::GetMemoryOccupation() + (sizeof(CKSynchroObject) - sizeof(CKObject));
+    size += sizeof(CKObjectArray::Node) * (m_Arrived.GetCount() + m_Passed.GetCount());
+    return size;
 }
 
 CKBOOL CKSynchroObject::IsObjectUsed(CKObject *obj, CK_CLASSID cid) {
@@ -195,9 +192,8 @@ CKERROR CKStateObject::Load(CKStateChunk *chunk, CKFile *file) {
     return CK_OK;
 }
 
-int CKStateObject::GetMemoryOccupation() {
-    return CKObject::GetMemoryOccupation() +
-        static_cast<int>(sizeof(CKStateObject) - sizeof(CKObject));
+size_t CKStateObject::GetMemoryOccupation() {
+    return CKObject::GetMemoryOccupation() + (sizeof(CKStateObject) - sizeof(CKObject));
 }
 
 CKSTRING CKStateObject::GetClassName() {
@@ -281,9 +277,8 @@ void CKCriticalSectionObject::CheckPostDeletion() {
         m_ObjectInSection = 0;
 }
 
-int CKCriticalSectionObject::GetMemoryOccupation() {
-    return CKObject::GetMemoryOccupation() +
-        static_cast<int>(sizeof(CKCriticalSectionObject) - sizeof(CKObject));
+size_t CKCriticalSectionObject::GetMemoryOccupation() {
+    return CKObject::GetMemoryOccupation() + (sizeof(CKCriticalSectionObject) - sizeof(CKObject));
 }
 
 CKBOOL CKCriticalSectionObject::IsObjectUsed(CKObject *obj, CK_CLASSID cid) {

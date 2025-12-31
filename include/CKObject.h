@@ -216,7 +216,7 @@ public:
     virtual void CheckPreDeletion();
     virtual void CheckPostDeletion();
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
     virtual CKBOOL IsObjectUsed(CKObject *obj, CK_CLASSID cid);
 
     //--------------------------------------------

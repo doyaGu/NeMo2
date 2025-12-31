@@ -36,7 +36,7 @@ public:
     ~RCKRenderObject() override;
     CK_CLASSID GetClassID() override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
 
     static CKSTRING GetClassName();
     static int GetDependenciesCount(int mode);

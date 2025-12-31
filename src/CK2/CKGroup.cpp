@@ -250,8 +250,8 @@ void CKGroup::CheckPreDeletion() {
         m_ClassIdUpdated = FALSE;
 }
 
-int CKGroup::GetMemoryOccupation() {
-    int size = CKBeObject::GetMemoryOccupation() + (int) (sizeof(CKGroup) - sizeof(CKBeObject));
+size_t CKGroup::GetMemoryOccupation() {
+    size_t size = CKBeObject::GetMemoryOccupation() + (sizeof(CKGroup) - sizeof(CKBeObject));
     size += m_ObjectArray.GetMemoryOccupation(FALSE);
     return size;
 }

@@ -58,7 +58,7 @@ public:
     void PreSave(CKFile *file, CKDWORD flags) override;
     void LoadVertices(CKStateChunk *chunk) override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
 
     CKERROR Copy(CKObject &o, CKDependenciesContext &context) override;
 

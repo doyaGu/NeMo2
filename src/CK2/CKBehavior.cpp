@@ -1903,8 +1903,8 @@ void CKBehavior::PreDelete() {
     }
 }
 
-int CKBehavior::GetMemoryOccupation() {
-    int size = CKSceneObject::GetMemoryOccupation() + (int) (sizeof(CKBehavior) - sizeof(CKSceneObject));
+size_t CKBehavior::GetMemoryOccupation() {
+    size_t size = CKSceneObject::GetMemoryOccupation() + (sizeof(CKBehavior) - sizeof(CKSceneObject));
 
     size += m_InputArray.GetMemoryOccupation(FALSE);
     size += m_OutputArray.GetMemoryOccupation(FALSE);
@@ -1913,18 +1913,18 @@ int CKBehavior::GetMemoryOccupation() {
     size += m_LocalParameter.GetMemoryOccupation(FALSE);
 
     if (m_GraphData) {
-        size += (int) sizeof(*m_GraphData);
+        size += sizeof(*m_GraphData);
         size += m_GraphData->m_Operations.GetMemoryOccupation(FALSE);
         size += m_GraphData->m_SubBehaviors.GetMemoryOccupation(FALSE);
         size += m_GraphData->m_SubBehaviorLinks.GetMemoryOccupation(FALSE);
         size += m_GraphData->m_Links.GetMemoryOccupation(FALSE);
         if (m_GraphData->m_BehaviorIterators) {
-            size += (int) (m_GraphData->m_BehaviorIteratorCount * sizeof(*m_GraphData->m_BehaviorIterators));
+            size += (m_GraphData->m_BehaviorIteratorCount * sizeof(*m_GraphData->m_BehaviorIterators));
         }
     }
 
     if (m_BlockData) {
-        size += (int) sizeof(*m_BlockData);
+        size += sizeof(*m_BlockData);
     }
 
     return size;

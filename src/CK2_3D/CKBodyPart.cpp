@@ -142,7 +142,7 @@ CKERROR RCKBodyPart::Load(CKStateChunk *chunk, CKFile *file) {
  * @brief Get memory occupation for the body part
  * @return Memory size in bytes
  */
-int RCKBodyPart::GetMemoryOccupation() {
+size_t RCKBodyPart::GetMemoryOccupation() {
     return RCK3dEntity::GetMemoryOccupation() + (sizeof(RCKBodyPart) - sizeof(RCK3dEntity));
 }
 

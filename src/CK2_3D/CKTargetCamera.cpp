@@ -183,7 +183,7 @@ Remarks:
 
 Implementation based on decompilation at 0x10043d7f.
 *************************************************/
-int RCKTargetCamera::GetMemoryOccupation() {
+size_t RCKTargetCamera::GetMemoryOccupation() {
     return RCKCamera::GetMemoryOccupation() + (sizeof(RCKTargetCamera) - sizeof(RCKCamera));
 }
 

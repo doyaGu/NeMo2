@@ -197,7 +197,7 @@ public:
     void PreDelete() override;
     void CheckPreDeletion() override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
     CKBOOL IsObjectUsed(CKObject *obj, CK_CLASSID cid) override;
 
     CKERROR PrepareDependencies(CKDependenciesContext &context) override;

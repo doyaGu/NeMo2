@@ -671,9 +671,9 @@ CKERROR RCKObjectAnimation::Load(CKStateChunk *chunk, CKFile *file) {
     return CK_OK;
 }
 
-int RCKObjectAnimation::GetMemoryOccupation() {
+size_t RCKObjectAnimation::GetMemoryOccupation() {
     // Call base class first to get base size
-    int size = CKObject::GetMemoryOccupation();
+    size_t size = CKObject::GetMemoryOccupation();
 
     // Add RCKObjectAnimation-specific fields
     size += sizeof(RCKObjectAnimation) - sizeof(CKObject);

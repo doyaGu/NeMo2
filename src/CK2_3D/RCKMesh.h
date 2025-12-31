@@ -189,7 +189,7 @@ public:
 
     void CheckPreDeletion() override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
     int IsObjectUsed(CKObject *o, CK_CLASSID cid) override;
 
     //--------------------------------------------

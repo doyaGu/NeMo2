@@ -20,7 +20,7 @@ public:
 
     CKERROR Render(CKRenderContext *Dev) override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
 
     CKERROR Copy(CKObject &o, CKDependenciesContext &context) override;
 

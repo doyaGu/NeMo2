@@ -157,7 +157,7 @@ CKERROR RCKCurvePoint::Load(CKStateChunk *chunk, CKFile *file) {
  * @brief Get memory occupation for the curve point
  * @return Memory size in bytes
  */
-int RCKCurvePoint::GetMemoryOccupation() {
+size_t RCKCurvePoint::GetMemoryOccupation() {
     return RCK3dEntity::GetMemoryOccupation() + (sizeof(RCKCurvePoint) - sizeof(RCK3dEntity));
 }
 

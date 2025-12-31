@@ -137,7 +137,7 @@ CKERROR CKParameterLocal::Load(CKStateChunk *chunk, CKFile *file) {
     return CK_OK;
 }
 
-int CKParameterLocal::GetMemoryOccupation() {
+size_t CKParameterLocal::GetMemoryOccupation() {
     return CKParameter::GetMemoryOccupation();
 }
 

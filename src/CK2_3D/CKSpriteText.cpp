@@ -34,11 +34,11 @@ CK_CLASSID RCKSpriteText::GetClassID() {
 }
 
 // GetMemoryOccupation: 0x10062529
-int RCKSpriteText::GetMemoryOccupation() {
-    int size = RCKSprite::GetMemoryOccupation() + (sizeof(RCKSpriteText) - sizeof(RCKSprite));
+size_t RCKSpriteText::GetMemoryOccupation() {
+    size_t size = RCKSprite::GetMemoryOccupation() + (sizeof(RCKSpriteText) - sizeof(RCKSprite));
     // Add owned text string memory
     if (m_Text) {
-        size += (int)strlen(m_Text) + 1;
+        size += strlen(m_Text) + 1;
     }
     return size;
 }

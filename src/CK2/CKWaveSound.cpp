@@ -1320,8 +1320,8 @@ void CKWaveSound::CheckPostDeletion() {
         m_AttachedObject = 0;
 }
 
-int CKWaveSound::GetMemoryOccupation() {
-    return CKSound::GetMemoryOccupation() + (int) (sizeof(CKWaveSound) - sizeof(CKSound));
+size_t CKWaveSound::GetMemoryOccupation() {
+    return CKSound::GetMemoryOccupation() + (sizeof(CKWaveSound) - sizeof(CKSound));
 }
 
 CKSTRING CKWaveSound::GetClassName() {

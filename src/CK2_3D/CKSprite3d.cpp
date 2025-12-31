@@ -207,7 +207,7 @@ CK_CLASSID RCKSprite3D::GetClassID() {
     return m_ClassID;
 }
 
-int RCKSprite3D::GetMemoryOccupation() {
+size_t RCKSprite3D::GetMemoryOccupation() {
     // Base class memory + Sprite3D specific members
     return RCK3dEntity::GetMemoryOccupation() + (sizeof(RCKSprite3D) - sizeof(RCK3dEntity));
 }

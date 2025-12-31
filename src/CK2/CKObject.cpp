@@ -113,14 +113,14 @@ void CKObject::CheckPreDeletion() { /* Empty */ }
 
 void CKObject::CheckPostDeletion() { /* Empty */ }
 
-int CKObject::GetMemoryOccupation() {
+size_t CKObject::GetMemoryOccupation() {
     // Object itself + owned name string (if any).
-    const int base = static_cast<int>(sizeof(CKObject));
+    size_t size = sizeof(CKObject);
     if (m_Name && !(m_ObjectFlags & CK_OBJECT_NAMESHARED)) {
-        return base + 1 + static_cast<int>(strlen(m_Name));
+        return size + 1 + strlen(m_Name);
     }
 
-    return base;
+    return size;
 }
 
 CKBOOL CKObject::IsObjectUsed(CKObject *obj, CK_CLASSID cid) {

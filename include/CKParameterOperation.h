@@ -122,7 +122,7 @@ public:
 
     virtual void PreDelete();
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
     virtual int IsObjectUsed(CKObject *o, CK_CLASSID cid);
     //--------------------------------------------
     // Dependencies Functions

@@ -31,7 +31,7 @@ public:
     CKERROR Load(CKStateChunk *chunk, CKFile *file) override;
     void CheckPreDeletion() override;
     void CheckPostDeletion() override;
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
     CKBOOL IsObjectUsed(CKObject *o, CK_CLASSID cid) override;
 
     CKERROR Copy(CKObject &o, CKDependenciesContext &context) override;

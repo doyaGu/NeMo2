@@ -88,9 +88,8 @@ void CKBehaviorIO::PreDelete() {
     }
 }
 
-int CKBehaviorIO::GetMemoryOccupation() {
-    return CKObject::GetMemoryOccupation() +
-        static_cast<int>(sizeof(CKBehaviorIO) - sizeof(CKObject));
+size_t CKBehaviorIO::GetMemoryOccupation() {
+    return CKObject::GetMemoryOccupation() + (sizeof(CKBehaviorIO) - sizeof(CKObject));
 }
 
 CKERROR CKBehaviorIO::RemapDependencies(CKDependenciesContext &context) {

@@ -141,9 +141,9 @@ void RCKPlace::CheckPostDeletion() {
  *
  * IDA: 0x1003e508 - Base + 32 + portal array size
  */
-int RCKPlace::GetMemoryOccupation() {
+size_t RCKPlace::GetMemoryOccupation() {
     // Base class memory + place-specific fields + portal array
-    int size = RCK3dEntity::GetMemoryOccupation() + (sizeof(RCKPlace) - sizeof(RCK3dEntity));
+    size_t size = RCK3dEntity::GetMemoryOccupation() + (sizeof(RCKPlace) - sizeof(RCK3dEntity));
     size += m_Portals.GetMemoryOccupation(FALSE);
     return size;
 }

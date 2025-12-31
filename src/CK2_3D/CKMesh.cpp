@@ -1875,10 +1875,10 @@ void RCKMesh::CheckPreDeletion() {
     }
 }
 
-int RCKMesh::GetMemoryOccupation() {
+size_t RCKMesh::GetMemoryOccupation() {
     // Match IDA at 0x10026678
     // Call base class and add this class size
-    int size = CKBeObject::GetMemoryOccupation() + (sizeof(RCKMesh) - sizeof(CKBeObject));
+    size_t size = CKBeObject::GetMemoryOccupation() + (sizeof(RCKMesh) - sizeof(CKBeObject));
 
     // Vertex array: sizeof(VxVertex) per vertex
     size += m_Vertices.GetMemoryOccupation(FALSE);
@@ -1899,20 +1899,20 @@ int RCKMesh::GetMemoryOccupation() {
 
     // Material groups: sizeof(CKMaterialGroup) each plus face indices
     size += m_MaterialGroups.GetMemoryOccupation(FALSE);
-    for (int i = 0; i < m_MaterialGroups.Size(); ++i) {
+    for (size_t i = 0; i < m_MaterialGroups.Size(); ++i) {
         CKMaterialGroup *group = m_MaterialGroups[i];
         if (group) {
             // Add size from face indices array
             size += group->m_FaceIndices.GetMemoryOccupation(FALSE);
             // Each primitive entry has indices
-            for (int j = 0; j < group->m_Primitives.Size(); ++j) {
+            for (size_t j = 0; j < group->m_Primitives.Size(); ++j) {
                 size += group->m_Primitives[j].m_Indices.GetMemoryOccupation(FALSE);
             }
         }
     }
 
     // Material channels: sizeof(VxMaterialChannel) each
-    for (int i = 0; i < m_MaterialChannels.Size(); ++i) {
+    for (size_t i = 0; i < m_MaterialChannels.Size(); ++i) {
         size += sizeof(VxMaterialChannel);
         // If channel has UV data
         if (m_MaterialChannels[i].m_UVs) {

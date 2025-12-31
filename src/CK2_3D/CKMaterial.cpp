@@ -207,7 +207,7 @@ void RCKMaterial::CheckPreDeletion() {
  *
  * @return Memory occupation in bytes
  */
-int RCKMaterial::GetMemoryOccupation() {
+size_t RCKMaterial::GetMemoryOccupation() {
     return CKBeObject::GetMemoryOccupation() + (sizeof(RCKMaterial) - sizeof(CKBeObject));
 }
 

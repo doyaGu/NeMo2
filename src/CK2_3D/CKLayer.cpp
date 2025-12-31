@@ -342,7 +342,7 @@ CKERROR RCKLayer::RemapDependencies(CKDependenciesContext &context) {
  * @brief Get memory occupation for the layer
  * @return Memory size in bytes
  */
-int RCKLayer::GetMemoryOccupation() {
+size_t RCKLayer::GetMemoryOccupation() {
     return CKObject::GetMemoryOccupation() + (sizeof(RCKLayer) - sizeof(CKObject));
 }
 

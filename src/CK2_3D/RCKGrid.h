@@ -25,7 +25,7 @@ public:
     void Show(CK_OBJECT_SHOWOPTION show = CKSHOW) override;
     void CheckPostDeletion() override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
     CKBOOL IsObjectUsed(CKObject *obj, CK_CLASSID cid) override;
     void UpdateBox(CKBOOL World = TRUE) override;
 

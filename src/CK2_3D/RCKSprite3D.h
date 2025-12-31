@@ -25,7 +25,7 @@ public:
     CKERROR Load(CKStateChunk *chunk, CKFile *file) override;
 
     void CheckPreDeletion() override;
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
     int IsObjectUsed(CKObject *obj, CK_CLASSID cid) override;
     CKERROR PrepareDependencies(CKDependenciesContext &context) override;
     CKERROR RemapDependencies(CKDependenciesContext &context) override;

@@ -44,7 +44,7 @@ public:
     virtual CKERROR Load(CKStateChunk *chunk, CKFile *file);
     virtual void CheckPostDeletion();
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
     virtual CKBOOL IsObjectUsed(CKObject *obj, CK_CLASSID cid);
 
     //--------------------------------------------
@@ -103,7 +103,7 @@ public:
     virtual CKERROR Load(CKStateChunk *chunk, CKFile *file);
     virtual void CheckPostDeletion();
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
     virtual CKBOOL IsObjectUsed(CKObject *obj, CK_CLASSID cid);
 
     //--------------------------------------------
@@ -161,7 +161,7 @@ public:
     virtual CKStateChunk *Save(CKFile *file, CKDWORD flags);
     virtual CKERROR Load(CKStateChunk *chunk, CKFile *file);
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
 
     //--------------------------------------------
     // Class Registering

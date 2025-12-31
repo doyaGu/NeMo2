@@ -430,7 +430,7 @@ void RCKSprite::RestoreInitialSize() {
     m_Rect.SetSize(size);
 }
 
-int RCKSprite::GetMemoryOccupation() {
+size_t RCKSprite::GetMemoryOccupation() {
     return RCK2dEntity::GetMemoryOccupation() + (sizeof(RCKSprite) - sizeof(RCK2dEntity));
 }
 

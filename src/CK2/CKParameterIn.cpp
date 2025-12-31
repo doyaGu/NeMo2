@@ -302,9 +302,8 @@ void CKParameterIn::CheckPreDeletion() {
     }
 }
 
-int CKParameterIn::GetMemoryOccupation() {
-    return CKObject::GetMemoryOccupation() +
-        static_cast<int>(sizeof(CKParameterIn) - sizeof(CKObject));
+size_t CKParameterIn::GetMemoryOccupation() {
+    return CKObject::GetMemoryOccupation() + (sizeof(CKParameterIn) - sizeof(CKObject));
 }
 
 int CKParameterIn::IsObjectUsed(CKObject *o, CK_CLASSID cid) {

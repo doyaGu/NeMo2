@@ -384,7 +384,7 @@ public:
 
     virtual void PreDelete();
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
     virtual CKBOOL IsObjectUsed(CKObject *obj, CK_CLASSID cid);
 
     //--------------------------------------------

@@ -24,7 +24,7 @@ public:
     CKStateChunk *Save(CKFile *file, CKDWORD flags) override;
     CKERROR Load(CKStateChunk *chunk, CKFile *file) override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
 
     //--------------------------------------------
     // Dependencies Functions	{Secret}

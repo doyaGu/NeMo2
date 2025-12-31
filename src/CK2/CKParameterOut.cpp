@@ -209,11 +209,11 @@ void CKParameterOut::CheckPreDeletion() {
     m_Destinations.Check();
 }
 
-int CKParameterOut::GetMemoryOccupation() {
+size_t CKParameterOut::GetMemoryOccupation() {
     // Base parameter + in-object members + owned destination-pointer buffer.
-    return CKParameter::GetMemoryOccupation() +
-        static_cast<int>(sizeof(CKParameterOut) - sizeof(CKParameter)) +
-        m_Destinations.GetMemoryOccupation(FALSE);
+    size_t size = CKParameter::GetMemoryOccupation() + (sizeof(CKParameterOut) - sizeof(CKParameter));
+    size += m_Destinations.GetMemoryOccupation(FALSE);
+    return size;
 }
 
 int CKParameterOut::IsObjectUsed(CKObject *o, CK_CLASSID cid) {

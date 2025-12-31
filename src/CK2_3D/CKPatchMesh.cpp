@@ -596,27 +596,27 @@ CK_CLASSID RCKPatchMesh::GetClassID() {
  * @brief Returns memory occupation of the patch mesh
  * Based on IDA analysis at 0x1003abb7
  */
-int RCKPatchMesh::GetMemoryOccupation() {
-    int base = RCKMesh::GetMemoryOccupation() + (sizeof(RCKPatchMesh) - sizeof(RCKMesh));
+size_t RCKPatchMesh::GetMemoryOccupation() {
+    size_t size = RCKMesh::GetMemoryOccupation() + (sizeof(RCKPatchMesh) - sizeof(RCKMesh));
 
     // Vertex and vector memory (VxVector = 12 bytes)
-    int vertVecMem = sizeof(VxVector) * (m_VertCount + m_VecCount);
+    size_t vertVecMem = sizeof(VxVector) * (m_VertCount + m_VecCount);
 
     // Calculate texture channel memory
-    int channelMem = m_TexturePatches.GetMemoryOccupation(FALSE); // sizeof(CKPatchChannel) each
-    for (int i = 0; i < m_TexturePatches.Size(); ++i) {
-        int patchesSize = m_TexturePatches[i].Patches.GetMemoryOccupation(FALSE);
-        int uvsSize = m_TexturePatches[i].UVs.GetMemoryOccupation(FALSE);
+    size_t channelMem = m_TexturePatches.GetMemoryOccupation(FALSE); // sizeof(CKPatchChannel) each
+    for (size_t i = 0; i < m_TexturePatches.Size(); ++i) {
+        size_t patchesSize = m_TexturePatches[i].Patches.GetMemoryOccupation(FALSE);
+        size_t uvsSize = m_TexturePatches[i].UVs.GetMemoryOccupation(FALSE);
         channelMem += sizeof(Vx2DVector) * patchesSize + sizeof(Vx2DVector) * uvsSize + sizeof(CKPatchChannel);
     }
 
     // Patches memory (sizeof(CKPatch) each)
-    int patchesMem = m_Patches.GetMemoryOccupation(FALSE);
+    size_t patchesMem = m_Patches.GetMemoryOccupation(FALSE);
 
     // Edges memory (sizeof(CKPatchEdge) each)
-    int edgesMem = m_PatchEdges.GetMemoryOccupation(FALSE);
+    size_t edgesMem = m_PatchEdges.GetMemoryOccupation(FALSE);
 
-    return base + vertVecMem + channelMem + patchesMem + edgesMem;
+    return size + vertVecMem + channelMem + patchesMem + edgesMem;
 }
 
 /**

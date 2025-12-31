@@ -43,7 +43,7 @@ public:
     virtual CKStateChunk *Save(CKFile *file, CKDWORD flags);
     virtual CKERROR Load(CKStateChunk *chunk, CKFile *file);
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
 
     //--------------------------------------------
     // Class Registering

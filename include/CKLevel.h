@@ -100,7 +100,7 @@ public:
     DLL_EXPORT virtual void CheckPreDeletion();
     DLL_EXPORT virtual void CheckPostDeletion();
 
-    DLL_EXPORT virtual int GetMemoryOccupation();
+    DLL_EXPORT virtual size_t GetMemoryOccupation();
     DLL_EXPORT virtual int IsObjectUsed(CKObject *o, CK_CLASSID cid);
 
     //--------------------------------------------

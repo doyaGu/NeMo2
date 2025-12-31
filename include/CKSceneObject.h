@@ -41,7 +41,7 @@ public:
     virtual ~CKSceneObject();
     virtual CK_CLASSID GetClassID();
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
 
     //--------------------------------------------
     // Class Registering

@@ -1334,7 +1334,7 @@ void RCK2dEntity::CheckPreDeletion() {
     }
 }
 
-int RCK2dEntity::GetMemoryOccupation() {
+size_t RCK2dEntity::GetMemoryOccupation() {
     // IDA: 0x1005f793 - RCKRenderObject::GetMemoryOccupation(this) + 96
     return RCKRenderObject::GetMemoryOccupation() + (sizeof(RCK2dEntity) - sizeof(RCKRenderObject));
 }

@@ -2040,22 +2040,22 @@ void CKDataArray::CheckPostDeletion() {
     }
 }
 
-int CKDataArray::GetMemoryOccupation() {
-    int size = CKBeObject::GetMemoryOccupation() + (int) (sizeof(CKDataArray) - sizeof(CKBeObject));
+size_t CKDataArray::GetMemoryOccupation() {
+    size_t size = CKBeObject::GetMemoryOccupation() + (sizeof(CKDataArray) - sizeof(CKBeObject));
 
     size += m_FormatArray.GetMemoryOccupation(FALSE);
-    for (int i = 0; i < m_FormatArray.Size(); ++i) {
+    for (size_t i = 0; i < m_FormatArray.Size(); ++i) {
         ColumnFormat *fmt = m_FormatArray[i];
         if (!fmt)
             continue;
-        size += (int) sizeof(*fmt);
+        size += sizeof(*fmt);
         if (fmt->m_Name) {
-            size += (int) (strlen(fmt->m_Name) + 1);
+            size += (strlen(fmt->m_Name) + 1);
         }
     }
 
     size += m_DataMatrix.GetMemoryOccupation(FALSE);
-    for (int i = 0; i < m_DataMatrix.Size(); ++i) {
+    for (size_t i = 0; i < m_DataMatrix.Size(); ++i) {
         CKDataRow *row = m_DataMatrix[i];
         if (!row)
             continue;

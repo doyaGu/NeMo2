@@ -182,7 +182,7 @@ public:
 
     virtual void CheckPostDeletion();
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
 
     //--------------------------------------------
     // Class Registering

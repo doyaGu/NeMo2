@@ -93,7 +93,7 @@ public:
 
     virtual void PreDelete();
 
-    virtual int GetMemoryOccupation();
+    virtual size_t GetMemoryOccupation();
 
     //--------------------------------------------
     // Dependencies functions	{secret}

@@ -17,7 +17,7 @@ public:
     CKStateChunk *Save(CKFile *file, CKDWORD flags) override;
     CKERROR Load(CKStateChunk *chunk, CKFile *file) override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
     CKERROR Copy(CKObject &o, CKDependenciesContext &context) override;
     void CheckPreDeletion() override;
     CKBOOL IsObjectUsed(CKObject *obj, CK_CLASSID cid) override;
