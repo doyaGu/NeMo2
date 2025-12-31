@@ -20,7 +20,7 @@ public:
     Name: VxMultiTimeProfiler
     Summary: Starts profiling
     *************************************************/
-    CKTimeProfiler(const char *iTitle, CKContext *iContext, int iStartingCount = 4) : m_Title(iTitle), m_Context(iContext), m_Marks(iStartingCount) {}
+    CKTimeProfiler(const char *iTitle, CKContext *iContext, size_t iStartingCount = 4) : m_Title(iTitle), m_Context(iContext), m_Marks(iStartingCount) {}
 
     ~CKTimeProfiler()
     {
