@@ -790,7 +790,7 @@ float CKContext::GetLastUserProfileTime(CKDWORD UserSlot) {
     return 0.0f;
 }
 
-CKSTRING CKContext::GetStringBuffer(int size) {
+CKSTRING CKContext::GetStringBuffer(size_t size) {
     if (m_StringBuffer.Length() < size) {
         m_StringBuffer.Resize(size);
     }
@@ -1661,8 +1661,8 @@ void CKContext::DeferredDestroyObjects(CK_ID *obj_ids, int Count, CKDependencies
     }
 }
 
-void *CKContext::AllocateMemoryPool(int count, int &index) {
-    int newIndex = m_MemoryPoolMask.GetUnsetBitPosition(0);
+void *CKContext::AllocateMemoryPool(size_t count, size_t &index) {
+    size_t newIndex = m_MemoryPoolMask.GetUnsetBitPosition(0);
     while (m_MemoryPools.Size() <= newIndex) {
         m_MemoryPools.PushBack(new VxMemoryPool);
     }
@@ -1678,8 +1678,8 @@ void *CKContext::AllocateMemoryPool(int count, int &index) {
     return nullptr;
 }
 
-void CKContext::ReleaseMemoryPool(int index) {
-    if (index >= 0)
+void CKContext::ReleaseMemoryPool(size_t index) {
+    if (index != static_cast<size_t>(-1))
         m_MemoryPoolMask.Unset(index);
 }
 

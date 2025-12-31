@@ -162,7 +162,7 @@ public:
 
     //-------------------------------------------------------
     // Utils
-    CKSTRING GetStringBuffer(int size);
+    CKSTRING GetStringBuffer(size_t size);
     CKGUID GetSecureGuid();
     CKDWORD GetStartOptions();
     WIN_HANDLE GetMainWindow();
@@ -263,8 +263,8 @@ public:
     void BuildSortedLists();
     void DeferredDestroyObjects(CK_ID *obj_ids, int Count, CKDependencies *Dependencies, CKDWORD Flags);
 
-    void *AllocateMemoryPool(int count, int &index);
-    void ReleaseMemoryPool(int index);
+    void *AllocateMemoryPool(size_t count, size_t &index);
+    void ReleaseMemoryPool(size_t index);
 
     CKContext(WIN_HANDLE iWin, int iRenderEngine, CKDWORD Flags);
     ~CKContext();
