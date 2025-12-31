@@ -125,7 +125,7 @@ CKERROR CKLevel::AddScene(CKScene *scn) {
     if (m_Context->m_UICallBackFct) {
         CKUICallbackStruct cbs;
         cbs.Reason = CKUIM_SCENEADDEDTOLEVEL;
-        cbs.Param1 = scn->GetID();
+        cbs.ObjectID = scn->GetID();
         m_Context->m_UICallBackFct(cbs, m_Context->m_InterfaceModeData);
     }
     return CK_OK;

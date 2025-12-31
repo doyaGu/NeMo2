@@ -940,8 +940,8 @@ CKERROR CKFile::EndSave() {
         if (m_Context->m_UICallBackFct) {
             CKUICallbackStruct cbs;
             cbs.Reason = CKUIM_LOADSAVEPROGRESS;
-            cbs.Param1 = i;
-            cbs.Param2 = fileObjectCount;
+            cbs.NbObjectsLoaded = i;
+            cbs.NbObjectsToLoad = fileObjectCount;
             m_Context->m_UICallBackFct(cbs, m_Context->m_InterfaceModeData);
         }
     }
@@ -1423,8 +1423,8 @@ void CKFile::FinishLoading(CKObjectArray *list, CKDWORD flags) {
             if (m_Context->m_UICallBackFct) {
                 CKUICallbackStruct cbs;
                 cbs.Reason = CKUIM_LOADSAVEPROGRESS;
-                cbs.Param1 = count;
-                cbs.Param2 = m_FileObjects.Size();
+                cbs.NbObjectsLoaded = count;
+                cbs.NbObjectsToLoad = m_FileObjects.Size();
                 m_Context->m_UICallBackFct(cbs, m_Context->m_InterfaceModeData);
             }
 
@@ -1447,8 +1447,8 @@ void CKFile::FinishLoading(CKObjectArray *list, CKDWORD flags) {
                 if (m_Context->m_UICallBackFct) {
                     CKUICallbackStruct cbs;
                     cbs.Reason = CKUIM_LOADSAVEPROGRESS;
-                    cbs.Param1 = count;
-                    cbs.Param2 = m_FileObjects.Size();
+                    cbs.NbObjectsLoaded = count;
+                    cbs.NbObjectsToLoad = m_FileObjects.Size();
                     m_Context->m_UICallBackFct(cbs, m_Context->m_InterfaceModeData);
                 }
 
@@ -1476,8 +1476,8 @@ void CKFile::FinishLoading(CKObjectArray *list, CKDWORD flags) {
                 if (m_Context->m_UICallBackFct) {
                     CKUICallbackStruct cbs;
                     cbs.Reason = CKUIM_LOADSAVEPROGRESS;
-                    cbs.Param1 = count;
-                    cbs.Param2 = m_FileObjects.Size();
+                    cbs.NbObjectsLoaded = count;
+                    cbs.NbObjectsToLoad = m_FileObjects.Size();
                     m_Context->m_UICallBackFct(cbs, m_Context->m_InterfaceModeData);
                 }
 
@@ -1506,8 +1506,8 @@ void CKFile::FinishLoading(CKObjectArray *list, CKDWORD flags) {
                 if (m_Context->m_UICallBackFct) {
                     CKUICallbackStruct cbs;
                     cbs.Reason = CKUIM_LOADSAVEPROGRESS;
-                    cbs.Param1 = count;
-                    cbs.Param2 = m_FileObjects.Size();
+                    cbs.NbObjectsLoaded = count;
+                    cbs.NbObjectsToLoad = m_FileObjects.Size();
                     m_Context->m_UICallBackFct(cbs, m_Context->m_InterfaceModeData);
                 }
 
@@ -1537,8 +1537,8 @@ void CKFile::FinishLoading(CKObjectArray *list, CKDWORD flags) {
             if (m_Context->m_UICallBackFct) {
                 CKUICallbackStruct cbs;
                 cbs.Reason = CKUIM_LOADSAVEPROGRESS;
-                cbs.Param1 = count;
-                cbs.Param2 = m_FileObjects.Size();
+                cbs.NbObjectsLoaded = count;
+                cbs.NbObjectsToLoad = m_FileObjects.Size();
                 m_Context->m_UICallBackFct(cbs, m_Context->m_InterfaceModeData);
             }
 
