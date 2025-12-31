@@ -1,5 +1,7 @@
 #include "VxMemory.h"
 
+#include <stdlib.h>
+
 // Basic memory allocation functions
 void *mynew(size_t n) {
     void *ptr = operator new(n);

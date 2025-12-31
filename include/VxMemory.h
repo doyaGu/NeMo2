@@ -1,6 +1,7 @@
 #ifndef VXMEMORY_H
 #define VXMEMORY_H
 
+#include <stddef.h>
 #include <new>
 
 #include "VxMathCompiler.h"
@@ -89,10 +90,15 @@ void VxDelete(T *ptr) {
  * @return A pointer to the beginning of the allocated array, or null on failure.
  */
 template <class T>
-T *VxAllocate(unsigned int cnt) {
+T *VxAllocate(size_t cnt) {
+    // Check for allocation overflow
+    if (cnt > SIZE_MAX / sizeof(T)) {
+        return nullptr;  // Allocation would overflow
+    }
+
     T *ptr = (T *) VxMalloc(sizeof(T) * cnt);
     if (ptr) {
-        for (unsigned int i = 0; i < cnt; ++i)
+        for (size_t i = 0; i < cnt; ++i)
             new(&ptr[i]) T;
     }
     return ptr;
@@ -107,10 +113,10 @@ T *VxAllocate(unsigned int cnt) {
  * @param cnt The number of objects in the array.
  */
 template <class T>
-void VxDeallocate(T *ptr, unsigned int cnt) {
+void VxDeallocate(T *ptr, size_t cnt) {
     if (ptr) {
         void *tmp = ptr;
-        for (unsigned int i = 0; i < cnt; ++i)
+        for (size_t i = 0; i < cnt; ++i)
             (&ptr[i])->~T();
         VxFree(tmp);
     }
