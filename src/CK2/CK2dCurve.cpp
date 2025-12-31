@@ -141,7 +141,6 @@ void CK2dCurve::AddControlPoint(const Vx2DVector &pos) {
 void CK2dCurve::Update() {
     const int SAMPLES_PER_SEGMENT = 100;
     const float SAMPLE_STEP = 1.0f / SAMPLES_PER_SEGMENT;
-    const unsigned char LINEAR_FLAG = 0x02;
 
     // Sort control points by X position
     m_ControlPoints.BubbleSort(CK2dCurvePoint::CurvePointSortFunc);
@@ -162,7 +161,7 @@ void CK2dCurve::Update() {
         CK2dCurvePoint &current = m_ControlPoints[i];
         CK2dCurvePoint &next = m_ControlPoints[i + 1];
 
-        if (current.m_Flags & LINEAR_FLAG) {
+        if (current.IsLinear()) {
             // Straight line segment calculation
             Vx2DVector delta(next.m_Position - current.m_Position);
             m_Length += delta.Magnitude();
