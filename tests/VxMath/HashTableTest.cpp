@@ -845,16 +845,16 @@ TEST(XNHashTable, NegativeHashValuesHandledCorrectly) {
 TEST(XNHashTable, GetMemoryOccupation) {
     XNHashTable<int, int> t(8);
     
-    int memBefore = t.GetMemoryOccupation(FALSE);
+    size_t memBefore = t.GetMemoryOccupation(FALSE);
     EXPECT_GT(memBefore, 0);
     
     for (int i = 0; i < 100; ++i)
         t.Insert(i, i, TRUE);
     
-    int memAfter = t.GetMemoryOccupation(FALSE);
+    size_t memAfter = t.GetMemoryOccupation(FALSE);
     EXPECT_GT(memAfter, memBefore);
     
-    int memWithStatic = t.GetMemoryOccupation(TRUE);
+    size_t memWithStatic = t.GetMemoryOccupation(TRUE);
     EXPECT_GT(memWithStatic, memAfter);
 }
 

@@ -1614,10 +1614,10 @@ TEST_F(XBitArrayTest, Cxx11Swap) {
 TEST_F(XBitArrayTest, GetMemoryOccupation) {
     XBitArray arr(4); // 4 DWORDs
     
-    int mem = arr.GetMemoryOccupation(FALSE);
+    size_t mem = arr.GetMemoryOccupation(FALSE);
     EXPECT_EQ(mem, 4 * sizeof(XDWORD));
     
-    int memWithStatic = arr.GetMemoryOccupation(TRUE);
+    size_t memWithStatic = arr.GetMemoryOccupation(TRUE);
     EXPECT_GT(memWithStatic, mem);
 }
 
