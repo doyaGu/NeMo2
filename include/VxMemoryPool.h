@@ -30,7 +30,7 @@ public:
      * @brief Constructs the memory pool and optionally allocates an initial buffer.
      * @param size The initial size of the buffer to allocate, in units of XDWORDs (4 bytes).
      */
-    VxMemoryPool(int size = 0) {
+    VxMemoryPool(size_t size = 0) {
         m_Memory = NULL;
         m_Allocated = 0;
         Allocate(size);
@@ -48,7 +48,7 @@ public:
      * @brief Returns the currently allocated size of the memory buffer.
      * @return The allocated size in units of XDWORDs (4 bytes).
      */
-    int AllocatedSize() const {
+    size_t AllocatedSize() const {
         return m_Allocated;
     }
 
@@ -59,7 +59,7 @@ public:
      * the existing buffer is deleted and a new, larger one is allocated.
      * The contents of the old buffer are not preserved.
      */
-    void Allocate(int size) {
+    void Allocate(size_t size) {
         if (m_Allocated < size) {
             VxDeleteAligned(m_Memory);
             m_Memory = (XBYTE *) VxNewAligned(size * sizeof(XDWORD), 16);
@@ -69,7 +69,7 @@ public:
 
 protected:
     XBYTE *m_Memory; ///< Pointer to the aligned memory buffer.
-    int m_Allocated; ///< The size of the allocated buffer in XDWORDs.
+    size_t m_Allocated; ///< The size of the allocated buffer in XDWORDs.
 };
 
 #endif // VXMEMORYPOOL_H
