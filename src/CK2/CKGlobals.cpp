@@ -4,6 +4,7 @@
 
 #include <miniz.h>
 
+#include "VxEndian.h"
 #include "VxMath.h"
 #include "CKContext.h"
 #include "CKPluginManager.h"
@@ -563,27 +564,31 @@ CKBOOL CKSaveBitmap(CKSTRING filename, VxImageDescEx &desc) {
     return 0;
 }
 
-void CKConvertEndianArray32(void *buf, int DwordCount) {
-    // EMPTY
+void CKConvertEndianArray32(void *buf, size_t DwordCount) {
+    if (!buf || DwordCount <= 0)
+        return;
+    VxConvertArrayFromLE32(buf, DwordCount);
 }
 
-void CKConvertEndianArray16(void *buf, int DwordCount) {
-    // EMPTY
+void CKConvertEndianArray16(void *buf, size_t DwordCount) {
+    if (!buf || DwordCount <= 0)
+        return;
+    VxConvertArrayFromLE16(buf, DwordCount);
 }
 
 CKDWORD CKConvertEndian32(CKDWORD dw) {
-    return dw;
+    return static_cast<CKDWORD>(VxLEToHost32(static_cast<uint32_t>(dw)));
 }
 
 CKWORD CKConvertEndian16(CKWORD w) {
-    return w;
+    return static_cast<CKWORD>(VxLEToHost16(static_cast<uint16_t>(w)));
 }
 
-CKDWORD CKComputeDataCRC(char *data, int size, CKDWORD PreviousCRC) {
+CKDWORD CKComputeDataCRC(const CKBYTE *data, size_t size, CKDWORD PreviousCRC) {
     return adler32(PreviousCRC, (const Bytef *) data, size);
 }
 
-char *CKPackData(char *Data, int size, int &NewSize, int compressionLevel) {
+char *CKPackData(const CKBYTE *Data, size_t size, size_t &NewSize, int compressionLevel) {
     char *buffer = new char[size];
     if (!buffer)
         return nullptr;
@@ -601,7 +606,7 @@ char *CKPackData(char *Data, int size, int &NewSize, int compressionLevel) {
     return nullptr;
 }
 
-char *CKUnPackData(int DestSize, char *SrcBuffer, int SrcSize) {
+char *CKUnPackData(size_t DestSize, const CKBYTE *SrcBuffer, size_t SrcSize) {
     char *buffer = new char[DestSize];
     if (!buffer)
         return nullptr;

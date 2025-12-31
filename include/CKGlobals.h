@@ -104,17 +104,17 @@ DLL_EXPORT CKBOOL CKSaveBitmap(CKSTRING filename, VxImageDescEx &desc);
 //------------------------------------------------
 //--- Endian Conversion utilities
 
-DLL_EXPORT void CKConvertEndianArray32(void *buf, int DwordCount);
-DLL_EXPORT void CKConvertEndianArray16(void *buf, int DwordCount);
+DLL_EXPORT void CKConvertEndianArray32(void *buf, size_t DwordCount);
+DLL_EXPORT void CKConvertEndianArray16(void *buf, size_t DwordCount);
 DLL_EXPORT CKDWORD CKConvertEndian32(CKDWORD dw);
 DLL_EXPORT CKWORD CKConvertEndian16(CKWORD w);
 
 //------------------------------------------------
 // Compression utilities
 
-DLL_EXPORT CKDWORD CKComputeDataCRC(char *data, int size, CKDWORD PreviousCRC = 0);
-DLL_EXPORT char *CKPackData(char *Data, int size, int &NewSize, int compressionLevel);
-DLL_EXPORT char *CKUnPackData(int DestSize, char *SrcBuffer, int SrcSize);
+DLL_EXPORT CKDWORD CKComputeDataCRC(const CKBYTE *data, size_t size, CKDWORD PreviousCRC = 0);
+DLL_EXPORT char *CKPackData(const CKBYTE *Data, size_t size, size_t &NewSize, int compressionLevel);
+DLL_EXPORT char *CKUnPackData(size_t DestSize, const CKBYTE *SrcBuffer, size_t SrcSize);
 
 //-------------------------------------------------
 // String Utilities
