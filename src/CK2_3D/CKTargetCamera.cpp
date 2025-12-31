@@ -267,7 +267,7 @@ Remarks:
 
 Implementation based on decompilation at 0x10043DD4:
 - Simple implementation that only saves the target object
-- Uses CKContext::GetObjectA to retrieve target object by ID
+- Uses CKContext::GetObject to retrieve target object by ID
 - Uses CKFile::SaveObject for dependency handling
 
 Arguments:
@@ -294,7 +294,7 @@ Remarks:
 
 Implementation based on decompilation at 0x10043E10:
 - Uses chunk identifier 0x10000000 for target-specific data
-- Retrieves target object using CKContext::GetObjectA
+- Retrieves target object using CKContext::GetObject
 - Saves target object reference in the state chunk
 - Handles both file and memory-based saving modes
 
