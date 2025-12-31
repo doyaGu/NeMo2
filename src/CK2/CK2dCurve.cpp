@@ -1,7 +1,7 @@
 #include "CK2dCurve.h"
 #include "CKStateChunk.h"
 
-CKERROR CK2dCurve::GetPos(float step, Vx2DVector *pos) {
+CKERROR CK2dCurve::GetPos(float step, Vx2DVector *pos) const {
     if (!pos) return CKERR_INVALIDPARAMETER;
     if (m_ControlPoints.Size() < 2) return CKERR_INVALIDPARAMETER;
 
@@ -54,7 +54,7 @@ CKERROR CK2dCurve::GetPos(float step, Vx2DVector *pos) {
     return CK_OK;
 }
 
-float CK2dCurve::GetY(float x) {
+float CK2dCurve::GetY(float x) const {
     const int MAX_ITERATIONS = 1000;
     const float TOLERANCE = 1e-5f;
 

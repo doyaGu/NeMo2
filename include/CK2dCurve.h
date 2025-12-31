@@ -40,7 +40,7 @@ public:
         Length of the curve.
     See also: GetY,GetPos
     *************************************************/
-    float GetLength() { return m_Length; }
+    float GetLength() const { return m_Length; }
 
     /*************************************************
     Summary: Gets the 2D vector corresponding to a given step on the curve
@@ -52,7 +52,7 @@ public:
         CKERR_INVALIDPARAMETER if step is invalid
     See also: GetY
     *************************************************/
-    DLL_EXPORT CKERROR GetPos(float step, Vx2DVector *pos);
+    DLL_EXPORT CKERROR GetPos(float step, Vx2DVector *pos) const;
 
     /*************************************************
     Summary: Retrieves the Y value corresponding to a given X value
@@ -62,7 +62,7 @@ public:
        The Y coordinate corresponding to the X value
     See also: GetPos
     *************************************************/
-    DLL_EXPORT float GetY(float x);
+    DLL_EXPORT float GetY(float x) const;
 
     //--------------------------------------------------------------------------
     // Control points access
@@ -99,7 +99,7 @@ public:
     Remarks: The minimum control point count is 2
     See also: GetControlPoint
     *************************************************/
-    int GetControlPointCount() { return m_ControlPoints.Size(); }
+    int GetControlPointCount() const { return (int) m_ControlPoints.Size(); }
 
     /*************************************************
     Summary: Returns a specific control point
@@ -131,7 +131,7 @@ protected:
         if (index < 0)
             return 0;
         if (index >= m_ControlPoints.Size())
-            return m_ControlPoints.Size() - 1;
+            return (int) m_ControlPoints.Size() - 1;
         return index;
     }
 };
