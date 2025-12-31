@@ -154,9 +154,9 @@ XString &XString::ToLower() {
 // Compare the strings (ignore the case).
 int XString::ICompare(const XBaseString &iStr) const {
     if (!m_Length)
-        return -iStr.m_Length;
+        return -((int) iStr.m_Length);
     if (!iStr.m_Length)
-        return m_Length;
+        return (int) m_Length;
 
     const char *s1 = m_Buffer;
     const char *s2 = iStr.m_Buffer;

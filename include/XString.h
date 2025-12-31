@@ -384,11 +384,6 @@ public:
     }
 
     /**
-     * @brief Accesses a character by index (read/write).
-     * @param i The zero-based index of the character to access.
-     * @return A reference to the character at the specified index.
-     */
-    /**
      * @brief Accesses a character by index (read-only).
      * @param i The zero-based index of the character to access.
      * @return The character at the specified index.
@@ -460,9 +455,9 @@ public:
      */
     int Compare(const XBaseString &iStr) const {
         if (m_Length == 0)
-            return -iStr.m_Length; // Null strings
+            return  -((int) iStr.m_Length); // Null strings
         if (iStr.m_Length == 0)
-            return m_Length;
+            return (int) m_Length;
 
         char *s1 = m_Buffer;
         char *s2 = iStr.m_Buffer;
@@ -475,7 +470,7 @@ public:
         //----- remaining bytes...
         while ((*s1 == *s2) && *s1)
             ++s1, ++s2;
-        return (*s1 - *s2);
+        return (int) (*s1 - *s2);
     }
 
     /**
@@ -490,9 +485,9 @@ public:
      */
     int NCompare(const XBaseString &iStr, size_t iN) const {
         if (m_Length == 0)
-            return -iStr.m_Length; // Null strings
+            return -((int) iStr.m_Length); // Null strings
         if (iStr.m_Length == 0)
-            return m_Length;
+            return (int) m_Length;
 
         return strncmp(m_Buffer, iStr.m_Buffer, iN);
     }
@@ -520,9 +515,9 @@ public:
      */
     int NICompare(const XBaseString &iStr, size_t iN) const {
         if (m_Length == 0)
-            return -iStr.m_Length; // Null strings
+            return -((int) iStr.m_Length); // Null strings
         if (iStr.m_Length == 0)
-            return m_Length;
+            return (int) m_Length;
 
         char *s1 = m_Buffer;
         char *s2 = iStr.m_Buffer;

@@ -724,7 +724,7 @@ void VxConfigurationSection::Clear() {
     m_Entries.Clear();
 
     // Now safely delete all entries
-    for (int i = 0; i < entriesToDelete.Size(); i++) {
+    for (size_t i = 0; i < entriesToDelete.Size(); i++) {
         delete entriesToDelete[i];
     }
 
@@ -742,7 +742,7 @@ void VxConfigurationSection::Clear() {
     m_SubSections.Clear();
 
     // Now safely delete all sections
-    for (int i = 0; i < sectionsToDelete.Size(); i++) {
+    for (size_t i = 0; i < sectionsToDelete.Size(); i++) {
         delete sectionsToDelete[i];
     }
 }

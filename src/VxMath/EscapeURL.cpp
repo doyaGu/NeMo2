@@ -143,7 +143,7 @@ void VxUnEscapeUrl(XString &str) {
     XString result;
     result.Reserve(str.Length());
 
-    for (int i = 0; i < str.Length(); ++i) {
+    for (size_t i = 0; i < str.Length(); ++i) {
         if (str[i] == '%' && i + 2 < str.Length()) {
             char hex1 = str[i + 1];
             char hex2 = str[i + 2];
@@ -176,7 +176,7 @@ void VxUnEscapeUrlStrict(XString &str) {
     XString result;
     result.Reserve(str.Length());
 
-    for (int i = 0; i < str.Length(); ++i) {
+    for (size_t i = 0; i < str.Length(); ++i) {
         if (str[i] == '%') {
             // Check if we have enough characters for a complete hex sequence
             if (i + 2 < str.Length()) {
