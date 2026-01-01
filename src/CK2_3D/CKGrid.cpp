@@ -15,6 +15,9 @@
 #include "RCKMesh.h"
 #include "RCKTexture.h"
 
+// Static class ID
+CK_CLASSID RCKGrid::m_ClassID = CKCID_GRID;
+
 /**
  * @brief RCKGrid constructor
  * @param Context The CKContext instance
@@ -982,6 +985,3 @@ CKERROR RCKGrid::RemoveAllLayers() {
     m_Layers.Clear();
     return CK_OK;
 }
-
-// Static class ID
-CK_CLASSID RCKGrid::m_ClassID = CKCID_GRID;
