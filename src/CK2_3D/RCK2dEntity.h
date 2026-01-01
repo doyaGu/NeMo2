@@ -55,7 +55,7 @@ public:
     void PreDelete() override;
     void CheckPreDeletion() override;
 
-    int GetMemoryOccupation() override;
+    size_t GetMemoryOccupation() override;
 
     //--------------------------------------------
     // Dependencies Functions	{Secret}
