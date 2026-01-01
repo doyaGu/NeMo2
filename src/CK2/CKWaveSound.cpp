@@ -1154,7 +1154,7 @@ CKStateChunk *CKWaveSound::Save(CKFile *file, CKDWORD flags) {
         chunk->WriteBuffer(sizeof(VxVector), &m_Position);
         chunk->WriteBuffer(sizeof(VxVector), &m_Direction);
 
-        chunk->WriteInt(0); // Reserved
+        chunk->WriteDword(0); // Reserved
     }
 
     if (GetClassID() == CKCID_WAVESOUND) {
@@ -1197,7 +1197,7 @@ CKERROR CKWaveSound::Load(CKStateChunk *chunk, CKFile *file) {
 
     int dataVersion = chunk->GetDataVersion();
     if (dataVersion >= 3) {
-        m_State = chunk->ReadInt();
+        m_State = chunk->ReadDword();
         SetSoundFileName(fileName);
         delete[] fileName;
 
@@ -1220,23 +1220,23 @@ CKERROR CKWaveSound::Load(CKStateChunk *chunk, CKFile *file) {
 
         float minDist = chunk->ReadFloat();
         float maxDist = chunk->ReadFloat();
-        CKDWORD distBehavior = chunk->ReadInt();
+        CKDWORD distBehavior = chunk->ReadDword();
         SetMinMaxDistance(minDist, maxDist, distBehavior);
 
         m_AttachedObject = chunk->ReadObjectID();
         chunk->ReadAndFillBuffer(sizeof(VxVector), &m_Position);
         chunk->ReadAndFillBuffer(sizeof(VxVector), &m_Direction);
-        chunk->ReadInt(); // Reserved
+        chunk->ReadDword(); // Reserved
     } else if (dataVersion >= 2) {
-        m_State = chunk->ReadInt();
+        m_State = chunk->ReadDword();
         SetSoundFileName(fileName);
         delete[] fileName;
 
         Recreate(FALSE);
 
         SetPriority(chunk->ReadFloat());
-        chunk->ReadInt(); // Reserved
-        chunk->ReadInt(); // Reserved
+        chunk->ReadDword(); // Reserved
+        chunk->ReadDword(); // Reserved
         SetGain(chunk->ReadFloat());
         SetPan(chunk->ReadFloat());
         SetPitch(chunk->ReadFloat());
