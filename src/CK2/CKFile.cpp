@@ -1,7 +1,5 @@
 #include "CKFile.h"
 
-#include <stdio.h>
-
 #include "CKPluginManager.h"
 #include "CKPathManager.h"
 #include "CKParameterManager.h"
@@ -38,8 +36,8 @@ struct CKFileHeader {
 };
 
 extern XClassInfoArray g_CKClassInfo;
+extern CK_CLASSID g_MaxClassID;
 
-static CKDWORD g_MaxClassID = CKCID_MAXCLASSID - 1;
 static CKBOOL WarningForOlderVersion = FALSE;
 static CKDWORD CurrentFileVersion = 0;
 static CKDWORD CurrentFileWriteMode = CKFILE_UNCOMPRESSED;

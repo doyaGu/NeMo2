@@ -10,8 +10,8 @@
 #include "CKBehavior.h"
 #include "CKGlobals.h"
 
-extern int g_MaxClassID;
 extern XClassInfoArray g_CKClassInfo;
+extern CK_CLASSID g_MaxClassID;
 
 int CKObjectManager::ObjectsByClass(CK_CLASSID cid, CKBOOL derived, CK_ID *obj_ids) {
     if (cid < 0 || cid >= g_MaxClassID)
