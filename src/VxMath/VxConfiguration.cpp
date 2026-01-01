@@ -390,7 +390,7 @@ VxConfigurationEntry *VxConfiguration::GetEntry(char *ename, XBOOL usedot) const
     XString entryName(ename);
     if (entryName.Length() == 0)
         entryName = "";
-    int dotPos = entryName.RFind('.');
+    size_t dotPos = entryName.RFind('.');
     if (dotPos != XString::NOTFOUND) {
         entryName[dotPos] = '\0';
         VxConfigurationSection *section = m_Root ? GetSubSection(m_Root, entryName.Str(), TRUE) : NULL;
@@ -578,7 +578,7 @@ VxConfigurationSection *VxConfiguration::CreateSubSection(VxConfigurationSection
 
     // Handle dot notation for hierarchical sections
     XString sectionPath(sname);
-    int dotPos = sectionPath.Find('.');
+    size_t dotPos = sectionPath.Find('.');
 
     if (dotPos == XString::NOTFOUND) return root->CreateSubSection(sname);
 
@@ -603,7 +603,7 @@ VxConfigurationSection *VxConfiguration::GetSubSection(VxConfigurationSection *r
 
     // Handle dot notation for hierarchical sections
     XString sectionPath(sname);
-    int dotPos = sectionPath.Find('.');
+    size_t dotPos = sectionPath.Find('.');
     if (dotPos == XString::NOTFOUND) return root->GetSubSection(sname);
 
     // Extract the first section name
@@ -643,12 +643,12 @@ XBOOL VxConfiguration::ManageSection(char *line, VxConfigurationSection **curren
         return FALSE;
     }
 
-    XString sectionNameStr(line + 1, static_cast<int>(len) - 2);  // Skip brackets, copy substring
+    XString sectionNameStr(line + 1, len - 2);  // Skip brackets, copy substring
     char *sectionName = sectionNameStr.Str();
 
     // Handle dot notation in sections
     XString section(sectionName);
-    int dotPos = section.Find('.');
+    size_t dotPos = section.Find('.');
     if (dotPos == XString::NOTFOUND) {
         // Simple section name
         VxConfigurationSection *existingSection = (*current)->GetSubSection(sectionName);
@@ -747,12 +747,12 @@ void VxConfigurationSection::Clear() {
     }
 }
 
-int VxConfigurationSection::GetNumberOfSubSections() const { return m_SubSections.Size(); }
+size_t VxConfigurationSection::GetNumberOfSubSections() const { return m_SubSections.Size(); }
 
-int VxConfigurationSection::GetNumberOfEntries() const { return m_Entries.Size();}
+size_t VxConfigurationSection::GetNumberOfEntries() const { return m_Entries.Size();}
 
-int VxConfigurationSection::GetNumberOfSubSectionsRecursive() const {
-    int count = m_SubSections.Size();
+size_t VxConfigurationSection::GetNumberOfSubSectionsRecursive() const {
+    size_t count = m_SubSections.Size();
 
     ConstSectionIt it = BeginChildSection();
     VxConfigurationSection *section;
@@ -763,8 +763,8 @@ int VxConfigurationSection::GetNumberOfSubSectionsRecursive() const {
     return count;
 }
 
-int VxConfigurationSection::GetNumberOfEntriesRecursive() const {
-    int count = m_Entries.Size();
+size_t VxConfigurationSection::GetNumberOfEntriesRecursive() const {
+    size_t count = m_Entries.Size();
 
     ConstSectionIt it = BeginChildSection();
     VxConfigurationSection *section;
@@ -775,7 +775,7 @@ int VxConfigurationSection::GetNumberOfEntriesRecursive() const {
     return count;
 }
 
-void VxConfigurationSection::AddEntry(char *ename, const char *evalue, VxConfigurationEntry **result) {
+void VxConfigurationSection::AddEntry(const char *ename, const char *evalue, VxConfigurationEntry **result) {
     if (!ename) return;
 
     VxConfigurationEntry *entry = GetEntry(ename);
@@ -792,7 +792,7 @@ void VxConfigurationSection::AddEntry(char *ename, const char *evalue, VxConfigu
         *result = entry;
 }
 
-void VxConfigurationSection::AddEntry(char *ename, int evalue, VxConfigurationEntry **result) {
+void VxConfigurationSection::AddEntry(const char *ename, int evalue, VxConfigurationEntry **result) {
     if (!ename) return;
 
     VxConfigurationEntry *entry = GetEntry(ename);
@@ -808,7 +808,7 @@ void VxConfigurationSection::AddEntry(char *ename, int evalue, VxConfigurationEn
         *result = entry;
 }
 
-void VxConfigurationSection::AddEntry(char *ename, long evalue, VxConfigurationEntry **result) {
+void VxConfigurationSection::AddEntry(const char *ename, long evalue, VxConfigurationEntry **result) {
     if (!ename) return;
 
     VxConfigurationEntry *entry = GetEntry(ename);
@@ -825,7 +825,7 @@ void VxConfigurationSection::AddEntry(char *ename, long evalue, VxConfigurationE
         *result = entry;
 }
 
-void VxConfigurationSection::AddEntry(char *ename, unsigned int evalue, VxConfigurationEntry **result) {
+void VxConfigurationSection::AddEntry(const char *ename, unsigned int evalue, VxConfigurationEntry **result) {
     if (!ename) return;
 
     VxConfigurationEntry *entry = GetEntry(ename);
@@ -842,7 +842,7 @@ void VxConfigurationSection::AddEntry(char *ename, unsigned int evalue, VxConfig
         *result = entry;
 }
 
-void VxConfigurationSection::AddEntry(char *ename, unsigned long evalue, VxConfigurationEntry **result) {
+void VxConfigurationSection::AddEntry(const char *ename, unsigned long evalue, VxConfigurationEntry **result) {
     if (!ename) return;
 
     VxConfigurationEntry *entry = GetEntry(ename);
@@ -859,7 +859,7 @@ void VxConfigurationSection::AddEntry(char *ename, unsigned long evalue, VxConfi
         *result = entry;
 }
 
-void VxConfigurationSection::AddEntry(char *ename, float evalue, VxConfigurationEntry **result) {
+void VxConfigurationSection::AddEntry(const char *ename, float evalue, VxConfigurationEntry **result) {
     if (!ename) return;
 
     VxConfigurationEntry *entry = GetEntry(ename);
@@ -876,7 +876,7 @@ void VxConfigurationSection::AddEntry(char *ename, float evalue, VxConfiguration
         *result = entry;
 }
 
-VxConfigurationSection *VxConfigurationSection::CreateSubSection(char *sname) {
+VxConfigurationSection *VxConfigurationSection::CreateSubSection(const char *sname) {
     if (!sname) return NULL;
 
     VxConfigurationSection *section = GetSubSection(sname);
@@ -888,7 +888,7 @@ VxConfigurationSection *VxConfigurationSection::CreateSubSection(char *sname) {
     return section;
 }
 
-XBOOL VxConfigurationSection::DeleteEntry(char *ename) {
+XBOOL VxConfigurationSection::DeleteEntry(const char *ename) {
     if (!ename) return FALSE;
 
     VxConfigurationEntry *entry = GetEntry(ename);
@@ -900,7 +900,7 @@ XBOOL VxConfigurationSection::DeleteEntry(char *ename) {
     return TRUE;
 }
 
-XBOOL VxConfigurationSection::DeleteSection(char *sname) {
+XBOOL VxConfigurationSection::DeleteSection(const char *sname) {
     if (!sname) return FALSE;
 
     VxConfigurationSection *section = GetSubSection(sname);
@@ -913,7 +913,7 @@ XBOOL VxConfigurationSection::DeleteSection(char *sname) {
     return TRUE;
 }
 
-VxConfigurationEntry *VxConfigurationSection::RemoveEntry(char *ename) {
+VxConfigurationEntry *VxConfigurationSection::RemoveEntry(const char *ename) {
     if (!ename) return NULL;
 
     VxConfigurationEntry *entry = GetEntry(ename);
@@ -955,7 +955,7 @@ static void CopySection(VxConfigurationSection *source, VxConfigurationSection *
     }
 }
 
-VxConfigurationSection *VxConfigurationSection::RemoveSection(char *sname) {
+VxConfigurationSection *VxConfigurationSection::RemoveSection(const char *sname) {
     if (!sname) return NULL;
 
     VxConfigurationSection *section = GetSubSection(sname);
@@ -993,7 +993,7 @@ VxConfigurationSection *VxConfigurationSection::GetNextChildSection(ConstSection
     return section;
 }
 
-VxConfigurationEntry *VxConfigurationSection::GetEntry(char *ename) const {
+VxConfigurationEntry *VxConfigurationSection::GetEntry(const char *ename) const {
     if (!ename) return NULL;
 
     ConstEntryIt it = m_Entries.Find(ename);
@@ -1001,7 +1001,7 @@ VxConfigurationEntry *VxConfigurationSection::GetEntry(char *ename) const {
     return *it;
 }
 
-VxConfigurationSection *VxConfigurationSection::GetSubSection(char *sname) const {
+VxConfigurationSection *VxConfigurationSection::GetSubSection(const char *sname) const {
     if (!sname) return NULL;
 
     ConstSectionIt it = m_SubSections.Find(sname);
@@ -1013,7 +1013,7 @@ const char *VxConfigurationSection::GetName() const { return m_Name.CStr(); }
 
 VxConfigurationSection *VxConfigurationSection::GetParent() const { return m_Parent; }
 
-VxConfigurationSection::VxConfigurationSection(char *name, VxConfigurationSection *parent)
+VxConfigurationSection::VxConfigurationSection(const char *name, VxConfigurationSection *parent)
     : m_Parent(parent), m_Name(name ? name : "") {}
 
 // VxConfigurationEntry implementation
@@ -1127,12 +1127,12 @@ VxConfig::~VxConfig() {
     if (m_CurrentSection) ::RegCloseKey(*(PHKEY) &m_CurrentSection);
 }
 
-void VxConfig::OpenSection(char *iSection, VxConfig::Mode iOpeningMode) {
+void VxConfig::OpenSection(const char *iSection, VxConfig::Mode iOpeningMode) {
     if (m_CurrentSection) ::RegCloseKey(*(PHKEY) &m_CurrentSection);
     ::RegCreateKeyExA(*(PHKEY) &m_VirtoolsSection, iSection, 0, NULL, 0, iOpeningMode, NULL, (PHKEY) &m_CurrentSection, NULL);
 }
 
-void VxConfig::CloseSection(char *iSection) {
+void VxConfig::CloseSection(const char *iSection) {
     if (m_CurrentSection) {
         ::RegCloseKey(*(PHKEY) &m_CurrentSection);
         m_CurrentSection = NULL;
@@ -1144,25 +1144,25 @@ void VxConfig::WriteStringEntry(const char *iKey, const char *iValue) {
         ::RegSetValueExA(*(PHKEY) &m_CurrentSection, iKey, 0, REG_SZ, (LPBYTE) iValue, static_cast<DWORD>(strlen(iValue) + 1));
 }
 
-int VxConfig::ReadStringEntry(char *iKey, char *oData) {
+XDWORD VxConfig::ReadStringEntry(const char *iKey, char *oData) {
     DWORD cbData = 256;
     if (m_CurrentSection && iKey && oData) {
         if (::RegQueryValueExA(*(PHKEY) &m_CurrentSection, iKey, NULL, NULL, (LPBYTE) oData, &cbData) == ERROR_SUCCESS)
-            return (int) cbData;
+            return cbData;
     }
-    return -1;
+    return static_cast<XDWORD>(-1);
 }
 #else
 VxConfig::VxConfig() : m_VirtoolsSection(NULL), m_CurrentSection(NULL) {}
 
 VxConfig::~VxConfig() {}
 
-void VxConfig::OpenSection(char *iSection, VxConfig::Mode iOpeningMode) {
+void VxConfig::OpenSection(const char *iSection, VxConfig::Mode iOpeningMode) {
     (void)iSection;
     (void)iOpeningMode;
 }
 
-void VxConfig::CloseSection(char *iSection) {
+void VxConfig::CloseSection(const char *iSection) {
     (void)iSection;
 }
 
@@ -1171,9 +1171,9 @@ void VxConfig::WriteStringEntry(const char *iKey, const char *iValue) {
     (void)iValue;
 }
 
-int VxConfig::ReadStringEntry(char *iKey, char *oData) {
+XDWORD VxConfig::ReadStringEntry(const char *iKey, char *oData) {
     (void)iKey;
     (void)oData;
-    return -1;
+    return static_cast<XDWORD>(-1);
 }
 #endif

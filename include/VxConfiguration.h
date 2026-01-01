@@ -185,49 +185,49 @@ public:
     VX_EXPORT void Clear();
 
     /// @brief Gets the number of immediate subsections.
-    VX_EXPORT int GetNumberOfSubSections() const;
+    VX_EXPORT size_t GetNumberOfSubSections() const;
 
     /// @brief Gets the number of immediate entries.
-    VX_EXPORT int GetNumberOfEntries() const;
+    VX_EXPORT size_t GetNumberOfEntries() const;
 
     /// @brief Recursively gets the total number of subsections.
-    VX_EXPORT int GetNumberOfSubSectionsRecursive() const;
+    VX_EXPORT size_t GetNumberOfSubSectionsRecursive() const;
 
     /// @brief Recursively gets the total number of entries.
-    VX_EXPORT int GetNumberOfEntriesRecursive() const;
+    VX_EXPORT size_t GetNumberOfEntriesRecursive() const;
 
     /// @brief Adds a string entry to this section.
-    VX_EXPORT void AddEntry(char *ename, const char *evalue, VxConfigurationEntry **result = NULL);
+    VX_EXPORT void AddEntry(const char *ename, const char *evalue, VxConfigurationEntry **result = NULL);
 
     /// @brief Adds an integer entry to this section.
-    VX_EXPORT void AddEntry(char *ename, int evalue, VxConfigurationEntry **result = NULL);
+    VX_EXPORT void AddEntry(const char *ename, int evalue, VxConfigurationEntry **result = NULL);
 
     /// @brief Adds a long integer entry to this section.
-    VX_EXPORT void AddEntry(char *ename, long evalue, VxConfigurationEntry **result = NULL);
+    VX_EXPORT void AddEntry(const char *ename, long evalue, VxConfigurationEntry **result = NULL);
 
     /// @brief Adds an unsigned integer entry to this section.
-    VX_EXPORT void AddEntry(char *ename, unsigned int evalue, VxConfigurationEntry **result = NULL);
+    VX_EXPORT void AddEntry(const char *ename, unsigned int evalue, VxConfigurationEntry **result = NULL);
 
     /// @brief Adds an unsigned long integer entry to this section.
-    VX_EXPORT void AddEntry(char *ename, unsigned long evalue, VxConfigurationEntry **result = NULL);
+    VX_EXPORT void AddEntry(const char *ename, unsigned long evalue, VxConfigurationEntry **result = NULL);
 
     /// @brief Adds a float entry to this section.
-    VX_EXPORT void AddEntry(char *ename, float evalue, VxConfigurationEntry **result = NULL);
+    VX_EXPORT void AddEntry(const char *ename, float evalue, VxConfigurationEntry **result = NULL);
 
     /// @brief Creates a new subsection within this section.
-    VX_EXPORT VxConfigurationSection *CreateSubSection(char *sname);
+    VX_EXPORT VxConfigurationSection *CreateSubSection(const char *sname);
 
     /// @brief Deletes an entry from this section.
-    VX_EXPORT XBOOL DeleteEntry(char *ename);
+    VX_EXPORT XBOOL DeleteEntry(const char *ename);
 
     /// @brief Deletes a subsection and all its contents.
-    VX_EXPORT XBOOL DeleteSection(char *sname);
+    VX_EXPORT XBOOL DeleteSection(const char *sname);
 
     /// @brief Removes an entry from this section without deleting it.
-    VX_EXPORT VxConfigurationEntry *RemoveEntry(char *ename);
+    VX_EXPORT VxConfigurationEntry *RemoveEntry(const char *ename);
 
     /// @brief Removes a subsection from this section without deleting it.
-    VX_EXPORT VxConfigurationSection *RemoveSection(char *sname);
+    VX_EXPORT VxConfigurationSection *RemoveSection(const char *sname);
 
     /// @brief Gets a const iterator to the beginning of this section's entries.
     VX_EXPORT ConstEntryIt BeginChildEntry() const;
@@ -242,10 +242,10 @@ public:
     VX_EXPORT VxConfigurationSection *GetNextChildSection(ConstSectionIt &it) const;
 
     /// @brief Retrieves an entry by name from this section.
-    VX_EXPORT VxConfigurationEntry *GetEntry(char *ename) const;
+    VX_EXPORT VxConfigurationEntry *GetEntry(const char *ename) const;
 
     /// @brief Retrieves a subsection by name from this section.
-    VX_EXPORT VxConfigurationSection *GetSubSection(char *sname) const;
+    VX_EXPORT VxConfigurationSection *GetSubSection(const char *sname) const;
 
     /// @brief Gets the name of the section.
     VX_EXPORT const char *GetName() const;
@@ -255,7 +255,7 @@ public:
 
 protected:
     /// @brief Constructs a VxConfigurationSection.
-    VxConfigurationSection(char *name, VxConfigurationSection *parent);
+    VxConfigurationSection(const char *name, VxConfigurationSection *parent);
 
     VxConfigurationSection *m_Parent; ///< Pointer to the parent section.
     XString m_Name; ///< The name of the section.
@@ -354,16 +354,16 @@ public:
     VX_EXPORT ~VxConfig();
 
     /// @brief Opens a section with a specified access mode.
-    VX_EXPORT void OpenSection(char *iSection, Mode iOpeningMode);
+    VX_EXPORT void OpenSection(const char *iSection, Mode iOpeningMode);
 
     /// @brief Closes a currently open section.
-    VX_EXPORT void CloseSection(char *iSection);
+    VX_EXPORT void CloseSection(const char *iSection);
 
     /// @brief Writes a string value to a key in the current section.
     VX_EXPORT void WriteStringEntry(const char *iKey, const char *iValue);
 
     /// @brief Reads a string value from a key in the current section.
-    VX_EXPORT int ReadStringEntry(char *iKey, char *oData);
+    VX_EXPORT XDWORD ReadStringEntry(const char *iKey, char *oData);
 
 private:
     void *m_VirtoolsSection; ///< A handle or key to the main "Virtools" section, likely in the system registry.
