@@ -21,7 +21,7 @@ CKERROR CKParameter::GetValue(void *buf, CKBOOL update) {
     return CK_OK;
 }
 
-CKERROR CKParameter::SetValue(const void *buf, int size) {
+CKERROR CKParameter::SetValue(const void *buf, size_t size) {
     if (size > 0 && size != m_Size) {
         CKBYTE *oldBuffer = m_Buffer;
         m_Size = size;
@@ -61,7 +61,7 @@ CKBOOL CKParameter::IsCompatibleWith(CKParameter *param) {
     return pm->IsTypeCompatible(GetType(), param->GetType());
 }
 
-int CKParameter::GetDataSize() {
+size_t CKParameter::GetDataSize() {
     return m_Size;
 }
 
@@ -271,7 +271,7 @@ CKStateChunk *CKParameter::Save(CKFile *file, CKDWORD flags) {
                 CKGUID typeGUID = pm->ParameterTypeToGuid(*m_Buffer);
                 chunk->WriteGuid(typeGUID);
             } else {
-                chunk->WriteBuffer(m_Size, m_Buffer);
+                chunk->WriteBuffer((int) m_Size, m_Buffer);
             }
         }
     }
@@ -391,7 +391,7 @@ CKERROR CKParameter::Load(CKStateChunk *chunk, CKFile *file) {
             objID = chunk->ReadObjectID();
         } else {
             chunk->ReadInt();
-            objID = chunk->ReadInt();
+            objID = chunk->ReadDword();
         }
         SetValue(&objID, sizeof(CK_ID));
         return CK_OK;

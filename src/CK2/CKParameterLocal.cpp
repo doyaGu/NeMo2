@@ -48,7 +48,7 @@ void CKParameterLocal::SetOwner(CKObject *o) {
     }
 }
 
-CKERROR CKParameterLocal::SetValue(const void *buf, int size) {
+CKERROR CKParameterLocal::SetValue(const void *buf, size_t size) {
     if (m_ObjectFlags & CK_PARAMETERIN_THIS) {
         return CKERR_INVALIDPARAMETER;
     }

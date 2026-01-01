@@ -30,7 +30,7 @@ public:
     CKBOOL IsMyselfParameter() { return (m_ObjectFlags & CK_PARAMETERIN_THIS); }
 
     virtual void SetOwner(CKObject *o);
-    virtual CKERROR SetValue(const void *buf, int size = 0);
+    virtual CKERROR SetValue(const void *buf, size_t size = 0);
     virtual CKERROR CopyValue(CKParameter *param, CKBOOL UpdateParam = TRUE);
 
     virtual void *GetWriteDataPtr();

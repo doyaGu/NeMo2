@@ -13,7 +13,7 @@ CKERROR CKParameterOut::GetValue(void *buf, CKBOOL update) {
     return CKParameter::GetValue(buf, FALSE);
 }
 
-CKERROR CKParameterOut::SetValue(const void *buf, int size) {
+CKERROR CKParameterOut::SetValue(const void *buf, size_t size) {
     CKERROR err = CKParameter::SetValue(buf, size);
     if (err == CK_OK) {
         DataChanged();

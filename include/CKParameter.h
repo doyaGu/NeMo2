@@ -31,14 +31,14 @@ public:
     DLL_EXPORT CKObject *GetValueObject(CKBOOL update = TRUE);
 
     virtual CKERROR GetValue(void *buf, CKBOOL update = TRUE);
-    virtual CKERROR SetValue(const void *buf, int size = 0);
+    virtual CKERROR SetValue(const void *buf, size_t size = 0);
     virtual CKERROR CopyValue(CKParameter *param, CKBOOL UpdateParam = TRUE);
 
     DLL_EXPORT CKBOOL IsCompatibleWith(CKParameter *param);
 
     //--------------------------------------------
     // Data pointer
-    DLL_EXPORT int GetDataSize();
+    DLL_EXPORT size_t GetDataSize();
     virtual void *GetReadDataPtr(CKBOOL update = TRUE);
     virtual void *GetWriteDataPtr();
 
@@ -110,7 +110,7 @@ public:
 protected:
     CKObject *m_Owner;
     CKParameterTypeDesc *m_ParamType;
-    int m_Size;
+    size_t m_Size;
 
     union
     {
