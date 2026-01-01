@@ -1493,7 +1493,7 @@ static void CopyLine_32BGRA_32ARGB_SSE(const VxBlitInfo *info) {
 }
 
 // SSE2: Premultiply alpha (ARGB) using accurate division by 255
-// Uses the formula: (c * a + 127) / 255 ≈ (c * a + 128 + ((c * a + 128) >> 8)) >> 8
+// Uses the formula: (c * a + 127) / 255 ~= (c * a + 128 + ((c * a + 128) >> 8)) >> 8
 static void PremultiplyAlpha_32ARGB_SSE(const VxBlitInfo *info) {
     const XDWORD *src = (const XDWORD *)info->srcLine;
     XDWORD *dst = (XDWORD *)info->dstLine;
@@ -2759,7 +2759,7 @@ void VxBlitEngine::DoBlitWithResize(const VxImageDescEx &src_desc, const VxImage
 
     // Ensure resize buffer is large enough
     int bufferSize = src_desc.Width + dst_desc.Width + 1;
-    if (m_ResizeBuffer.Size() < bufferSize) {
+    if (m_ResizeBuffer.Size() < static_cast<size_t>(bufferSize)) {
         m_ResizeBuffer.Reserve(bufferSize);
     }
 
