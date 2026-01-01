@@ -81,7 +81,7 @@ void RCKVertexBuffer::Unlock(CKRenderContext *Ctx) {
     }
 }
 
-CKBOOL RCKVertexBuffer::Draw(CKRenderContext *Ctx, VXPRIMITIVETYPE pType, CKWORD *Indices, int IndexCount, CKDWORD StartVertex, CKDWORD VertexCount) {
+CKBOOL RCKVertexBuffer::Draw(CKRenderContext *Ctx, VXPRIMITIVETYPE pType, CKWORD *Indices, CKDWORD IndexCount, CKDWORD StartVertex, CKDWORD VertexCount) {
     CKRasterizerContext *rstCtx = Ctx->GetRasterizerContext();
 
     if (VertexCount == 0)
@@ -94,7 +94,7 @@ CKBOOL RCKVertexBuffer::Draw(CKRenderContext *Ctx, VXPRIMITIVETYPE pType, CKWORD
     }
 
     if (!Indices)
-        IndexCount = (int) VertexCount;
+        IndexCount = VertexCount;
 
     VxStats &stats = ((RCKRenderContext *) Ctx)->GetStats();
     switch (pType) {

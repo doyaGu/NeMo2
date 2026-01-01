@@ -109,7 +109,7 @@ public:
         Ctx: A pointer to a CKRenderContext on which this vertex buffer should be used.
         pType: Type of primitive to draw.
         Indices: A pointer to a list of WORD that will be used as indices to vertices or NULL.
-        Indexcount: Number of indices
+        IndexCount: Number of indices
         StartVertex: Index of the first vertex to be locked.
         VertexCount: Number of vertices to be locked.
     Return Value:
@@ -121,7 +121,7 @@ public:
     method.
     See also:Custom Rendering,VXPRIMITIVETYPE,CKRenderContext::DrawPrimitive
     ************************************************************/
-    virtual CKBOOL Draw(CKRenderContext *Ctx, VXPRIMITIVETYPE pType, CKWORD *Indices, int Indexcount, CKDWORD StartVertex, CKDWORD VertexCount) = 0;
+    virtual CKBOOL Draw(CKRenderContext *Ctx, VXPRIMITIVETYPE pType, CKWORD *Indices, CKDWORD IndexCount, CKDWORD StartVertex, CKDWORD VertexCount) = 0;
 };
 
 #endif // CKVERTEXBUFFER_H

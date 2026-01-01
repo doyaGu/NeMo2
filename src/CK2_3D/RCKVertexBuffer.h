@@ -19,7 +19,7 @@ public:
 
     void Unlock(CKRenderContext *Ctx) override;
 
-    CKBOOL Draw(CKRenderContext *Ctx, VXPRIMITIVETYPE pType, CKWORD *Indices, int IndexCount, CKDWORD StartVertex, CKDWORD VertexCount) override;
+    CKBOOL Draw(CKRenderContext *Ctx, VXPRIMITIVETYPE pType, CKWORD *Indices, CKDWORD IndexCount, CKDWORD StartVertex, CKDWORD VertexCount) override;
 
 protected:
     CKDWORD m_ObjectIndex;
