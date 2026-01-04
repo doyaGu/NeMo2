@@ -1097,7 +1097,7 @@ TEST_F(UtilityFunctionTest, VxIndexedCopy_4Bytes) {
 
     uint32_t src_data[] = {0x41414141, 0x42424242, 0x43434343, 0x44444444}; // AAAA, BBBB, CCCC, DDDD
     uint32_t dst_data[4];
-    size_t indices[] = {3, 0, 2, 1}; // Copy D, A, C, B
+    XDWORD indices[] = {3, 0, 2, 1}; // Copy D, A, C, B
 
     src.Ptr = src_data;
     src.Stride = sizeof(uint32_t);
@@ -1121,7 +1121,7 @@ TEST_F(UtilityFunctionTest, VxIndexedCopy_8Bytes) {
 
     TestData src_data[] = {{0x11, 0x12}, {0x21, 0x22}, {0x31, 0x32}};
     TestData dst_data[3];
-    size_t indices[] = {2, 0, 1}; // Copy element 2, 0, 1
+    XDWORD indices[] = {2, 0, 1}; // Copy element 2, 0, 1
 
     src.Ptr = src_data;
     src.Stride = sizeof(TestData);
@@ -1154,7 +1154,7 @@ TEST_F(UtilityFunctionTest, VxIndexedCopy_WithStride) {
 
     SrcStruct src_data[] = {{0x111, 0, 0}, {0x222, 0, 0}, {0x333, 0, 0}};
     DstStruct dst_data[3];
-    size_t indices[] = {1, 2, 0};
+    XDWORD indices[] = {1, 2, 0};
 
     src.Ptr = src_data;
     src.Stride = sizeof(SrcStruct);
@@ -1171,7 +1171,7 @@ TEST_F(UtilityFunctionTest, VxIndexedCopy_WithStride) {
 TEST_F(UtilityFunctionTest, VxIndexedCopy_InvalidParams) {
     VxStridedData src, dst;
     uint32_t src_data[4], dst_data[4];
-    size_t indices[] = {0, 1, 2, 3};
+    XDWORD indices[] = {0, 1, 2, 3};
 
     src.Ptr = src_data;
     src.Stride = 4;

@@ -1,6 +1,5 @@
 #include "VxBlitEngine.h"
 
-#include <stdlib.h>
 #include <algorithm>
 
 #include "VxMath.h"
