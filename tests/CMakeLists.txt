@@ -31,4 +31,3 @@ set_target_properties(gtest gtest_main gmock gmock_main PROPERTIES
 # =============================================================================
 
 add_subdirectory(VxMath)
-add_subdirectory(CK2)
