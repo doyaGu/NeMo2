@@ -283,11 +283,9 @@ public:
     //----------------------------------------------------------------
     //--- Primitive Drawing (From system memory data or Vertex buffer)
     // At least a system memory (DrawPrimitive) version must be supported by an implementation
-    virtual CKBOOL DrawPrimitive(VXPRIMITIVETYPE pType, CKWORD *indices, int indexcount, VxDrawPrimitiveData *data) { return FALSE; }
-    virtual CKBOOL DrawPrimitiveVB(VXPRIMITIVETYPE pType, CKDWORD VertexBuffer, CKDWORD StartIndex, CKDWORD VertexCount,
-                                   CKWORD *indices = NULL, int indexcount = NULL) { return FALSE; }
-    virtual CKBOOL DrawPrimitiveVBIB(VXPRIMITIVETYPE pType, CKDWORD VB, CKDWORD IB, CKDWORD MinVIndex, CKDWORD VertexCount,
-                                     CKDWORD StartIndex, int Indexcount) { return FALSE; }
+    virtual CKBOOL DrawPrimitive(VXPRIMITIVETYPE pType, CKWORD *indices, CKDWORD IndexCount, VxDrawPrimitiveData *data) { return FALSE; }
+    virtual CKBOOL DrawPrimitiveVB(VXPRIMITIVETYPE pType, CKDWORD VertexBuffer, CKDWORD StartIndex, CKDWORD VertexCount, CKWORD *indices = NULL, CKDWORD IndexCount = NULL) { return FALSE; }
+    virtual CKBOOL DrawPrimitiveVBIB(VXPRIMITIVETYPE pType, CKDWORD VB, CKDWORD IB, CKDWORD MinVIndex, CKDWORD VertexCount, CKDWORD StartIndex, CKDWORD IndexCount) { return FALSE; }
 
     //-------------------------------------------------------------
     //--- Creation of Textures, Sprites and Vertex Buffer
