@@ -2,6 +2,8 @@
 #define VXMEMORY_H
 
 #include <stddef.h>
+#include <limits.h>
+
 #include <new>
 
 #include "VxMathCompiler.h"
