@@ -12,7 +12,7 @@ add_subdirectory(CK2_3D)
 
 # Export all library targets together
 install(EXPORT NeMo2Targets
-    FILE NeMo2Targets.cmake
-    NAMESPACE NeMo2::
-    DESTINATION "${NEMO_INSTALL_CMAKEDIR}"
+        FILE NeMo2Targets.cmake
+        NAMESPACE NeMo2::
+        DESTINATION "${NEMO_INSTALL_CMAKEDIR}"
 )

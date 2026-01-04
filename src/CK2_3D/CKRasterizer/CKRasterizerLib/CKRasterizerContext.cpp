@@ -503,7 +503,7 @@ CKBOOL CKRasterizerContext::CreateSprite(CKDWORD Sprite, CKSpriteDesc *DesiredFo
     } else {
         short x = 0;
         short w = (short) width;
-        for (CKSPRTextInfo *pti = &wti[0]; w >= minTextureWidth && wc < 15; ++pti) {
+        for (CKSPRTextInfo *pti = &wti[0]; w >= (short) minTextureWidth && wc < 15; ++pti) {
             sw = (short) (1 << widthMsb);
 
             pti->x = x;
@@ -557,7 +557,7 @@ CKBOOL CKRasterizerContext::CreateSprite(CKDWORD Sprite, CKSpriteDesc *DesiredFo
     } else {
         short y = 0;
         short h = (short) height;
-        for (CKSPRTextInfo *pti = &hti[0]; h >= minHeight && hc < 15; ++pti) {
+        for (CKSPRTextInfo *pti = &hti[0]; h >= (short)minHeight && hc < 15; ++pti) {
             sh = (short) (1 << heightMsb);
 
             pti->y = y;
