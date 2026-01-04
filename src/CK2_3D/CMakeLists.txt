@@ -7,8 +7,6 @@ set(CKRE_PUBLIC_HEADERS)
 set(CKRE_PRIVATE_HEADERS
     CKRenderEngineTypes.h
     CKRenderEngineEnums.h
-    CKDebugLogger.h
-    CKException.h
     MeshAdjacency.h
     RadixSort.h
     MeshStriper.h
@@ -53,8 +51,6 @@ set(CKRE_PRIVATE_HEADERS
 
 set(CKRE_SOURCES
     CK2_3D.cpp
-    CKDebugLogger.cpp
-    CKException.cpp
     CKRenderManager.cpp
     CKRenderContext.cpp
     CKCallbacksContainer.cpp

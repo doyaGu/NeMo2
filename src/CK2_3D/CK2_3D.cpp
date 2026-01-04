@@ -9,7 +9,6 @@
 #include "CKGlobals.h"
 #include "CKPluginManager.h"
 #include "CKRasterizer.h"
-#include "CKException.h"
 
 #include "RCKRenderManager.h"
 #include "RCKRenderContext.h"
@@ -188,10 +187,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved) {
     switch (fdwReason) {
     case DLL_PROCESS_ATTACH:
         g_DllHandle = hModule;
-        CKInstallExceptionHandler();
         break;
     case DLL_PROCESS_DETACH:
-        CKRemoveExceptionHandler();
         ReleaseRasterizers();
         break;
     default:
