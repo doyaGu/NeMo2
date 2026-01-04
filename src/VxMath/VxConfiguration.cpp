@@ -10,6 +10,9 @@
 #include <Windows.h>
 #endif
 
+/// @brief Removes leading and trailing whitespace from a string.
+char *Shrink(char *str);
+
 VxConfiguration::VxConfiguration(unsigned short indent) : m_Root(NULL), m_DefaultRoot(NULL), m_Indent(indent) {
     m_Root = new VxConfigurationSection("root", NULL);
 }
@@ -31,23 +34,23 @@ void VxConfiguration::ClearDefault() {
     }
 }
 
-int VxConfiguration::GetNumberOfSubSections() const {
+size_t VxConfiguration::GetNumberOfSubSections() const {
     return m_Root ? m_Root->GetNumberOfSubSections() : 0;
 }
 
-int VxConfiguration::GetNumberOfEntries() const {
+size_t VxConfiguration::GetNumberOfEntries() const {
     return m_Root ? m_Root->GetNumberOfEntries() : 0;
 }
 
-int VxConfiguration::GetNumberOfSubSectionsRecursive() const {
+size_t VxConfiguration::GetNumberOfSubSectionsRecursive() const {
     return m_Root ? m_Root->GetNumberOfSubSectionsRecursive() : 0;
 }
 
-int VxConfiguration::GetNumberOfEntriesRecursive() const {
+size_t VxConfiguration::GetNumberOfEntriesRecursive() const {
     return m_Root ? m_Root->GetNumberOfEntriesRecursive() : 0;
 }
 
-XBOOL VxConfiguration::AddEntry(char *parent, char *ename, const char *evalue, VxConfigurationEntry **result) {
+XBOOL VxConfiguration::AddEntry(const char *parent, const char *ename, const char *evalue, VxConfigurationEntry **result) {
     if (!ename) return FALSE;
     
     if (!parent) {
@@ -66,7 +69,7 @@ XBOOL VxConfiguration::AddEntry(char *parent, char *ename, const char *evalue, V
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddEntry(char *parent, char *ename, int evalue, VxConfigurationEntry **result) {
+XBOOL VxConfiguration::AddEntry(const char *parent, const char *ename, int evalue, VxConfigurationEntry **result) {
     if (!ename) return FALSE;
     
     if (!parent) {
@@ -85,7 +88,7 @@ XBOOL VxConfiguration::AddEntry(char *parent, char *ename, int evalue, VxConfigu
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddEntry(char *parent, char *ename, long evalue, VxConfigurationEntry **result) {
+XBOOL VxConfiguration::AddEntry(const char *parent, const char *ename, long evalue, VxConfigurationEntry **result) {
     if (!ename) return FALSE;
     
     if (!parent) {
@@ -104,7 +107,7 @@ XBOOL VxConfiguration::AddEntry(char *parent, char *ename, long evalue, VxConfig
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddEntry(char *parent, char *ename, unsigned int evalue, VxConfigurationEntry **result) {
+XBOOL VxConfiguration::AddEntry(const char *parent, const char *ename, unsigned int evalue, VxConfigurationEntry **result) {
     if (!ename) return FALSE;
     
     if (!parent) {
@@ -123,7 +126,7 @@ XBOOL VxConfiguration::AddEntry(char *parent, char *ename, unsigned int evalue, 
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddEntry(char *parent, char *ename, unsigned long evalue, VxConfigurationEntry **result) {
+XBOOL VxConfiguration::AddEntry(const char *parent, const char *ename, unsigned long evalue, VxConfigurationEntry **result) {
     if (!ename) return FALSE;
     
     if (!parent) {
@@ -142,7 +145,7 @@ XBOOL VxConfiguration::AddEntry(char *parent, char *ename, unsigned long evalue,
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddEntry(char *parent, char *ename, float evalue, VxConfigurationEntry **result) {
+XBOOL VxConfiguration::AddEntry(const char *parent, const char *ename, float evalue, VxConfigurationEntry **result) {
     if (!ename) return FALSE;
     
     if (!parent) {
@@ -161,7 +164,7 @@ XBOOL VxConfiguration::AddEntry(char *parent, char *ename, float evalue, VxConfi
     return FALSE;
 }
 
-VxConfigurationSection *VxConfiguration::CreateSubSection(char *parent, char *sname) {
+VxConfigurationSection *VxConfiguration::CreateSubSection(const char *parent, const char *sname) {
     if (!sname) return NULL;
     
     if (!parent && m_Root)
@@ -175,7 +178,7 @@ VxConfigurationSection *VxConfiguration::CreateSubSection(char *parent, char *sn
     return NULL;
 }
 
-XBOOL VxConfiguration::DeleteEntry(char *parent, char *ename) {
+XBOOL VxConfiguration::DeleteEntry(const char *parent, const char *ename) {
     if (!parent && m_Root)
         return m_Root->DeleteEntry(ename);
 
@@ -187,7 +190,7 @@ XBOOL VxConfiguration::DeleteEntry(char *parent, char *ename) {
     return FALSE;
 }
 
-XBOOL VxConfiguration::DeleteSection(char *parent, char *sname) {
+XBOOL VxConfiguration::DeleteSection(const char *parent, const char *sname) {
     if (!parent && m_Root)
         return m_Root->DeleteSection(sname);
 
@@ -199,7 +202,7 @@ XBOOL VxConfiguration::DeleteSection(char *parent, char *sname) {
     return FALSE;
 }
 
-VxConfigurationEntry *VxConfiguration::RemoveEntry(char *parent, char *ename) {
+VxConfigurationEntry *VxConfiguration::RemoveEntry(const char *parent, const char *ename) {
     if (!parent && m_Root)
         return m_Root->RemoveEntry(ename);
 
@@ -211,7 +214,7 @@ VxConfigurationEntry *VxConfiguration::RemoveEntry(char *parent, char *ename) {
     return NULL;
 }
 
-VxConfigurationSection *VxConfiguration::RemoveSection(char *parent, char *sname) {
+VxConfigurationSection *VxConfiguration::RemoveSection(const char *parent, const char *sname) {
     if (!parent && m_Root)
         return m_Root->RemoveSection(sname);
 
@@ -223,7 +226,7 @@ VxConfigurationSection *VxConfiguration::RemoveSection(char *parent, char *sname
     return NULL;
 }
 
-XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, const char *evalue) {
+XBOOL VxConfiguration::AddDefaultEntry(const char *parent, const char *ename, const char *evalue) {
     if (!m_DefaultRoot)
         m_DefaultRoot = new VxConfigurationSection("default", NULL);
 
@@ -241,7 +244,7 @@ XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, const char *ev
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, int evalue) {
+XBOOL VxConfiguration::AddDefaultEntry(const char *parent, const char *ename, int evalue) {
     if (!m_DefaultRoot)
         m_DefaultRoot = new VxConfigurationSection("default", NULL);
 
@@ -259,7 +262,7 @@ XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, int evalue) {
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, long evalue) {
+XBOOL VxConfiguration::AddDefaultEntry(const char *parent, const char *ename, long evalue) {
     if (!m_DefaultRoot)
         m_DefaultRoot = new VxConfigurationSection("default", NULL);
 
@@ -277,7 +280,7 @@ XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, long evalue) {
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, unsigned int evalue) {
+XBOOL VxConfiguration::AddDefaultEntry(const char *parent, const char *ename, unsigned int evalue) {
     if (!m_DefaultRoot)
         m_DefaultRoot = new VxConfigurationSection("default", NULL);
 
@@ -295,7 +298,7 @@ XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, unsigned int e
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, unsigned long evalue) {
+XBOOL VxConfiguration::AddDefaultEntry(const char *parent, const char *ename, unsigned long evalue) {
     if (!m_DefaultRoot)
         m_DefaultRoot = new VxConfigurationSection("default", NULL);
 
@@ -313,7 +316,7 @@ XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, unsigned long 
     return FALSE;
 }
 
-XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, float evalue) {
+XBOOL VxConfiguration::AddDefaultEntry(const char *parent, const char *ename, float evalue) {
     if (!m_DefaultRoot)
         m_DefaultRoot = new VxConfigurationSection("default", NULL);
 
@@ -331,7 +334,7 @@ XBOOL VxConfiguration::AddDefaultEntry(char *parent, char *ename, float evalue) 
     return FALSE;
 }
 
-VxConfigurationSection *VxConfiguration::CreateDefaultSubSection(char *parent, char *sname) {
+VxConfigurationSection *VxConfiguration::CreateDefaultSubSection(const char *parent, const char *sname) {
     if (!parent) {
         if (!m_DefaultRoot)
             m_DefaultRoot = new VxConfigurationSection("default", NULL);
@@ -363,7 +366,7 @@ VxConfigurationEntry *VxConfiguration::GetNextEntry(ConstEntryIt &it) const {
     return m_Root ? m_Root->GetNextChildEntry(it) : NULL;
 }
 
-VxConfigurationSection *VxConfiguration::GetSubSection(char *sname, XBOOL usedot) const {
+VxConfigurationSection *VxConfiguration::GetSubSection(const char *sname, XBOOL usedot) const {
     if (!sname) return NULL;
     
     VxConfigurationSection *section = NULL;
@@ -377,7 +380,7 @@ VxConfigurationSection *VxConfiguration::GetSubSection(char *sname, XBOOL usedot
     return section;
 }
 
-VxConfigurationEntry *VxConfiguration::GetEntry(char *ename, XBOOL usedot) const {
+VxConfigurationEntry *VxConfiguration::GetEntry(const char *ename, XBOOL usedot) const {
     if (!ename) return NULL;
     
     if (!usedot) {
@@ -571,7 +574,7 @@ XBOOL VxConfiguration::SaveToFile(const char *name) {
     return success ? TRUE : FALSE;
 }
 
-VxConfigurationSection *VxConfiguration::CreateSubSection(VxConfigurationSection *root, char *sname, XBOOL usedot) const {
+VxConfigurationSection *VxConfiguration::CreateSubSection(VxConfigurationSection *root, const char *sname, XBOOL usedot) const {
     if (!root || !sname) return NULL;
 
     if (!usedot) return root->CreateSubSection(sname);
@@ -596,7 +599,7 @@ VxConfigurationSection *VxConfiguration::CreateSubSection(VxConfigurationSection
     return CreateSubSection(section, &sectionPath[dotPos + 1], TRUE);
 }
 
-VxConfigurationSection *VxConfiguration::GetSubSection(VxConfigurationSection *root, char *sname, XBOOL usedot) const {
+VxConfigurationSection *VxConfiguration::GetSubSection(VxConfigurationSection *root, const char *sname, XBOOL usedot) const {
     if (!root || !sname) return NULL;
 
     if (!usedot) return root->GetSubSection(sname);
@@ -608,7 +611,7 @@ VxConfigurationSection *VxConfiguration::GetSubSection(VxConfigurationSection *r
 
     // Extract the first section name
     sectionPath[dotPos] = '\0';
-    char *firstSection = sectionPath.Str();
+    const char *firstSection = sectionPath.CStr();
 
     // Get the first section
     VxConfigurationSection *section = root->GetSubSection(firstSection);
@@ -618,33 +621,38 @@ VxConfigurationSection *VxConfiguration::GetSubSection(VxConfigurationSection *r
     return GetSubSection(section, &sectionPath[dotPos + 1], TRUE);
 }
 
-XBOOL VxConfiguration::ManageSection(char *line, VxConfigurationSection **current, XString &error) {
+XBOOL VxConfiguration::ManageSection(const char *line, VxConfigurationSection **current, XString &error) {
     if (!line || !current || !m_Root) return FALSE;
 
+    char *lineCopy = new char[strlen(line) + 1];
+    strcpy(lineCopy, line);
+
     // Remove leading and trailing spaces
-    line = Shrink(line);
+    lineCopy = Shrink(lineCopy);
 
     // Check for closing tag format </SectionName>
-    size_t len = strlen(line);
-    if (len > 3 && line[0] == '<' && line[1] == '/' && line[len - 1] == '>') {
+    size_t len = strlen(lineCopy);
+    if (len > 3 && lineCopy[0] == '<' && lineCopy[1] == '/' && lineCopy[len - 1] == '>') {
         // This is a closing tag, return to parent section
         if (*current && (*current)->GetParent()) {
             *current = (*current)->GetParent();
         } else {
             *current = m_Root;
         }
+        delete[] lineCopy;
         return TRUE;
     }
 
     // Check for opening tag format <SectionName>
-    if (len < 3 || line[0] != '<' || line[len - 1] != '>') {
+    if (len < 3 || lineCopy[0] != '<' || lineCopy[len - 1] != '>') {
         error = "Invalid section format: ";
-        error += line;
+        error += lineCopy;
+        delete[] lineCopy;
         return FALSE;
     }
 
     XString sectionNameStr(line + 1, len - 2);  // Skip brackets, copy substring
-    char *sectionName = sectionNameStr.Str();
+    const char *sectionName = sectionNameStr.CStr();
 
     // Handle dot notation in sections
     XString section(sectionName);
@@ -659,6 +667,7 @@ XBOOL VxConfiguration::ManageSection(char *line, VxConfigurationSection **curren
             if (!*current) {
                 error = "Failed to create section: ";
                 error += sectionName;
+                delete[] lineCopy;
                 return FALSE;
             }
         }
@@ -670,41 +679,49 @@ XBOOL VxConfiguration::ManageSection(char *line, VxConfigurationSection **curren
             if (!*current) {
                 error = "Failed to create hierarchical section: ";
                 error += sectionName;
+                delete[] lineCopy;
                 return FALSE;
             }
         }
     }
 
+    delete[] lineCopy;
     return TRUE;
 }
 
-XBOOL VxConfiguration::ManageEntry(char *line, VxConfigurationSection *current, XString &error) {
+XBOOL VxConfiguration::ManageEntry(const char *line, VxConfigurationSection *current, XString &error) {
     if (!line || !current) return FALSE;
 
+    char *lineCopy = new char[strlen(line) + 1];
+    strcpy(lineCopy, line);
+
     // Remove leading and trailing spaces
-    line = Shrink(line);
+    lineCopy = Shrink(lineCopy);
 
     // Find key-value separator
-    char *separator = strchr(line, '=');
+    char *separator = strchr(lineCopy, '=');
     if (!separator) {
         error = "Invalid entry format (missing '='): ";
-        error += line;
+        error += lineCopy;
+        delete[] lineCopy;
         return FALSE;
     }
 
     // Split line into key and value
     *separator = '\0';
-    char *key = Shrink(line);
+    char *key = Shrink(lineCopy);
     char *value = Shrink(separator + 1);
 
     if (!key || !*key) {
         error = "Empty key in entry: ";
-        error += line;
+        error += lineCopy;
+        delete[] lineCopy;
         return FALSE;
     }
 
     // Add the entry to the current section
     current->AddEntry(key, value ? value : "");
+    delete[] lineCopy;
     return TRUE;
 }
 
