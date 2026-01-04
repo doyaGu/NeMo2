@@ -129,10 +129,15 @@ set_target_properties(VxMath PROPERTIES
 
 target_compile_definitions(VxMath PRIVATE VX_API)
 
+# MSVC on x64 implicitly enables SSSE3; GCC/Clang need explicit flag
+target_compile_options(VxMath PRIVATE
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-mssse3>
+)
+
 target_include_directories(VxMath
     PUBLIC
         $<BUILD_INTERFACE:${NEMO_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
