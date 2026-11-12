@@ -25,6 +25,11 @@ if (PROJECT_IS_TOP_LEVEL)
 endif ()
 
 if (BUILD_TESTING)
+    add_test(NAME NeMo2RuntimeManifest
+            COMMAND "${CMAKE_COMMAND}"
+            "-DTEST_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+            "-DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/Testing"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestRuntimeComponentSelection.cmake")
     if (VXMATH_FONT_DIR)
         get_filename_component(_nemo_font_directory "${VXMATH_FONT_DIR}" ABSOLUTE)
     else ()

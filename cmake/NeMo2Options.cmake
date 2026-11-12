@@ -39,14 +39,16 @@ endif ()
 nemo_set_cache_default(CKBB_INSTALL ON BOOL "")
 nemo_set_cache_default(CKBB_BUILD_TESTS ${NEMO_BUILD_TESTS} BOOL "")
 
-if (CKBB_BUILD_TESTS AND NOT CKRE_BUILD_STATIC)
-    message(STATUS "[NeMo2] Enabling CKRE_BUILD_STATIC for physics host tests")
+include(NeMo2TestDependencies)
+nemo_bb_test_dependencies(_nemo_bb_test_dependencies)
+if ("renderengine" IN_LIST _nemo_bb_test_dependencies AND NOT CKRE_BUILD_STATIC)
+    message(STATUS "[NeMo2] Enabling CKRE_BUILD_STATIC for selected BB tests")
     set(CKRE_BUILD_STATIC ON CACHE BOOL "Build static library" FORCE)
 endif ()
 
 # Internal engine and physics tests need CK2's unexported APIs and globals.
 # Choose that dependency before Source/ adds CK2 and the render engine.
-if ((CKRE_BUILD_TESTS OR CKBB_BUILD_TESTS) AND NOT CK2_BUILD_STATIC)
+if ((CKRE_BUILD_TESTS OR "ck2" IN_LIST _nemo_bb_test_dependencies) AND NOT CK2_BUILD_STATIC)
     message(STATUS "[NeMo2] Enabling CK2_BUILD_STATIC for module tests")
     set(CK2_BUILD_STATIC ON CACHE BOOL "Build CK2 as a static library" FORCE)
 endif ()

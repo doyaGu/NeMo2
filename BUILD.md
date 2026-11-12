@@ -97,6 +97,25 @@ composition, and pass `GetDefaultRegistryPath()` when constructing host game
 info. The logical registry path is independent of the profile's filesystem
 location.
 
+Independent contexts can use explicit files without changing the process profile:
+
+```cpp
+VxConfig config(VXCONFIG_ROOT_CURRENT_USER, "Software\\Sample", registryFile);
+```
+
+The filename is copied and remains selected across `OpenRoot` calls. A null or
+empty filename retains the existing profile lookup. Create the parent directory
+before writing. TT hosts can select a file on each context's InterfaceManager
+with `SetRegistryFile`; all its registry behaviors use that file.
+
+Rendering hosts can call `CKSetRenderSettingsFile(context, iniFile)` from
+`CKRenderConfiguration.h` after the render manager exists and before creating
+render contexts. The file is parsed into context-owned storage, and a failed
+load preserves the previous settings. Passing null restores the legacy file
+lookup. The selected options and defaults apply to future resources; existing
+resources keep their properties. Low-level aggregate diagnostic counters and
+the debug output sink retain their process-wide lifetime.
+
 ## Incremental builds and CI
 
 Keep a configured build directory when updating engine sources or application
@@ -119,6 +138,9 @@ Changed submodule revisions are inspected recursively, so documentation-only
 updates do not trigger builds or tests. Build calls Test at the same commit after
 saving its caches. Test enables only the changed modules' test options and their
 required static dependencies; all other module test options are explicitly off.
+BB test dependencies are declared in `cmake/NeMo2BBTestDependencies.json`.
+The TT InterfaceManager tests require only CK2's static runtime; they do not
+enable or link a render-engine static library.
 Building blocks and readers are selected individually: changing
 `TT_InterfaceManager_RT` does not register the physics or other BB tests, and
 changing `AVIReader` does not register the other readers' tests. Module-wide
@@ -189,9 +211,12 @@ include("${engine_manifest}")
 The manifest path is available after `add_subdirectory` returns. It contains
 `NEMO_CORE_RUNTIME_TARGETS`, `NEMO_MODULE_RUNTIME_TARGETS`, their category lists,
 runtime output names, and render-engine configuration/disabled-output lists.
-`NEMO_RUNTIME_TARGETS` combines core and module declarations. Check `TARGET`
-before depending on optional modules, as the supported declarations also cover
-platform-dependent and explicitly disabled modules.
+`NEMO_RUNTIME_TARGETS` combines the configured core and module targets. Disabled
+modules are omitted, and output names come from the selected CMake targets.
+`NEMO_SUPPORTED_*_TARGETS` records the separate supported module catalogue.
+Applications decide which enabled modules they require. The legacy
+`NEMO_BUILDING_BLOCK_REQUIRED_OUTPUTS` name now means all selected BB outputs;
+`NEMO_BUILDING_BLOCK_OPTIONAL_OUTPUTS` is empty.
 
 NeMo2 does not change a parent's build type, installation prefix, or language
 standard, and creates its standalone `stage` target only at the top level.

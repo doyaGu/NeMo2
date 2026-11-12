@@ -16,7 +16,7 @@ OWNERS = {
     'ivp': 'Source/BuildingBlocks/physics_RT/ivp',
 }
 CHECKS = ['NumericalIsolation', 'NumericalIsolationRules', 'NeMo2Subproject',
-          'NeMo2StageInstall', 'CMakeRegeneration']
+          'NeMo2StageInstall', 'CMakeRegeneration', 'NeMo2RuntimeManifest']
 TEST_OPTIONS = {'vxmath': 'VXMATH', 'ck2': 'CK2', 'renderengine': 'CKRE',
                 'plugins': 'CKPLUGINS', 'buildingblocks': 'CKBB', 'ivp': 'IVP'}
 GROUPS = {'bb': 'buildingblocks', 'plugin': 'plugins'}
@@ -131,8 +131,15 @@ def classify(paths):
                 scripts.add('ci')
         elif path.startswith('cmake/TestNumericalIsolation'):
             checks.update(CHECKS[:2])
+        elif path == 'cmake/NeMo2BBTestDependencies.json':
+            modules.add('buildingblocks')
+            scripts.add('ci')
+            build = layout = True
+            resources_only = False
         elif path in {'cmake/NeMo2Stage.cmake', 'cmake/TestStageInstall.cmake'}:
             checks.add('NeMo2StageInstall')
+        elif path == 'cmake/TestRuntimeComponentSelection.cmake':
+            checks.add('NeMo2RuntimeManifest')
         elif path in {'cmake/TestSubproject.cmake'}:
             checks.add('NeMo2Subproject')
         elif path in {'cmake/TestBuildRegeneration.cmake'}:
@@ -166,11 +173,17 @@ def flags(scope, static):
     bb = [name.split(':', 1)[1] for name in modules if name.startswith('bb:')]
     plugins = [name.split(':', 1)[1] for name in modules if name.startswith('plugin:')]
     groups = modules | ({'buildingblocks'} if bb else set()) | ({'plugins'} if plugins else set())
+    dependencies = set()
+    if 'buildingblocks' in groups:
+        manifest = Path(__file__).resolve().parents[2] / 'cmake/NeMo2BBTestDependencies.json'
+        for name, required in json.loads(manifest.read_text()).items():
+            if 'buildingblocks' in modules or name in bb:
+                dependencies.update(required)
     values = {'BUILD_TESTING': True, 'NEMO_BUILD_TESTS': False,
               **{prefix + '_BUILD_TESTS': name in groups for name, prefix in TEST_OPTIONS.items()},
               'VXMATH_BUILD_STATIC': static or 'vxmath' in modules,
-              'CK2_BUILD_STATIC': static or bool(groups & {'ck2', 'renderengine', 'buildingblocks'}),
-              'CKRE_BUILD_STATIC': static or bool(groups & {'renderengine', 'buildingblocks'}),
+              'CK2_BUILD_STATIC': static or bool(modules & {'ck2', 'renderengine'}) or 'ck2' in dependencies,
+              'CKRE_BUILD_STATIC': static or 'renderengine' in modules or 'renderengine' in dependencies,
               'CKRE_BUILD_TOOLS': 'renderengine' in modules and not static}
     target_filter = ';'.join(test_owners(scope['modules'])[name] + '/tests=' + '|'.join(targets)
                              for name, targets in scope.get('test_targets', {}).items())

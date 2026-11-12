@@ -1,0 +1,8 @@
+{
+  "Interface": ["ck2", "renderengine"],
+  "Characters": ["ck2", "renderengine"],
+  "BuildingBlocksAddons1": ["ck2", "renderengine"],
+  "TT_InterfaceManager_RT": ["ck2"],
+  "TT_Gravity_RT": ["ck2", "renderengine"],
+  "physics_RT": ["ck2", "renderengine"]
+}

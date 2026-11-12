@@ -89,9 +89,11 @@ class SelectionTest(unittest.TestCase):
     def test_cache_profiles_follow_library_flags_instead_of_test_names(self):
         tt = {'modules': ['bb:TT_InterfaceManager_RT'], 'checks': []}
         physics = {'modules': ['bb:physics_RT'], 'checks': []}
-        self.assertEqual(cache_profile(tt, False), cache_profile(physics, False))
+        self.assertNotEqual(cache_profile(tt, False), cache_profile(physics, False))
         self.assertNotEqual(cache_profile(tt, False), 'build')
         self.assertEqual(cache_profile(tt, True), 'build')
+        self.assertIn('-DCKRE_BUILD_STATIC=OFF', flags(tt, False))
+        self.assertIn('-DCK2_BUILD_STATIC=ON', flags(tt, False))
         renderer = {'modules': ['renderengine'], 'checks': []}
         self.assertNotEqual(cache_profile(renderer, True), 'build')
         self.assertNotEqual(cache_profile(renderer, False), cache_profile(tt, False))
@@ -106,6 +108,24 @@ class SelectionTest(unittest.TestCase):
             'backtraceGraph': {'nodes': [], 'files': []}}
         self.assertEqual(select_tests(metadata, {}, ['plugin:AVIReader'], []), ['AVIReaderAnsiPathTest'])
         self.assertEqual(len(select_tests(metadata, {}, ['plugins'], [])), 2)
+
+    def test_cmake_uses_the_same_bb_dependency_declarations(self):
+        engine = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / 'dependencies.cmake'
+            script.write_text(
+                'cmake_minimum_required(VERSION 3.25)\n'
+                f'include("{(engine / "cmake/NeMo2TestDependencies.cmake").as_posix()}")\n'
+                'set(CKBB_BUILD_TESTS ON)\nset(BUILD_TESTING ON)\n'
+                'set(CKBB_TEST_MODULES TT_InterfaceManager_RT)\nnemo_bb_test_dependencies(actual)\n'
+                'if (NOT actual STREQUAL "ck2")\nmessage(FATAL_ERROR "TT dependency expanded")\nendif()\n'
+                'set(CKBB_TEST_MODULES physics_RT)\nnemo_bb_test_dependencies(actual)\n'
+                'if (NOT actual STREQUAL "ck2;renderengine")\nmessage(FATAL_ERROR "Physics dependency lost")\nendif()\n'
+                'set(CKBB_TEST_MODULES Logics)\nnemo_bb_test_dependencies(actual)\n'
+                'if (actual)\nmessage(FATAL_ERROR "Untested BB enabled static libraries")\nendif()\n'
+                'set(BUILD_TESTING OFF)\nset(CKBB_TEST_MODULES physics_RT)\nnemo_bb_test_dependencies(actual)\n'
+                'if (actual)\nmessage(FATAL_ERROR "Disabled testing enabled static libraries")\nendif()\n')
+            subprocess.run(['cmake', '-P', str(script)], check=True)
 
     def test_component_runner_never_executes_other_bb_tests(self):
         with tempfile.TemporaryDirectory() as directory:
