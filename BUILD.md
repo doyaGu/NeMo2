@@ -133,6 +133,8 @@ for the selected modules.
 
 CI helper changes run only their own Python checks. Build-script changes select
 aggregator checks; README and license changes run neither compilation nor tests.
+Changes limited to `Version.rc.in` update Windows version resources without
+enabling engine unit-test suites.
 
 ```bash
 gh workflow run test.yml --ref main -f modules=vxmath -f target=sdl-linux-x64-runtime

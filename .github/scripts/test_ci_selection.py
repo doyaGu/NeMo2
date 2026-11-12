@@ -28,6 +28,25 @@ class SelectionTest(unittest.TestCase):
             self.assertIn(f'-D{prefix}_BUILD_TESTS=OFF', options)
         self.assertIn('-DNEMO_BUILD_TESTS=OFF', options)
 
+    def test_version_resources_do_not_enable_engine_suites(self):
+        result = classify(['Source/VxMath/src/Version.rc.in', 'Source/CK2/src/Version.rc.in',
+                           'Source/RenderEngine/src/Version.rc.in', 'Source/Plugins/Version.rc.in',
+                           'Source/BuildingBlocks/Version.rc.in',
+                           'Source/Managers/ParameterOperations/Version.rc.in'])
+        self.assertTrue(result['build'])
+        self.assertFalse(result['layout'])
+        self.assertEqual(result['modules'], [])
+        self.assertEqual(result['checks'], [])
+
+    def test_resources_do_not_hide_other_module_changes(self):
+        result = classify(['Source/VxMath/src/Version.rc.in', 'Source/CK2/src/CKObject.cpp'])
+        self.assertEqual(result['modules'], ['ck2'])
+        self.assertEqual(result['checks'], ['NumericalIsolation'])
+
+    def test_runtime_resources_still_enable_the_owning_suite(self):
+        result = classify(['Source/RenderEngine/src/Shaders.rc'])
+        self.assertEqual(result['modules'], ['renderengine'])
+
     def test_changed_golden_image_belongs_to_renderer(self):
         self.assertEqual(classify(['Source/RenderEngine/tests/reference/frame.png'])['modules'],
                          ['renderengine'])

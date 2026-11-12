@@ -26,6 +26,10 @@ def classify(paths):
     for path in paths:
         if documentation(path):
             continue
+        if path.startswith('Source/') and path.endswith('/Version.rc.in'):
+            # Version resources affect Windows binaries, not engine behavior.
+            build = True
+            continue
         owner = next((name for name, prefix in sorted(OWNERS.items(), key=lambda item: -len(item[1]))
                       if path == prefix or path.startswith(prefix + '/')), None)
         if owner:
