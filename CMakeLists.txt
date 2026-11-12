@@ -48,6 +48,14 @@ if (BUILD_TESTING)
             "-DTEST_SDL3_DIR=${SDL3_DIR}"
             "-DTEST_FONT_DIR=${_nemo_font_directory}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestSubproject.cmake")
+    add_test(NAME NeMo2StageInstall
+            COMMAND "${CMAKE_COMMAND}"
+            "-DTEST_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+            "-DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/Testing"
+            "-DTEST_GENERATOR=${CMAKE_GENERATOR}"
+            "-DTEST_PLATFORM=${CMAKE_GENERATOR_PLATFORM}"
+            "-DTEST_TOOLSET=${CMAKE_GENERATOR_TOOLSET}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStageInstall.cmake")
     if (PROJECT_IS_TOP_LEVEL)
         add_test(NAME CMakeRegeneration
                 COMMAND "${CMAKE_COMMAND}"
