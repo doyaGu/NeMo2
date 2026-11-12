@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from change_detection import baseline, changed_paths, ensure_commit
-from engine_ci import classify, flags, OWNERS, job_matrix, test_owners
+from engine_ci import classify, flags, OWNERS, job_matrix, test_owners, cache_profile
 from ctest_selection import select_tests, select_indices
 
 
@@ -85,6 +85,19 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(rows[0]['linkage']['name'], 'static')
         with self.assertRaises(ValueError):
             job_matrix('unknown')
+
+    def test_cache_profiles_follow_library_flags_instead_of_test_names(self):
+        tt = {'modules': ['bb:TT_InterfaceManager_RT'], 'checks': []}
+        physics = {'modules': ['bb:physics_RT'], 'checks': []}
+        self.assertEqual(cache_profile(tt, False), cache_profile(physics, False))
+        self.assertNotEqual(cache_profile(tt, False), 'build')
+        self.assertEqual(cache_profile(tt, True), 'build')
+        renderer = {'modules': ['renderengine'], 'checks': []}
+        self.assertNotEqual(cache_profile(renderer, True), 'build')
+        self.assertNotEqual(cache_profile(renderer, False), cache_profile(tt, False))
+        self.assertEqual(cache_profile({'modules': ['plugin:AVIReader'], 'checks': []}, False), 'build')
+        rows = job_matrix(scope=tt)['include']
+        self.assertTrue(all(row['cache_profile'] == 'build' for row in rows if row['linkage']['name'] == 'static'))
 
     def test_reader_path_tests_keep_component_ownership_with_shared_registration(self):
         metadata = {'tests': [

@@ -63,7 +63,6 @@ jobs:
       scripts: ${{ steps.scope.outputs.scripts }}
       layout: ${{ steps.scope.outputs.layout }}
       cache_scope: ${{ steps.scope.outputs.cache_scope }}
-      cache_profile: ${{ steps.scope.outputs.cache_profile }}
       matrix: ${{ steps.scope.outputs.matrix }}
     steps:
     - name: Checkout
@@ -149,8 +148,8 @@ jobs:
         $imageVersion = $env:ImageVersion
         $sharedPrefix = "nemo-build-v2-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-sdl3.4.20-${{ hashFiles('CMakePresets.json', 'cmake/NeMo2Compiler.cmake', 'cmake/NeMo2LinkCache.cmake') }}-"
         $prefix = $sharedPrefix
-        if ('${{ needs.changes.outputs.cache_profile }}' -eq 'render-tests') {
-          $prefix = $sharedPrefix.Replace('nemo-build-v2-', 'nemo-render-tests-v1-')
+        if ('${{ matrix.cache_profile }}' -ne 'build') {
+          $prefix = $sharedPrefix.Replace('nemo-build-v2-', 'nemo-${{ matrix.cache_profile }}-v1-')
         }
         "prefix=$prefix" >> $env:GITHUB_OUTPUT
         "shared=$sharedPrefix" >> $env:GITHUB_OUTPUT

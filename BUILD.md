@@ -146,11 +146,13 @@ A specific target creates one job. Changes limited to Windows version resources
 create only the three Windows dynamic-library jobs in either superproject.
 Manual test-module requests retain the platform matrix requested by `target`.
 
-Renderer tests keep their instrumented snapshots in a separate cache family.
-They first restore an existing renderer-test snapshot and only use a normal
-Build snapshot as a cold-start fallback. Build continues to restore normal
-snapshots, so warm release/test runs do not recompile the static renderer merely
-to switch test-hook definitions. Other module tests retain the shared Build cache.
+Test snapshots are grouped by library compilation policy, including mixed
+shared/static dependencies and renderer test hooks. Components with the same
+policy reuse each other's snapshots; tests matching the release policy retain
+the shared Build cache. Other test configurations first restore their own warm
+snapshot and only use a normal Build snapshot as a cold-start fallback. Build
+continues to restore release snapshots, so warm release/test runs do not
+recompile renderer objects merely to switch library definitions.
 
 CI helper changes run only their own Python checks. Build-script changes select
 aggregator checks; README and license changes run neither compilation nor tests.

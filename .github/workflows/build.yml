@@ -57,7 +57,6 @@ jobs:
       scripts: ${{ steps.scope.outputs.scripts }}
       layout: ${{ steps.scope.outputs.layout }}
       cache_scope: ${{ steps.scope.outputs.cache_scope }}
-      cache_profile: ${{ steps.scope.outputs.cache_profile }}
       matrix: ${{ steps.scope.outputs.matrix }}
     steps:
     - name: Checkout
@@ -162,6 +161,7 @@ jobs:
       if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
       run: |
         $tools = $env:CAPTURE_SCENES ? 'ON' : 'OFF'
+        $sdk = ($IsWindows -and $env:CAPTURE_SCENES) ? '620' : '0'
         cmake --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }} `
           ${{ matrix.platform.configure_arguments }} `
           "-DCMAKE_PREFIX_PATH=${{ steps.sdl.outputs.prefix }}" `
@@ -169,6 +169,7 @@ jobs:
           -DVXMATH_BUILD_TESTS=OFF -DCK2_BUILD_TESTS=OFF -DCKRE_BUILD_TESTS=OFF `
           -DCKBB_BUILD_TESTS=OFF -DCKPLUGINS_BUILD_TESTS=OFF -DIVP_BUILD_TESTS=OFF `
           "-DCKRE_BUILD_TOOLS=$tools" `
+          "-DCKRE_SCENE_CAPTURE_D3D12_SDK_VERSION=$sdk" `
           -DVXMATH_BUILD_STATIC=${{ matrix.linkage.build_static }} `
           -DCK2_BUILD_STATIC=${{ matrix.linkage.build_static }} `
           -DCKRE_BUILD_STATIC=${{ matrix.linkage.build_static }}
@@ -182,6 +183,18 @@ jobs:
         } else {
           cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-stage-release --parallel $([Environment]::ProcessorCount)
         }
+
+    - name: Save source timestamps for incremental builds
+      if: ${{ !cancelled() && steps.cache-key.outcome == 'success' }}
+      run: python3 -B .github/scripts/build_cache_state.py save --build-dir build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
+
+    - name: Save incremental build
+      if: ${{ !cancelled() && steps.cache-key.outcome == 'success' && steps.build-cache.outputs.cache-primary-key != '' && steps.build-cache.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
+        key: ${{ steps.build-cache.outputs.cache-primary-key }}
 
     - name: Setup scene capture on Linux
       if: ${{ env.CAPTURE_SCENES != '' && startsWith(matrix.platform.name, 'linux-') }}
@@ -204,6 +217,7 @@ jobs:
 
     - name: Capture selected procedural scenes
       if: ${{ env.CAPTURE_SCENES != '' }}
+      timeout-minutes: 3
       run: |
         $root = (Resolve-Path 'build/${{ matrix.platform.preset }}-runtime').Path
         $tool = "$root/bin/ckre_scene_capture"
@@ -212,6 +226,7 @@ jobs:
           $tool = "$root/bin/Release/ckre_scene_capture.exe"
           $engine = "$root/bin/Release"
         }
+        Remove-Item -LiteralPath "$root/scene-references" -Recurse -Force -ErrorAction SilentlyContinue
         $output = New-Item -ItemType Directory -Force -Path "$root/scene-references"
         foreach ($scene in $env:CAPTURE_SCENES.Split(',')) {
           if ($scene -notmatch '^[a-z0-9_]+$') { throw 'Invalid scene name' }
@@ -230,17 +245,6 @@ jobs:
         path: build/${{ matrix.platform.preset }}-runtime/scene-references/
         if-no-files-found: error
 
-    - name: Save source timestamps for incremental builds
-      if: ${{ !cancelled() && steps.cache-key.outcome == 'success' }}
-      run: python3 -B .github/scripts/build_cache_state.py save --build-dir build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
-
-    - name: Save incremental build
-      if: ${{ !cancelled() && steps.cache-key.outcome == 'success' && steps.build-cache.outputs.cache-primary-key != '' && steps.build-cache.outputs.cache-hit != 'true' }}
-      continue-on-error: true
-      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
-      with:
-        path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
-        key: ${{ steps.build-cache.outputs.cache-primary-key }}
 
   test:
     name: Test nightly build

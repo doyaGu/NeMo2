@@ -47,7 +47,7 @@ def module_selected(owner, modules):
     return owner in modules or (owner and ':' in owner and GROUPS[owner.split(':', 1)[0]] in modules)
 
 
-def job_matrix(target='all', resources_only=False):
+def job_matrix(target='all', resources_only=False, scope=None):
     platforms = json.loads(Path(__file__).with_name('ci_platforms.json').read_text())
     rows = []
     for platform in platforms:
@@ -56,7 +56,10 @@ def job_matrix(target='all', resources_only=False):
                 continue
             if resources_only and (not platform['name'].startswith('windows-') or name != 'runtime'):
                 continue
-            rows.append({'platform': platform, 'linkage': {'name': name, 'build_static': 'ON' if name == 'static' else 'OFF'}})
+            row = {'platform': platform, 'linkage': {'name': name, 'build_static': 'ON' if name == 'static' else 'OFF'}}
+            if scope is not None:
+                row['cache_profile'] = cache_profile(scope, name == 'static')
+            rows.append(row)
     if not rows and target != 'sdl-linux-x64-full-tests':
         raise ValueError('unknown build/test target')
     return {'include': rows}
@@ -177,6 +180,22 @@ def flags(scope, static):
              '-DCKPLUGINS_TEST_MODULES=' + (';'.join(sorted(plugins)) if 'plugins' not in modules else '')])
 
 
+def cache_profile(scope, static):
+    # Mixed shared/static dependencies also change renderer object definitions.
+    # Keep these variants apart while reusing snapshots across component scopes
+    # that have the same library compilation policy.
+    keys = {'VXMATH_BUILD_STATIC', 'CK2_BUILD_STATIC', 'CKRE_BUILD_STATIC', 'CKRE_BUILD_TESTS'}
+
+    def policy(selection):
+        values = dict(argument[2:].split('=', 1) for argument in flags(selection, static))
+        return {key: values[key] for key in sorted(keys)}
+
+    current = policy(scope)
+    if current == policy({'modules': [], 'checks': []}):
+        return 'build'
+    return 'tests-' + hashlib.sha256(json.dumps(current, sort_keys=True).encode()).hexdigest()[:8]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=['select', 'flags'])
@@ -206,8 +225,7 @@ def main():
     encoded = json.dumps(scope, separators=(',', ':'))
     result.update(selection=encoded, test=bool(scope['modules'] or scope['checks']),
                   compile=bool(scope['modules']), cache_scope=hashlib.sha256(encoded.encode()).hexdigest()[:12],
-                  cache_profile='render-tests' if 'renderengine' in scope['modules'] else 'build',
-                  matrix=job_matrix(args.target, result.get('resources_only', False) and args.target == 'all'))
+                  matrix=job_matrix(args.target, result.get('resources_only', False) and args.target == 'all', scope))
     emit(result)
 
 
