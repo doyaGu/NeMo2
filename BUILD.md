@@ -143,7 +143,7 @@ names. Their empty defaults retain the existing complete module test suites.
 
 Build and Test use the platform definitions in `.github/scripts/ci_platforms.json`.
 A specific target creates one job. Changes limited to Windows version resources
-create only the three Windows dynamic-library jobs in either superproject.
+create only the three Windows dynamic-library jobs.
 Manual test-module requests retain the platform matrix requested by `target`.
 
 Test snapshots are grouped by library compilation policy, including mixed

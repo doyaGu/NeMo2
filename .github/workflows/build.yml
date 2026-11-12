@@ -228,7 +228,7 @@ jobs:
       if: ${{ env.CAPTURE_SCENES != '' }}
       timeout-minutes: 3
       env:
-        CAPTURE_FRAMES: ${{ inputs.capture-frames || 5 }}
+        CAPTURE_FRAMES: ${{ inputs.capture-frames }}
         CKRE_SDL_GPU_DEBUG: ${{ inputs.capture-validation && '1' || '0' }}
       run: |
         $root = (Resolve-Path 'build/${{ matrix.platform.preset }}-runtime').Path
