@@ -27,6 +27,15 @@ class CTestExecutionVerificationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "No GoogleTest execution records"):
             verify_results(root)
 
+    def test_custom_suite_mode_preserves_empty_and_failure_checks(self):
+        root, case = report("CMake fixture passed")
+        self.assertEqual(verify_results(root, require_google_tests=False), (1, 0, 0))
+        ET.SubElement(case, "failure")
+        with self.assertRaisesRegex(ValueError, "did not pass"):
+            verify_results(root, require_google_tests=False)
+        with self.assertRaisesRegex(ValueError, "no test cases"):
+            verify_results(ET.Element("testsuite"), require_google_tests=False)
+
     def test_rejects_zero_case_google_test_programs(self):
         root, _ = report("[==========] Running 0 tests from 0 test suites.")
         with self.assertRaisesRegex(ValueError, "Zero GoogleTest cases"):

@@ -3,8 +3,27 @@ name: Test engine
 on:
   # Nightly Build calls this workflow after saving its incremental caches.
   workflow_call:
+    inputs:
+      selection:
+        type: string
+        required: false
+        default: ""
   workflow_dispatch:
     inputs:
+      modules:
+        description: "Test modules (changed source by default)"
+        type: choice
+        default: changed
+        options:
+          - changed
+          - all
+          - vxmath
+          - ck2
+          - renderengine
+          - plugins
+          - buildingblocks
+          - ivp
+          - integration
       target:
         description: "Test target"
         required: false
@@ -41,7 +60,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Select changed modules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      build: ${{ steps.scope.outputs.build }}
+      test: ${{ steps.scope.outputs.test }}
+      selection: ${{ steps.scope.outputs.selection }}
+      compile: ${{ steps.scope.outputs.compile }}
+      modules: ${{ steps.scope.outputs.modules }}
+      scripts: ${{ steps.scope.outputs.scripts }}
+      layout: ${{ steps.scope.outputs.layout }}
+      cache_scope: ${{ steps.scope.outputs.cache_scope }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6.0.2
+      with:
+        fetch-depth: 0
+    - name: Compare source revisions
+      id: scope
+      shell: bash
+      env:
+        BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        MODULES: ${{ inputs.modules || 'changed' }}
+        SELECTION: ${{ inputs.selection }}
+        GPU_DEBUG: ${{ inputs.gpu-debug }}
+      run: |
+        if [ "${{ inputs.target }}" = sdl-linux-x64-full-tests ]; then MODULES=all; fi
+        if [ "$GPU_DEBUG" = true ] && [ "$MODULES" = changed ]; then MODULES=renderengine; fi
+        python3 -B .github/scripts/engine_ci.py select --base "$BASE" --modules "$MODULES" --selection "$SELECTION"
+
   test:
+    needs: changes
+    if: ${{ needs.changes.outputs.test == 'true' && inputs.target != 'sdl-linux-x64-full-tests' }}
     name: sdl-${{ matrix.platform.name }}-${{ matrix.linkage.name }}
     runs-on: ${{ matrix.platform.os }}
     timeout-minutes: 180
@@ -174,7 +226,7 @@ jobs:
       uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
       with:
         path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
-        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-test
+        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-test-${{ needs.changes.outputs.cache_scope }}
         restore-keys: |
           ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-
           ${{ steps.cache-key.outputs.prefix }}
@@ -198,21 +250,19 @@ jobs:
           $diagnosticArguments += '-DCMAKE_EXE_LINKER_FLAGS_RELEASE=/DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF'
           $diagnosticArguments += '-DCMAKE_SHARED_LINKER_FLAGS_RELEASE=/DEBUG /INCREMENTAL:NO /OPT:REF /OPT:ICF'
         }
+        $scopeArguments = @(python3 -B .github/scripts/engine_ci.py flags --selection '${{ needs.changes.outputs.selection }}' --static '${{ matrix.linkage.name }}')
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         cmake --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }} `
           ${{ matrix.platform.configure_arguments }} `
           "-DCMAKE_PREFIX_PATH=${{ steps.sdl.outputs.prefix }}" `
-          -DBUILD_TESTING=ON -DNEMO_BUILD_TESTS=ON -DCKRE_BUILD_TOOLS=ON `
-          -DCKRE_BUILD_TESTS=ON `
-          -DVXMATH_BUILD_TESTS=ON -DCK2_BUILD_TESTS=ON `
-          -DCKBB_BUILD_TESTS=ON -DCKPLUGINS_BUILD_TESTS=ON `
-          -DIVP_BUILD_TESTS=ON @diagnosticArguments
+          @scopeArguments @diagnosticArguments
 
     - name: Build staged runtime
-      if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
+      if: ${{ needs.changes.outputs.compile == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) }}
       run: cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-stage-release --parallel $([Environment]::ProcessorCount)
 
     - name: Setup Windows software rasterizer
-      if: ${{ startsWith(matrix.platform.name, 'windows-') && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) }}
+      if: ${{ contains(fromJSON(needs.changes.outputs.modules), 'renderengine') && (startsWith(matrix.platform.name, 'windows-') && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name))) }}
       run: |
         $architecture = '${{ matrix.platform.name }}'.Substring(8)
         ./cmake/SetupWindowsWarp.ps1 -Architecture $architecture -DestinationDirectory "build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}/bin/Release"
@@ -285,16 +335,10 @@ jobs:
         path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}/gpu-validation/
         if-no-files-found: error
 
-    - name: Check numerical headers before the full test build
-      if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
-      run: |
-        cmake --build build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }} --config Release --target ivp_fast_path_test ivp_runtime_state_test ivp_packed_arithmetic_test --parallel $([Environment]::ProcessorCount)
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        ctest --test-dir build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }} -C Release -R '^ivp_(x87_fast_path|x87_runtime_state|packed_arithmetic)$' --output-on-failure --no-tests=error
-        exit $LASTEXITCODE
+
 
     - name: Build tests
-      if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
+      if: ${{ needs.changes.outputs.compile == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) }}
       run: cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-release --parallel $([Environment]::ProcessorCount)
 
     - name: Save source timestamps for incremental builds
@@ -310,7 +354,7 @@ jobs:
         key: ${{ steps.build-cache.outputs.cache-primary-key }}
 
     - name: Install Linux Vulkan test dependencies
-      if: ${{ (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) && startsWith(matrix.platform.name, 'linux-') }}
+      if: ${{ contains(fromJSON(needs.changes.outputs.modules), 'renderengine') && ((github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) && startsWith(matrix.platform.name, 'linux-')) }}
       shell: bash
       run: |
         sudo apt-get update
@@ -319,22 +363,24 @@ jobs:
         echo "Mesa Vulkan driver: $mesa_version (requires fixed-point rounding from Mesa 26)"
         dpkg --compare-versions "$mesa_version" ge 26.0.0
 
-    - name: Test complete suite
+    - name: Test selected modules
+      id: selected-tests
       if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
       run: |
-        if ($IsLinux) {
-          xvfb-run -a ctest --test-dir build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }} -C Release --output-on-failure --no-tests=error --output-junit "${{ github.workspace }}/build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}/ctest-results.xml"
+        $arguments = @('-B', '.github/scripts/ctest_selection.py', '--build-dir', 'build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}', '--selection', '${{ needs.changes.outputs.selection }}')
+        if ($IsLinux -and '${{ contains(fromJSON(needs.changes.outputs.modules), 'renderengine') }}' -eq 'true') {
+          xvfb-run -a python3 @arguments
         } else {
-          ctest --test-dir build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }} -C Release --output-on-failure --no-tests=error --output-junit "${{ github.workspace }}/build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}/ctest-results.xml"
+          python3 @arguments
         }
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        exit $LASTEXITCODE
 
     - name: Verify executed tests
-      if: ${{ !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) }}
-      run: python3 -B .github/scripts/verify_ctest_results.py "build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}/ctest-results.xml"
+      if: ${{ steps.selected-tests.outputs.has_tests == 'true' && (!cancelled() && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name))) }}
+      run: python3 -B .github/scripts/verify_ctest_results.py ${{ !(contains(fromJSON(needs.changes.outputs.modules), 'vxmath') || contains(fromJSON(needs.changes.outputs.modules), 'ck2') || contains(fromJSON(needs.changes.outputs.modules), 'renderengine') || contains(fromJSON(needs.changes.outputs.modules), 'plugins')) && '--allow-no-gtest' || '' }} "build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}/ctest-results.xml"
 
     - name: Upload test results
-      if: ${{ !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) }}
+      if: ${{ steps.selected-tests.outputs.has_tests == 'true' && (!cancelled() && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name))) }}
       uses: actions/upload-artifact@v7.0.1
       with:
         name: test-results-${{ matrix.platform.name }}-${{ matrix.linkage.name }}

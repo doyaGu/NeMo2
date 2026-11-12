@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-def verify_results(root):
+def verify_results(root, require_google_tests=True):
     cases = list(root.iter("testcase"))
     if not cases:
         raise ValueError("The CTest report contains no test cases")
@@ -28,7 +28,7 @@ def verify_results(root):
             problems.append(f"Skipped or disabled GoogleTest cases in {name}")
         if re.search(r"^\s*[^:\r\n]+:\s*skipped\b", output, re.MULTILINE | re.IGNORECASE):
             problems.append(f"Skipped backend checks in {name}")
-    if not google_test_counts:
+    if require_google_tests and not google_test_counts:
         problems.append("No GoogleTest execution records were found")
     if problems:
         raise ValueError("\n".join(problems))
@@ -38,9 +38,11 @@ def verify_results(root):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("report", type=Path)
+    parser.add_argument("--allow-no-gtest", action="store_true",
+                        help="Allow selected CMake or custom-harness suites")
     options = parser.parse_args()
     try:
-        cases, programs, google_tests = verify_results(ET.parse(options.report).getroot())
+        cases, programs, google_tests = verify_results(ET.parse(options.report).getroot(), not options.allow_no_gtest)
     except (OSError, ET.ParseError, ValueError) as error:
         parser.exit(1, f"CTest execution verification failed: {error}\n")
     print(f"Verified {cases} CTest cases and {google_tests} GoogleTest cases in "

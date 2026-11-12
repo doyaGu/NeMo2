@@ -65,7 +65,8 @@ cmake --build --preset linux-x64-tests-release
 ctest --preset linux-x64-tests-release --output-on-failure
 ```
 
-CI tests the supported platform and linkage combinations. The Test workflow's
+CI runs the changed modules' suites across the supported platform and linkage
+combinations. Documentation and license changes skip compilation and tests. The Test workflow's
 `gpu-debug` input captures rendering evidence for the GPU replay workflow.
 
 [CONTEXT.md](CONTEXT.md) defines engine terms;

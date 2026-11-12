@@ -79,16 +79,29 @@ cache family. Source content hashes restore unchanged checkout timestamps;
 changed inputs are marked newer than cached outputs. Configure always runs,
 and stage directories and test reports are regenerated.
 
-The nightly Build calls Test at the same commit after its matrix has completed
-and saved caches. Test enables its additional internal static libraries and test
-executables incrementally. Build explicitly disables those test options again
-when restoring a Test snapshot. GPU diagnostic builds keep caching disabled so
-their diagnostic compiler settings cannot leak into release builds.
+The nightly Build compares source changes with the previous completed nightly.
+Changed submodule revisions are inspected recursively, so documentation-only
+updates do not trigger builds or tests. Build calls Test at the same commit after
+saving its caches. Test enables only the changed modules' test options and their
+required static dependencies; all other module test options are explicitly off.
+CTest cases are selected by the source directory that registered them. Build
+disables test options again when restoring a Test snapshot. GPU diagnostic builds
+keep caching disabled so their diagnostic compiler settings cannot leak into release builds.
 
-Build and Test remain independently dispatchable. The normal Test matrix runs
-the full engine suite, including Linux x64. The separate
-`sdl-linux-x64-full-tests` target is available for manual use and is excluded from
-`all` and nightly runs to avoid building and running that suite twice.
+Build and Test remain independently dispatchable. Test defaults to
+`modules=changed`; use `modules=vxmath`, `ck2`, `renderengine`, `plugins`,
+`buildingblocks`, or `ivp` to request one module. `modules=integration` selects
+aggregator checks. A complete engine test run requires an explicit
+`modules=all` or the `sdl-linux-x64-full-tests` target. Neither is selected
+automatically. The platform selector `target=all` covers the platform matrix
+for the selected modules.
+
+CI helper changes run only their own Python checks. Build-script changes select
+aggregator checks; README and license changes run neither compilation nor tests.
+
+```bash
+gh workflow run test.yml --ref main -f modules=vxmath -f target=sdl-linux-x64-runtime
+```
 
 ## Application integration
 
