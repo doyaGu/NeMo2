@@ -62,6 +62,41 @@ For offline builds, set `VXMATH_FONT_DIR` to a directory containing the files
 listed in `Source/VxMath/fonts/sources.json`. Tests also accept a local GoogleTest
 checkout through `FETCHCONTENT_SOURCE_DIR_GOOGLETEST`.
 
+## Application configuration
+
+Select the application's configuration profile before opening `VxConfig`
+sections or starting worker threads:
+
+```cpp
+#include "VxUserConfig.h"
+
+// During application startup:
+VxSetUserConfigProfile("SampleApplication", "SAMPLE_CONFIG_HOME");
+```
+
+The profile copies both names. `VxGetUserConfigPath(NULL, path)` resolves its
+application directory, and `VxConfig` stores `registry.ini` there. The selected
+environment variable overrides the parent directory; for example,
+`SAMPLE_CONFIG_HOME=/tmp/config` selects `/tmp/config/SampleApplication/`.
+Without that override, the platform's user configuration directory is used.
+Environment values are read on each lookup. An explicit application name passed
+to `VxGetUserConfigPath` takes precedence over the profile name.
+
+The default profile uses `NeMo2` and `NEMO_USER_CONFIG_HOME`. Null or empty profile
+arguments restore those defaults. Changing profiles does not move existing
+configuration files. Hosts retaining an existing application identity should
+select its existing name and environment variable explicitly.
+
+TT InterfaceManager's `CGameInfo` accepts an optional registry path in its
+constructor. Hosts can supply their existing serialized path; an omitted path
+uses `Software\\Virtools\\Settings`. Composition-provided registry paths still
+take precedence when creating game info through a behavior. To retain an
+application default across behavior-created game info, set
+`InterfaceManager::SetDefaultRegistryPath` on each context before loading a
+composition, and pass `GetDefaultRegistryPath()` when constructing host game
+info. The logical registry path is independent of the profile's filesystem
+location.
+
 ## Incremental builds and CI
 
 Keep a configured build directory when updating engine sources or application

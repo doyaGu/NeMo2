@@ -57,6 +57,12 @@ enables the engine test suite. Both default to `OFF`. Module-specific options
 remain available. Applications can use the `NEMO_RUNTIME_COMPONENT_MANIFEST`
 global property to obtain the configured runtime module list.
 
+Applications select their configuration namespace through
+`VxSetUserConfigProfile` in `VxUserConfig.h`. The default namespace is `NeMo2`,
+with `NEMO_USER_CONFIG_HOME` as an optional parent-directory override. See
+[application configuration](BUILD.md#application-configuration) for startup and
+TT integration.
+
 ## Tests and rendering tools
 
 ```bash

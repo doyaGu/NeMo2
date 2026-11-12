@@ -146,10 +146,10 @@ jobs:
             configure_arguments: '"-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0"'
         linkage:
           - name: runtime
-            ballance_build_static: "OFF"
+            build_static: "OFF"
 
           - name: static
-            ballance_build_static: "ON"
+            build_static: "ON"
 
     env:
       CMAKE_BUILD_PARALLEL_LEVEL: 4
@@ -221,9 +221,9 @@ jobs:
           -DVXMATH_BUILD_TESTS=OFF -DCK2_BUILD_TESTS=OFF -DCKRE_BUILD_TESTS=OFF `
           -DCKBB_BUILD_TESTS=OFF -DCKPLUGINS_BUILD_TESTS=OFF -DIVP_BUILD_TESTS=OFF `
           -DCKRE_BUILD_TOOLS=OFF `
-          -DVXMATH_BUILD_STATIC=${{ matrix.linkage.ballance_build_static }} `
-          -DCK2_BUILD_STATIC=${{ matrix.linkage.ballance_build_static }} `
-          -DCKRE_BUILD_STATIC=${{ matrix.linkage.ballance_build_static }}
+          -DVXMATH_BUILD_STATIC=${{ matrix.linkage.build_static }} `
+          -DCK2_BUILD_STATIC=${{ matrix.linkage.build_static }} `
+          -DCKRE_BUILD_STATIC=${{ matrix.linkage.build_static }}
 
     - name: Build
       if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
