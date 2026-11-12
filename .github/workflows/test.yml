@@ -1,9 +1,7 @@
 name: Test engine
 
 on:
-  # Nightly, and only when main has commits the last nightly did not test.
-  schedule:
-    - cron: "0 19 * * *"
+  # Nightly Build calls this workflow after saving its incremental caches.
   workflow_call:
   workflow_dispatch:
     inputs:
@@ -43,32 +41,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Check for new commits
-    if: ${{ github.event_name == 'schedule' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-
-    permissions:
-      actions: read
-
-    outputs:
-      changed: ${{ steps.check.outputs.changed }}
-
-    steps:
-    - name: Compare with the last nightly test
-      id: check
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        tested=$(gh run list -R "$GITHUB_REPOSITORY" --workflow test.yml --event schedule --limit 30 \
-          --json headSha,conclusion --jq 'map(select(.conclusion == "success" or .conclusion == "failure"))[0].headSha // ""')
-        echo "changed=$([ "$tested" != "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
   test:
     name: sdl-${{ matrix.platform.name }}-${{ matrix.linkage.name }}
-    needs: changes
-    if: ${{ !cancelled() && (github.event_name != 'schedule' || needs.changes.outputs.changed == 'true') }}
     runs-on: ${{ matrix.platform.os }}
     timeout-minutes: 180
 
@@ -189,7 +163,9 @@ jobs:
       id: cache-key
       run: |
         $imageVersion = $env:ImageVersion
-        "prefix=nemo-test-v1-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-${{ hashFiles('CMakePresets.json', '.github/workflows/test.yml', '.github/scripts/build_cache_state.py', 'cmake/NeMo2Compiler.cmake', 'cmake/NeMo2LinkCache.cmake') }}-" >> $env:GITHUB_OUTPUT
+        "prefix=nemo-build-v2-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-sdl3.4.20-${{ hashFiles('CMakePresets.json', 'cmake/NeMo2Compiler.cmake', 'cmake/NeMo2LinkCache.cmake') }}-" >> $env:GITHUB_OUTPUT
+        "legacy-test=nemo-test-v1-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-" >> $env:GITHUB_OUTPUT
+        "legacy-build=nemo-build-v1-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-" >> $env:GITHUB_OUTPUT
 
     - name: Restore incremental build
       if: ${{ steps.cache-key.outcome == 'success' }}
@@ -198,8 +174,12 @@ jobs:
       uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
       with:
         path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
-        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}
-        restore-keys: ${{ steps.cache-key.outputs.prefix }}
+        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-test
+        restore-keys: |
+          ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-
+          ${{ steps.cache-key.outputs.prefix }}
+          ${{ steps.cache-key.outputs.legacy-test }}
+          ${{ steps.cache-key.outputs.legacy-build }}
 
     - name: Restore unchanged source timestamps
       if: ${{ steps.cache-key.outcome == 'success' }}
@@ -221,7 +201,7 @@ jobs:
         cmake --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }} `
           ${{ matrix.platform.configure_arguments }} `
           "-DCMAKE_PREFIX_PATH=${{ steps.sdl.outputs.prefix }}" `
-          -DBUILD_TESTING=ON  `
+          -DBUILD_TESTING=ON -DNEMO_BUILD_TESTS=ON -DCKRE_BUILD_TOOLS=ON `
           -DCKRE_BUILD_TESTS=ON `
           -DVXMATH_BUILD_TESTS=ON -DCK2_BUILD_TESTS=ON `
           -DCKBB_BUILD_TESTS=ON -DCKPLUGINS_BUILD_TESTS=ON `
@@ -377,8 +357,8 @@ jobs:
 
   full-tests:
     name: sdl-linux-x64-full-tests
-    needs: changes
-    if: ${{ !cancelled() && (github.event_name != 'schedule' || needs.changes.outputs.changed == 'true') && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'sdl-linux-x64-full-tests') }}
+    # The regular linux-x64-runtime matrix entry already runs the full suite.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'sdl-linux-x64-full-tests' }}
     runs-on: ubuntu-26.04
     timeout-minutes: 120
 
@@ -416,7 +396,8 @@ jobs:
       shell: pwsh
       run: |
         $imageVersion = $env:ImageVersion
-        "prefix=nemo-test-v1-linux-x64-full-tests-${imageVersion}-${{ hashFiles('CMakePresets.json', '.github/workflows/test.yml', '.github/scripts/build_cache_state.py', 'cmake/NeMo2Compiler.cmake', 'cmake/NeMo2LinkCache.cmake') }}-" >> $env:GITHUB_OUTPUT
+        "prefix=nemo-build-v2-linux-x64-full-tests-${imageVersion}-sdl3.4.20-${{ hashFiles('CMakePresets.json', 'cmake/NeMo2Compiler.cmake', 'cmake/NeMo2LinkCache.cmake') }}-" >> $env:GITHUB_OUTPUT
+        "legacy-test=nemo-test-v1-linux-x64-full-tests-${imageVersion}-" >> $env:GITHUB_OUTPUT
 
     - name: Restore incremental build
       id: build-cache
@@ -424,8 +405,11 @@ jobs:
       uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
       with:
         path: build/linux-x64-tests
-        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}
-        restore-keys: ${{ steps.cache-key.outputs.prefix }}
+        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-test
+        restore-keys: |
+          ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-
+          ${{ steps.cache-key.outputs.prefix }}
+          ${{ steps.cache-key.outputs.legacy-test }}
 
     - name: Restore unchanged source timestamps
       run: python3 -B .github/scripts/build_cache_state.py restore --build-dir build/linux-x64-tests

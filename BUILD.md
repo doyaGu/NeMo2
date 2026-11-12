@@ -62,6 +62,34 @@ For offline builds, set `VXMATH_FONT_DIR` to a directory containing the files
 listed in `Source/VxMath/fonts/sources.json`. Tests also accept a local GoogleTest
 checkout through `FETCHCONTENT_SOURCE_DIR_GOOGLETEST`.
 
+## Incremental builds and CI
+
+Keep a configured build directory when updating engine sources or application
+code. CMake rebuilds the targets whose inputs changed; downstream applications
+using `add_subdirectory` reuse unchanged NeMo2 objects in their own build tree.
+Use a fresh directory when migrating source layouts or changing generators and
+toolchains. Standalone and nested build trees contain different absolute paths
+and cannot be exchanged as binary caches.
+
+CI Build and Test share incremental caches per runner image, architecture,
+linkage, SDL version, presets, and compiler/linker policy. Each source revision
+gets a snapshot, with fallback to compatible earlier snapshots and pre-sharing
+caches. Workflow, test-script, and documentation changes do not invalidate the
+cache family. Source content hashes restore unchanged checkout timestamps;
+changed inputs are marked newer than cached outputs. Configure always runs,
+and stage directories and test reports are regenerated.
+
+The nightly Build calls Test at the same commit after its matrix has completed
+and saved caches. Test enables its additional internal static libraries and test
+executables incrementally. Build explicitly disables those test options again
+when restoring a Test snapshot. GPU diagnostic builds keep caching disabled so
+their diagnostic compiler settings cannot leak into release builds.
+
+Build and Test remain independently dispatchable. The normal Test matrix runs
+the full engine suite, including Linux x64. The separate
+`sdl-linux-x64-full-tests` target is available for manual use and is excluded from
+`all` and nightly runs to avoid building and running that suite twice.
+
 ## Application integration
 
 ```cmake

@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import unittest
 
-from build_cache_state import STATE_FILE, restore, save
+from build_cache_state import STATE_FILE, restore, save, tracked_files
 
 
 class BuildCacheStateTest(unittest.TestCase):
@@ -68,6 +68,63 @@ class BuildCacheStateTest(unittest.TestCase):
         (self.build / STATE_FILE).write_text("incomplete json {")
         restore(self.root, self.build)
         self.assertFalse(self.build.exists())
+
+    def test_player_and_test_changes_reuse_compiled_engine(self):
+        engine = self.root / "Source" / "NeMo2"
+        engine.mkdir(parents=True)
+        (engine / "engine.cpp").write_text("int engine_value() { return 0; }\n")
+        (engine / "CMakeLists.txt").write_text("add_library(engine STATIC engine.cpp)\n")
+        self.source.write_text("int engine_value();\nint main() { return engine_value(); }\n")
+        test_script = self.root / "acceptance.cmake"
+        test_script.write_text('message(STATUS "Initial acceptance check")\n')
+        (self.root / "CMakeLists.txt").write_text(
+            "cmake_minimum_required(VERSION 3.20)\nproject(ApplicationCache CXX)\n"
+            "add_subdirectory(Source/NeMo2)\n"
+            "add_executable(player source.cpp)\n"
+            "target_link_libraries(player PRIVATE engine)\n"
+            'file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/engine-path.txt" '
+            'CONTENT "$<TARGET_FILE:engine>")\n'
+            'file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/player-path.txt" '
+            'CONTENT "$<TARGET_FILE:player>")\n'
+            "include(CTest)\nif(BUILD_TESTING)\n"
+            'add_test(NAME Acceptance COMMAND "${CMAKE_COMMAND}" '
+            '-P "${CMAKE_SOURCE_DIR}/acceptance.cmake")\nendif()\n'
+        )
+        subprocess.run(["git", "add", "Source", "source.cpp", "CMakeLists.txt", "acceptance.cmake"],
+                       cwd=self.root, check=True)
+        configure = ["cmake", "-S", str(self.root), "-B", str(self.build), "-G", "Ninja"]
+        build = ["cmake", "--build", str(self.build)]
+        subprocess.run(configure + ["-DBUILD_TESTING=OFF"], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(build, check=True, stdout=subprocess.DEVNULL)
+        library = Path((self.build / "engine-path.txt").read_text())
+        player = Path((self.build / "player-path.txt").read_text())
+        engine_stamp = library.stat().st_mtime_ns
+        player_stamp = player.stat().st_mtime_ns
+
+        # A new checkout and enabling tests must preserve compiled runtime targets.
+        save(self.root, self.build)
+        for _, path in tracked_files(self.root):
+            os.utime(path, None)
+        restore(self.root, self.build)
+        subprocess.run(configure + ["-DBUILD_TESTING=ON"], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(build, check=True, stdout=subprocess.DEVNULL)
+        self.assertEqual(library.stat().st_mtime_ns, engine_stamp)
+        self.assertEqual(player.stat().st_mtime_ns, player_stamp)
+
+        # Updating a test script or Player must not rebuild the nested engine.
+        save(self.root, self.build)
+        test_script.write_text('message(STATUS "Updated acceptance check")\n')
+        self.source.write_text("int engine_value();\nint main() { return engine_value() + 7; }\n")
+        os.utime(self.source, ns=(1, 1))
+        restore(self.root, self.build)
+        subprocess.run(configure + ["-DBUILD_TESTING=ON"], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(build, check=True, stdout=subprocess.DEVNULL)
+        self.assertEqual(library.stat().st_mtime_ns, engine_stamp)
+        self.assertNotEqual(player.stat().st_mtime_ns, player_stamp)
+        self.assertEqual(subprocess.run([str(player)]).returncode, 7)
+        result = subprocess.run(["ctest", "--test-dir", str(self.build), "-V"],
+                                check=True, capture_output=True, text=True)
+        self.assertIn("Updated acceptance check", result.stdout)
 
     def test_restored_sources_do_not_hide_real_ninja_rebuilds(self):
         self.source.write_text('#include "value.h"\nint main() { return VALUE; }\n')

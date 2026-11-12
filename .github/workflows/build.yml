@@ -176,7 +176,9 @@ jobs:
       id: cache-key
       run: |
         $imageVersion = $env:ImageVersion
-        "prefix=nemo-build-v1-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-${{ hashFiles('CMakePresets.json', '.github/workflows/build.yml', '.github/scripts/build_cache_state.py', 'cmake/NeMo2Compiler.cmake', 'cmake/NeMo2LinkCache.cmake') }}-" >> $env:GITHUB_OUTPUT
+        "prefix=nemo-build-v2-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-sdl3.4.20-${{ hashFiles('CMakePresets.json', 'cmake/NeMo2Compiler.cmake', 'cmake/NeMo2LinkCache.cmake') }}-" >> $env:GITHUB_OUTPUT
+        "legacy-test=nemo-test-v1-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-" >> $env:GITHUB_OUTPUT
+        "legacy-build=nemo-build-v1-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-" >> $env:GITHUB_OUTPUT
 
     - name: Restore incremental build
       if: ${{ steps.cache-key.outcome == 'success' }}
@@ -185,8 +187,12 @@ jobs:
       uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
       with:
         path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
-        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}
-        restore-keys: ${{ steps.cache-key.outputs.prefix }}
+        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-build
+        restore-keys: |
+          ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}-
+          ${{ steps.cache-key.outputs.prefix }}
+          ${{ steps.cache-key.outputs.legacy-test }}
+          ${{ steps.cache-key.outputs.legacy-build }}
 
     - name: Restore unchanged source timestamps
       if: ${{ steps.cache-key.outcome == 'success' }}
@@ -198,7 +204,13 @@ jobs:
         cmake --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }} `
           ${{ matrix.platform.configure_arguments }} `
           "-DCMAKE_PREFIX_PATH=${{ steps.sdl.outputs.prefix }}" `
-          -DBUILD_TESTING=OFF
+          -DBUILD_TESTING=OFF -DNEMO_BUILD_TESTS=OFF `
+          -DVXMATH_BUILD_TESTS=OFF -DCK2_BUILD_TESTS=OFF -DCKRE_BUILD_TESTS=OFF `
+          -DCKBB_BUILD_TESTS=OFF -DCKPLUGINS_BUILD_TESTS=OFF -DIVP_BUILD_TESTS=OFF `
+          -DCKRE_BUILD_TOOLS=OFF `
+          -DVXMATH_BUILD_STATIC=${{ matrix.linkage.ballance_build_static }} `
+          -DCK2_BUILD_STATIC=${{ matrix.linkage.ballance_build_static }} `
+          -DCKRE_BUILD_STATIC=${{ matrix.linkage.ballance_build_static }}
 
     - name: Build
       if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
@@ -215,3 +227,9 @@ jobs:
       with:
         path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
         key: ${{ steps.build-cache.outputs.cache-primary-key }}
+
+  test:
+    name: Test nightly build
+    needs: build
+    if: ${{ github.event_name == 'schedule' }}
+    uses: ./.github/workflows/test.yml
