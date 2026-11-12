@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from change_detection import baseline, changed_paths
+from change_detection import baseline, changed_paths, ensure_commit
 from engine_ci import classify, flags, OWNERS, job_matrix, test_owners
 from ctest_selection import select_tests, select_indices
 
@@ -267,6 +267,19 @@ class SelectionTest(unittest.TestCase):
                 self.assertEqual(baseline(root, '', 'policy.py'), start)
             with patch.dict('os.environ', {'GITHUB_EVENT_NAME': 'push'}):
                 self.assertEqual(baseline(root, old, 'policy.py'), old)
+
+    def test_shallow_fetch_race_retries_without_recursing_other_modules(self):
+        missing = subprocess.CompletedProcess([], 1)
+        raced = subprocess.CompletedProcess([], 128, b'', b'fatal: shallow file has changed since we read it')
+        fetched = subprocess.CompletedProcess([], 0, b'', b'')
+        with patch('change_detection.subprocess.run', side_effect=[missing, raced, missing, fetched]) as run, patch('change_detection.time.sleep'):
+            ensure_commit(Path('/fixture'), 'a' * 40)
+            self.assertEqual(sum('fetch' in call.args[0] for call in run.call_args_list), 2)
+            self.assertTrue(all('fetch.recurseSubmodules=false' in call.args[0] for call in run.call_args_list if 'fetch' in call.args[0]))
+        invalid = subprocess.CompletedProcess([], 128, b'', b'fatal: not our ref')
+        with patch('change_detection.subprocess.run', side_effect=[missing, invalid]):
+            with self.assertRaises(subprocess.CalledProcessError):
+                ensure_commit(Path('/fixture'), 'b' * 40)
 
     def test_ctest_runner_never_executes_unselected_module(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -178,7 +178,7 @@ jobs:
       run: |
         if ($env:CAPTURE_SCENES) {
           if ('${{ matrix.linkage.name }}' -ne 'runtime') { throw 'Scene capture requires runtime linkage' }
-          cmake --build build/${{ matrix.platform.preset }}-runtime --config Release --target ckre_scene_capture --parallel $([Environment]::ProcessorCount)
+          cmake --build build/${{ matrix.platform.preset }}-runtime --config Release --target ckre_scene_capture CK2_3D CKSdlGpuRasterizer --parallel $([Environment]::ProcessorCount)
         } else {
           cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-stage-release --parallel $([Environment]::ProcessorCount)
         }

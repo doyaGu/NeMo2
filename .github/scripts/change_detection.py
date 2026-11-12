@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import time
 
 
 DOC_SUFFIXES = {'.md', '.rst', '.adoc'}
@@ -36,8 +37,19 @@ def baseline(root, value='', policy=None):
 def ensure_commit(root, revision):
     if subprocess.run(['git', '-C', str(root), 'cat-file', '-e', revision + '^{commit}'],
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
-        subprocess.run(['git', '-C', str(root), 'fetch', '--quiet', '--no-tags', '--depth=1',
-                        'origin', revision], check=True)
+        command = ['git', '-C', str(root), '-c', 'fetch.recurseSubmodules=false',
+                   'fetch', '--quiet', '--no-tags', '--depth=1', 'origin', revision]
+        for attempt in range(3):
+            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode == 0:
+                return
+            if b'shallow file has changed since we read it' not in result.stderr or attempt == 2:
+                raise subprocess.CalledProcessError(result.returncode, command, result.stdout, result.stderr)
+            # A competing shallow update may have finished while fetch exited.
+            if subprocess.run(['git', '-C', str(root), 'cat-file', '-e', revision + '^{commit}'],
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+                return
+            time.sleep(0.1 * (attempt + 1))
 
 
 def changed_paths(root, before, after='HEAD'):
