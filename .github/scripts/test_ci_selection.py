@@ -4,8 +4,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from change_detection import changed_paths
+from change_detection import baseline, changed_paths
 from engine_ci import classify, flags, OWNERS
 from ctest_selection import select_tests
 
@@ -79,6 +80,26 @@ class SelectionTest(unittest.TestCase):
         self.git(root, 'add', '.')
         self.git(root, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
                  'commit', '-qm', 'fixture')
+
+    def test_first_nightly_does_not_replay_pre_policy_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.git(root, 'init', '-q')
+            (root / 'source.cpp').write_text('old source')
+            self.commit(root)
+            old = self.git(root, 'rev-parse', 'HEAD').strip()
+            (root / 'source.cpp').write_text('activation snapshot')
+            self.commit(root)
+            start = self.git(root, 'rev-parse', 'HEAD').strip()
+            (root / 'policy.py').write_text('selective policy')
+            self.commit(root)
+            (root / 'README.md').write_text('later documentation')
+            self.commit(root)
+            with patch.dict('os.environ', {'GITHUB_EVENT_NAME': 'schedule'}):
+                self.assertEqual(baseline(root, old, 'policy.py'), start)
+                self.assertEqual(baseline(root, '', 'policy.py'), start)
+            with patch.dict('os.environ', {'GITHUB_EVENT_NAME': 'push'}):
+                self.assertEqual(baseline(root, old, 'policy.py'), old)
 
     def test_ctest_runner_never_executes_unselected_module(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -100,7 +100,7 @@ def main():
         scope = selection(**json.loads(args.selection))
         result = dict(scope, build=bool(scope['modules']), layout=False, scripts=[])
     else:
-        result = classify(changed_paths(Path.cwd(), baseline(Path.cwd(), args.base), args.head))
+        result = classify(changed_paths(Path.cwd(), baseline(Path.cwd(), args.base, '.github/scripts/engine_ci.py'), args.head))
         if args.modules != 'changed':
             scope = selection(list(OWNERS) if args.modules == 'all' else
                               [name for name in args.modules.split(',') if name != 'integration'],

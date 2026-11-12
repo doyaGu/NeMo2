@@ -13,12 +13,24 @@ def git(root, *args):
     return subprocess.check_output(['git', '-C', str(root), *args], stderr=subprocess.PIPE)
 
 
-def baseline(root, value=''):
-    if value and set(value) != {'0'}:
+def baseline(root, value='', policy=None):
+    provided = bool(value and set(value) != {'0'})
+    if provided:
         if not re.fullmatch(r'[0-9a-fA-F]{40,64}', value):
             raise ValueError('base revision must be a commit hash')
-        return value
-    return git(root, 'rev-parse', 'HEAD^').decode().strip()
+    else:
+        value = git(root, 'rev-parse', 'HEAD^').decode().strip()
+    if policy and os.environ.get('GITHUB_EVENT_NAME') == 'schedule':
+        # Activating selective CI must not replay pre-policy repository history.
+        additions = git(root, 'log', '--reverse', '--diff-filter=A', '--format=%H', '--', policy).decode().splitlines()
+        if additions:
+            start = git(root, 'rev-parse', additions[0] + '^').decode().strip()
+            ensure_commit(root, value)
+            older = subprocess.run(['git', '-C', str(root), 'merge-base', '--is-ancestor', value, start],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if not provided or older.returncode == 0:
+                value = start
+    return value
 
 
 def ensure_commit(root, revision):
