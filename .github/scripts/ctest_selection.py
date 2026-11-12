@@ -7,10 +7,14 @@ from pathlib import Path
 import re
 import subprocess
 
-from engine_ci import OWNERS
+from engine_ci import OWNERS, module_selected, test_owners
 
 
 def test_owner(test, graph, owners, build_dir=None, source_dir=None):
+    properties = {item['name']: item['value'] for item in test.get('properties', [])}
+    for label in properties.get('LABELS', []):
+        if label.startswith('plugin:'):
+            return label
     def owner_of(source):
         source = Path(source).resolve()
         for name, directory in sorted(owners.items(), key=lambda item: -len(str(item[1]))):
@@ -27,7 +31,6 @@ def test_owner(test, graph, owners, build_dir=None, source_dir=None):
                 return owner
         index = node.get('parent')
     # GoogleTest-discovered cases do not carry a CMake registration backtrace.
-    properties = {item['name']: item['value'] for item in test.get('properties', [])}
     if properties.get('DEF_SOURCE_LINE'):
         return owner_of(re.sub(r':\d+$', '', properties['DEF_SOURCE_LINE']))
     if build_dir and properties.get('WORKING_DIRECTORY'):
@@ -37,11 +40,14 @@ def test_owner(test, graph, owners, build_dir=None, source_dir=None):
     return None
 
 
-def select_indices(metadata, owners, modules, checks, build_dir=None, source_dir=None):
+def select_indices(metadata, owners, modules, checks, build_dir=None, source_dir=None, test_targets=None):
     selected = []
     for index, test in enumerate(metadata['tests'], 1):
-        if test['name'] in checks or test_owner(test, metadata['backtraceGraph'], owners,
-                                               build_dir, source_dir) in modules:
+        owner = test_owner(test, metadata['backtraceGraph'], owners, build_dir, source_dir)
+        targets = (test_targets or {}).get(owner)
+        if targets and not any(Path(argument).stem in targets for argument in test.get('command', [])):
+            continue
+        if test['name'] in checks or module_selected(owner, modules):
             selected.append(index)
     return selected
 
@@ -59,12 +65,12 @@ def main():
     parser.add_argument('--config', default='Release')
     args = parser.parse_args()
     scope = json.loads(args.selection)
-    owners = dict(value.split('=', 1) for value in args.owner) if args.owner else OWNERS
+    owners = dict(value.split('=', 1) for value in args.owner) if args.owner else test_owners(scope['modules'])
     owners = {name: Path(path).resolve() for name, path in owners.items()}
     metadata = json.loads(subprocess.check_output(
         ['ctest', '--test-dir', str(args.build_dir), '-C', args.config, '--show-only=json-v1']))
     indices = select_indices(metadata, owners, scope['modules'], scope['checks'],
-                              args.build_dir.resolve(), Path.cwd())
+                              args.build_dir.resolve(), Path.cwd(), scope.get('test_targets'))
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
             output.write(f'has_tests={str(bool(indices)).lower()}\n')

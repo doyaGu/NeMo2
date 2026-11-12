@@ -18,6 +18,7 @@ endif ()
 
 include(CTest)
 add_subdirectory(Source)
+include(NeMo2TestTargets)
 include(NeMo2ComponentRegistry)
 if (PROJECT_IS_TOP_LEVEL)
     include(NeMo2Stage)

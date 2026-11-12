@@ -7,6 +7,10 @@ on:
   workflow_call:
   workflow_dispatch:
     inputs:
+      capture-scenes:
+        description: "Optional comma-separated procedural scenes to capture instead of staging"
+        type: string
+        default: ""
       target:
         description: "Build target"
         required: false
@@ -53,6 +57,8 @@ jobs:
       scripts: ${{ steps.scope.outputs.scripts }}
       layout: ${{ steps.scope.outputs.layout }}
       cache_scope: ${{ steps.scope.outputs.cache_scope }}
+      cache_profile: ${{ steps.scope.outputs.cache_profile }}
+      matrix: ${{ steps.scope.outputs.matrix }}
     steps:
     - name: Checkout
       uses: actions/checkout@v6.0.2
@@ -63,14 +69,20 @@ jobs:
       shell: bash
       env:
         BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        TARGET: ${{ inputs.target || 'all' }}
+        CAPTURE_SCENES: ${{ inputs.capture-scenes }}
         MODULES: changed
         GH_TOKEN: ${{ github.token }}
       run: |
+        if [ -n "$CAPTURE_SCENES" ] && [[ "$TARGET" != *-runtime ]]; then
+          echo "Scene capture requires one explicit runtime target" >&2
+          exit 1
+        fi
         if [ "$GITHUB_EVENT_NAME" = schedule ]; then
           BASE=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build.yml --event schedule --limit 30 \
             --json headSha,conclusion --jq 'map(select(.conclusion == "success" or .conclusion == "failure"))[0].headSha // ""')
         fi
-        python3 -B .github/scripts/engine_ci.py select --base "$BASE" --modules "$MODULES"
+        python3 -B .github/scripts/engine_ci.py select --base "$BASE" --modules "$MODULES" --target "$TARGET"
 
   build:
     name: sdl-${{ matrix.platform.name }}-${{ matrix.linkage.name }}
@@ -81,78 +93,13 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        platform:
-          - name: windows-x86
-            os: windows-2022
-            preset: windows-x86
-            archive_ext: .zip
-            sdl_discriminator: Windows-X86
-            sdl_cmake_generator: Visual Studio 17 2022
-            sdl_cmake_arguments: -A Win32 --no-warn-unused-cli
-
-          - name: windows-x64
-            os: windows-2022
-            archive_ext: .zip
-            preset: windows-x64
-            sdl_discriminator: Windows-X64
-            sdl_cmake_generator: Visual Studio 17 2022
-            sdl_cmake_arguments: -A x64 --no-warn-unused-cli
-
-          - name: windows-arm64
-            os: windows-11-arm
-            archive_ext: .zip
-            preset: windows-arm64
-            sdl_discriminator: Windows-ARM64
-            # VS 2026's ARM64 optimizer crashes in SIMDe's NEON load path.
-            # The image also supplies the supported MSVC 14.44 ARM64 toolset.
-            sdl_cmake_generator: Visual Studio 18 2026
-            sdl_cmake_arguments: -A ARM64 -T "v143,version=14.44" --no-warn-unused-cli
-            configure_arguments: -G "Visual Studio 18 2026" -T "v143,version=14.44"
-
-          - name: linux-x64
-            os: ubuntu-26.04
-            archive_ext: .tar.gz
-            preset: linux-x64
-            sdl_discriminator: Linux-X64
-            sdl_cmake_generator: ""
-            sdl_cmake_arguments: --no-warn-unused-cli
-
-          - name: linux-arm64
-            os: ubuntu-26.04-arm
-            archive_ext: .tar.gz
-            preset: linux-arm64
-            sdl_discriminator: Linux-ARM64
-            sdl_cmake_generator: ""
-            sdl_cmake_arguments: --no-warn-unused-cli
-
-          - name: macos-x64
-            # Build x86_64 binaries on the ARM VM; Test covers Rosetta execution.
-            os: macos-26
-            archive_ext: .tar.gz
-            preset: macos-x64
-            sdl_discriminator: macOS-X64
-            sdl_cmake_generator: ""
-            sdl_cmake_arguments: -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 --no-warn-unused-cli
-            configure_arguments: '"-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0"'
-
-          - name: macos-arm64
-            os: macos-26
-            archive_ext: .tar.gz
-            preset: macos-arm64
-            sdl_discriminator: macOS-ARM64
-            sdl_cmake_generator: ""
-            sdl_cmake_arguments: -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 --no-warn-unused-cli
-            configure_arguments: '"-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0"'
-        linkage:
-          - name: runtime
-            build_static: "OFF"
-
-          - name: static
-            build_static: "ON"
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     env:
       CMAKE_BUILD_PARALLEL_LEVEL: 4
+      CAPTURE_SCENES: ${{ inputs.capture-scenes }}
+      CKRE_SDL_GPU_DRIVER: ${{ startsWith(matrix.platform.name, 'windows-') && 'direct3d12' || startsWith(matrix.platform.name, 'linux-') && 'vulkan' || 'metal' }}
+      SDL_VIDEODRIVER: ${{ startsWith(matrix.platform.name, 'linux-') && 'x11' || '' }}
 
     defaults:
       run:
@@ -214,20 +161,74 @@ jobs:
     - name: Configure
       if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
       run: |
+        $tools = $env:CAPTURE_SCENES ? 'ON' : 'OFF'
         cmake --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }} `
           ${{ matrix.platform.configure_arguments }} `
           "-DCMAKE_PREFIX_PATH=${{ steps.sdl.outputs.prefix }}" `
           -DBUILD_TESTING=OFF -DNEMO_BUILD_TESTS=OFF `
           -DVXMATH_BUILD_TESTS=OFF -DCK2_BUILD_TESTS=OFF -DCKRE_BUILD_TESTS=OFF `
           -DCKBB_BUILD_TESTS=OFF -DCKPLUGINS_BUILD_TESTS=OFF -DIVP_BUILD_TESTS=OFF `
-          -DCKRE_BUILD_TOOLS=OFF `
+          "-DCKRE_BUILD_TOOLS=$tools" `
           -DVXMATH_BUILD_STATIC=${{ matrix.linkage.build_static }} `
           -DCK2_BUILD_STATIC=${{ matrix.linkage.build_static }} `
           -DCKRE_BUILD_STATIC=${{ matrix.linkage.build_static }}
 
     - name: Build
       if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
-      run: cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-stage-release --parallel $([Environment]::ProcessorCount)
+      run: |
+        if ($env:CAPTURE_SCENES) {
+          if ('${{ matrix.linkage.name }}' -ne 'runtime') { throw 'Scene capture requires runtime linkage' }
+          cmake --build build/${{ matrix.platform.preset }}-runtime --config Release --target ckre_scene_capture --parallel $([Environment]::ProcessorCount)
+        } else {
+          cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-stage-release --parallel $([Environment]::ProcessorCount)
+        }
+
+    - name: Setup scene capture on Linux
+      if: ${{ env.CAPTURE_SCENES != '' && startsWith(matrix.platform.name, 'linux-') }}
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb mesa-vulkan-drivers
+
+    - name: Setup scene capture on Windows
+      if: ${{ env.CAPTURE_SCENES != '' && startsWith(matrix.platform.name, 'windows-') }}
+      run: |
+        $binary = (Resolve-Path 'build/${{ matrix.platform.preset }}-runtime/bin/Release').Path
+        $architecture = '${{ matrix.platform.name }}'.Substring(8)
+        ./cmake/SetupWindowsWarp.ps1 -Architecture $architecture -DestinationDirectory $binary
+        ./cmake/SetupWindowsD3D12.ps1 -Architecture $architecture -DestinationDirectory "$binary/D3D12"
+        & "$binary/D3D12/d3dconfig.exe" apps --add "$binary/ckre_scene_capture.exe"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        & "$binary/D3D12/d3dconfig.exe" device force-warp=true
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    - name: Capture selected procedural scenes
+      if: ${{ env.CAPTURE_SCENES != '' }}
+      run: |
+        $root = (Resolve-Path 'build/${{ matrix.platform.preset }}-runtime').Path
+        $tool = "$root/bin/ckre_scene_capture"
+        $engine = "$root/lib"
+        if ($IsWindows) {
+          $tool = "$root/bin/Release/ckre_scene_capture.exe"
+          $engine = "$root/bin/Release"
+        }
+        $output = New-Item -ItemType Directory -Force -Path "$root/scene-references"
+        foreach ($scene in $env:CAPTURE_SCENES.Split(',')) {
+          if ($scene -notmatch '^[a-z0-9_]+$') { throw 'Invalid scene name' }
+          $arguments = @('--render-engine-dir', $engine, '--rasterizer', 'sdlgpu', '--scene', $scene, '--size', '640x480', '--frames', '5', '--out', $output.FullName)
+          if ($IsLinux) { xvfb-run -a $tool @arguments 2>&1 | Tee-Object -FilePath "$output/$scene.log" }
+          else { & $tool @arguments 2>&1 | Tee-Object -FilePath "$output/$scene.log" }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        git -C Source/RenderEngine rev-parse HEAD > "$output/scene-revision.txt"
+
+    - name: Upload scene references for review
+      if: ${{ env.CAPTURE_SCENES != '' && !cancelled() }}
+      uses: actions/upload-artifact@v7.0.1
+      with:
+        name: scene-references-${{ matrix.platform.name }}
+        path: build/${{ matrix.platform.preset }}-runtime/scene-references/
+        if-no-files-found: error
 
     - name: Save source timestamps for incremental builds
       if: ${{ !cancelled() && steps.cache-key.outcome == 'success' }}

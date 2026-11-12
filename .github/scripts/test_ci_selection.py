@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -7,8 +8,8 @@ import unittest
 from unittest.mock import patch
 
 from change_detection import baseline, changed_paths
-from engine_ci import classify, flags, OWNERS
-from ctest_selection import select_tests
+from engine_ci import classify, flags, OWNERS, job_matrix, test_owners
+from ctest_selection import select_tests, select_indices
 
 
 class SelectionTest(unittest.TestCase):
@@ -50,6 +51,153 @@ class SelectionTest(unittest.TestCase):
     def test_changed_golden_image_belongs_to_renderer(self):
         self.assertEqual(classify(['Source/RenderEngine/tests/reference/frame.png'])['modules'],
                          ['renderengine'])
+
+    def test_tt_changes_do_not_select_physics_or_other_building_blocks(self):
+        result = classify(['Source/BuildingBlocks/TT_InterfaceManager_RT/InterfaceManager.cpp'])
+        self.assertEqual(result['modules'], ['bb:TT_InterfaceManager_RT'])
+        options = flags(result, False)
+        self.assertIn('-DCKBB_TEST_MODULES=TT_InterfaceManager_RT', options)
+        self.assertIn('-DIVP_BUILD_TESTS=OFF', options)
+        self.assertIn('-DCKRE_BUILD_TESTS=OFF', options)
+
+    def test_reader_changes_do_not_select_other_readers(self):
+        result = classify(['Source/Plugins/AVIReader/FrameDecoder.cpp'])
+        self.assertEqual(result['modules'], ['plugin:AVIReader'])
+        self.assertIn('-DCKPLUGINS_TEST_MODULES=AVIReader', flags(result, False))
+
+    def test_shared_build_files_and_ivp_keep_their_dependents(self):
+        self.assertEqual(classify(['Source/BuildingBlocks/CMakeLists.txt'])['modules'], ['buildingblocks'])
+        self.assertEqual(classify(['Source/BuildingBlocks/Materials-Textures/Behaviors/Create.cpp'])['modules'], ['bb:Materials-Textures'])
+        self.assertEqual(classify(['Source/BuildingBlocks/physics_RT/ivp/solver.cxx'])['modules'], ['bb:physics_RT', 'ivp'])
+
+    def test_windows_resources_only_schedule_windows_dynamic_jobs(self):
+        result = classify(['Source/VxMath/src/Version.rc.in', 'README.md'])
+        rows = job_matrix(resources_only=result['resources_only'])['include']
+        self.assertEqual(len(rows), 3)
+        self.assertTrue(all(row['platform']['name'].startswith('windows-') and row['linkage']['name'] == 'runtime' for row in rows))
+        mixed = classify(['Source/VxMath/src/Version.rc.in', 'Source/CK2/src/CKObject.cpp'])
+        self.assertEqual(len(job_matrix(resources_only=mixed['resources_only'])['include']), 14)
+
+    def test_manual_target_creates_one_job_instead_of_thirteen_empty_jobs(self):
+        rows = job_matrix('sdl-macos-arm64-static')['include']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['platform']['name'], 'macos-arm64')
+        self.assertEqual(rows[0]['linkage']['name'], 'static')
+        with self.assertRaises(ValueError):
+            job_matrix('unknown')
+
+    def test_reader_path_tests_keep_component_ownership_with_shared_registration(self):
+        metadata = {'tests': [
+            {'name': 'AVIReaderAnsiPathTest', 'properties': [{'name': 'LABELS', 'value': ['plugin:AVIReader']}]},
+            {'name': 'ImageReaderAnsiPathTest', 'properties': [{'name': 'LABELS', 'value': ['plugin:ImageReader']}]}],
+            'backtraceGraph': {'nodes': [], 'files': []}}
+        self.assertEqual(select_tests(metadata, {}, ['plugin:AVIReader'], []), ['AVIReaderAnsiPathTest'])
+        self.assertEqual(len(select_tests(metadata, {}, ['plugins'], [])), 2)
+
+    def test_component_runner_never_executes_other_bb_tests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / 'CMakeLists.txt').write_text(
+                'cmake_minimum_required(VERSION 3.25)\nproject(Selection NONE)\nenable_testing()\n'
+                'add_subdirectory(Source/BuildingBlocks/TT_InterfaceManager_RT)\n'
+                'add_subdirectory(Source/BuildingBlocks/physics_RT)\n')
+            for name, command in [('TT_InterfaceManager_RT', 'touch'), ('physics_RT', 'false')]:
+                folder = root / 'Source/BuildingBlocks' / name
+                folder.mkdir(parents=True)
+                (folder / 'CMakeLists.txt').write_text(
+                    f'add_test(NAME {name}Case COMMAND "${{CMAKE_COMMAND}}" -E {command}'
+                    + (' "${CMAKE_BINARY_DIR}/selected-ran"' if command == 'touch' else '') + ')\n')
+            build = root / 'build'
+            subprocess.run(['cmake', '-S', str(root), '-B', str(build)], check=True, stdout=subprocess.DEVNULL)
+            runner = Path(__file__).with_name('ctest_selection.py').resolve()
+            subprocess.run([sys.executable, '-B', str(runner), '--build-dir', str(build),
+                            '--selection', json.dumps({'modules': ['bb:TT_InterfaceManager_RT'], 'checks': []})],
+                           cwd=root, check=True, stdout=subprocess.DEVNULL)
+            self.assertTrue((build / 'selected-ran').exists())
+            self.assertNotIn('physics_RTCase', (build / 'ctest-results.xml').read_text())
+
+    def test_cmake_filters_register_only_requested_components(self):
+        engine = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bb = (engine / 'Source/BuildingBlocks/cmake/CKBBTests.cmake').as_posix()
+            plugins = (engine / 'Source/Plugins/cmake/CKPluginsTests.cmake').as_posix()
+            (root / 'CMakeLists.txt').write_text(
+                'cmake_minimum_required(VERSION 3.25)\nproject(Filter NONE)\n'
+                'set(BUILD_TESTING ON)\nset(CKBB_BUILD_TESTS ON)\nset(CKPLUGINS_BUILD_TESTS ON)\n'
+                f'include("{bb}")\ninclude("{plugins}")\n'
+                'set(CKBB_TEST_MODULES TT_InterfaceManager_RT)\n'
+                'ckbb_tests_enabled(TT_InterfaceManager_RT tt)\nckbb_tests_enabled(physics_RT physics)\n'
+                'set(CKPLUGINS_TEST_MODULES AVIReader)\n'
+                'ckplugins_tests_enabled(AVIReader avi)\nckplugins_tests_enabled(ImageReader image)\n'
+                'if (NOT tt OR physics OR NOT avi OR image)\nmessage(FATAL_ERROR "Unrelated tests enabled")\nendif()\n'
+                'set(CKBB_TEST_MODULES "")\nckbb_tests_enabled(physics_RT all)\n'
+                'if (NOT all)\nmessage(FATAL_ERROR "Full-module default changed")\nendif()\n')
+            subprocess.run(['cmake', '-S', str(root), '-B', str(root / 'build')], check=True, stdout=subprocess.DEVNULL)
+
+    def test_test_only_changes_select_verified_targets_and_keep_shared_helpers(self):
+        scope = classify(['Source/CK2/tests/CKBufferParserFlushTest.cpp'])
+        self.assertEqual(scope['test_targets'], {'ck2': ['CKBufferParserFlushTest']})
+        self.assertEqual(classify(['Source/VxMath/tests/VxMath/NativeUtf8ProcessTest.cpp'])['test_targets'], {})
+        self.assertEqual(classify(['Source/VxMath/tests/VxMath/ConfigLifecycleReferenceTest.cpp'])['test_targets'], {})
+        mixed = classify(['Source/CK2/tests/CKBufferParserFlushTest.cpp', 'Source/CK2/src/CKContext.cpp'])
+        self.assertEqual(mixed['test_targets'], {})
+        metadata = {'tests': [
+            {'name': 'Selected', 'backtrace': 0, 'command': ['/build/CKBufferParserFlushTest']},
+            {'name': 'Other', 'backtrace': 0, 'command': ['/build/CKFileIoTest']}],
+            'backtraceGraph': {'nodes': [{'file': 0}], 'files': [str(Path.cwd() / 'Source/CK2/tests/CMakeLists.txt')]}}
+        self.assertEqual(select_indices(metadata, {'ck2': Path.cwd() / 'Source/CK2'}, ['ck2'], [],
+                                        test_targets=scope['test_targets']), [1])
+
+    def test_warm_release_and_render_snapshots_do_not_recompile_each_other(self):
+        # A real compiler counter checks cache reuse, and the same fixture proves
+        # unselected test executables are omitted from the default build.
+        engine = Path(__file__).resolve().parents[2]
+        helper = (engine / 'cmake/NeMo2TestTargets.cmake').as_posix()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            source, build = root / 'source', root / 'build'
+            (source / 'Source').mkdir(parents=True)
+            counter = root / 'compiler-count.txt'
+            launcher = root / 'launcher.py'
+            launcher.write_text('import pathlib,subprocess,sys\n'
+                                f'with pathlib.Path({str(counter)!r}).open("a") as log: log.write("compile\\n")\n'
+                                'sys.exit(subprocess.call(sys.argv[1:]))\n')
+            (source / 'CMakeLists.txt').write_text(
+                'cmake_minimum_required(VERSION 3.25)\nproject(CacheProbe LANGUAGES CXX)\n'
+                f'set(CMAKE_CXX_COMPILER_LAUNCHER "{sys.executable};{launcher.as_posix()}")\n'
+                'add_subdirectory(Source)\nset(NEMO_TEST_TARGET_FILTER "Source=Selected")\n'
+                f'include("{helper}")\n')
+            (source / 'Source/CMakeLists.txt').write_text(
+                'add_executable(Selected probe.cpp)\nadd_executable(Unselected probe.cpp)\n'
+                'if(HOOKS)\ntarget_compile_definitions(Selected PRIVATE TEST_HOOKS=1)\nendif()\n')
+            (source / 'Source/probe.cpp').write_text(
+                '#include <cstdio>\n#ifndef TEST_HOOKS\n#define TEST_HOOKS 0\n#endif\n'
+                'int main(){std::printf("%d",TEST_HOOKS);}\n')
+            generator = 'Ninja' if shutil.which('ninja') else None
+
+            def configure_and_build(hooks):
+                command = ['cmake', '-S', str(source), '-B', str(build), f'-DHOOKS={"ON" if hooks else "OFF"}']
+                if generator:
+                    command += ['-G', generator]
+                subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
+                subprocess.run(['cmake', '--build', str(build), '--config', 'Release'], check=True, stdout=subprocess.DEVNULL)
+                suffix = '.exe' if sys.platform == 'win32' else ''
+                binaries = build / 'Source'
+                if (binaries / 'Release').exists():
+                    binaries /= 'Release'
+                self.assertFalse((binaries / ('Unselected' + suffix)).exists())
+                self.assertEqual(subprocess.check_output([str(binaries / ('Selected' + suffix))], text=True), str(int(hooks)))
+
+            for profile, hooks in [('build', False), ('render-tests', True)]:
+                configure_and_build(hooks)
+                shutil.copytree(build, root / 'snapshots' / profile)
+            self.assertEqual(len(counter.read_text().splitlines()), 2)
+            for profile, hooks in [('build', False), ('render-tests', True)]:
+                shutil.rmtree(build)
+                shutil.copytree(root / 'snapshots' / profile, build)
+                configure_and_build(hooks)
+            self.assertEqual(len(counter.read_text().splitlines()), 2)
 
     def test_stage_check_does_not_enable_engine_suites(self):
         result = classify(['cmake/TestStageInstall.cmake'])

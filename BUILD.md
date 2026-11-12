@@ -119,6 +119,11 @@ Changed submodule revisions are inspected recursively, so documentation-only
 updates do not trigger builds or tests. Build calls Test at the same commit after
 saving its caches. Test enables only the changed modules' test options and their
 required static dependencies; all other module test options are explicitly off.
+Building blocks and readers are selected individually: changing
+`TT_InterfaceManager_RT` does not register the physics or other BB tests, and
+changing `AVIReader` does not register the other readers' tests. Module-wide
+selections remain available for shared build changes. Verified core test-only
+edits build and run the corresponding executables rather than the entire suite.
 CTest cases are selected by the source directory that registered them. Build
 disables test options again when restoring a Test snapshot. GPU diagnostic builds
 keep caching disabled so their diagnostic compiler settings cannot leak into release builds.
@@ -131,6 +136,22 @@ aggregator checks. A complete engine test run requires an explicit
 automatically. The platform selector `target=all` covers the platform matrix
 for the selected modules.
 
+Use `modules=bb:TT_InterfaceManager_RT` or `modules=plugin:AVIReader` to request
+one component; comma-separated selections are supported. The CMake filters
+`CKBB_TEST_MODULES` and `CKPLUGINS_TEST_MODULES` accept semicolon-separated module
+names. Their empty defaults retain the existing complete module test suites.
+
+Build and Test use the platform definitions in `.github/scripts/ci_platforms.json`.
+A specific target creates one job. Changes limited to Windows version resources
+create only the three Windows dynamic-library jobs in either superproject.
+Manual test-module requests retain the platform matrix requested by `target`.
+
+Renderer tests keep their instrumented snapshots in a separate cache family.
+They first restore an existing renderer-test snapshot and only use a normal
+Build snapshot as a cold-start fallback. Build continues to restore normal
+snapshots, so warm release/test runs do not recompile the static renderer merely
+to switch test-hook definitions. Other module tests retain the shared Build cache.
+
 CI helper changes run only their own Python checks. Build-script changes select
 aggregator checks; README and license changes run neither compilation nor tests.
 Changes limited to `Version.rc.in` update Windows version resources without
@@ -138,6 +159,14 @@ enabling engine unit-test suites.
 
 ```bash
 gh workflow run test.yml --ref main -f modules=vxmath -f target=sdl-linux-x64-runtime
+```
+
+For a focused procedural reference capture, select one runtime target and the
+scenes to capture. This builds the capture tool from the incremental cache and
+uploads candidate frames for review; it does not run test suites or update fixtures:
+
+```bash
+gh workflow run build.yml --ref main -f target=sdl-linux-x64-runtime -f capture-scenes=sprites_text,present_fxaa
 ```
 
 ## Application integration

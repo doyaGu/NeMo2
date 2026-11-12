@@ -168,6 +168,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v6.0.2
+    - name: Checkout test registration helpers
+      if: ${{ contains(fromJSON(needs.changes.outputs.scripts), 'ci') }}
+      run: git submodule update --init --depth 1 -- Source/BuildingBlocks Source/Plugins Source/CK2 Source/VxMath
     - name: Check ci
       if: ${{ contains(fromJSON(needs.changes.outputs.scripts), 'ci') }}
       run: python3 -B -m unittest discover -s .github/scripts -p "test_ci_selection.py"
