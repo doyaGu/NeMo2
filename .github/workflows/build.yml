@@ -11,6 +11,14 @@ on:
         description: "Optional comma-separated procedural scenes to capture instead of staging"
         type: string
         default: ""
+      capture-frames:
+        description: "Frames per scene capture"
+        type: number
+        default: 5
+      capture-validation:
+        description: "Enable the GPU validation layer during scene capture"
+        type: boolean
+        default: false
       target:
         description: "Build target"
         required: false
@@ -218,6 +226,9 @@ jobs:
     - name: Capture selected procedural scenes
       if: ${{ env.CAPTURE_SCENES != '' }}
       timeout-minutes: 3
+      env:
+        CAPTURE_FRAMES: ${{ inputs.capture-frames || 5 }}
+        CKRE_SDL_GPU_DEBUG: ${{ inputs.capture-validation && '1' || '0' }}
       run: |
         $root = (Resolve-Path 'build/${{ matrix.platform.preset }}-runtime').Path
         $tool = "$root/bin/ckre_scene_capture"
@@ -226,11 +237,12 @@ jobs:
           $tool = "$root/bin/Release/ckre_scene_capture.exe"
           $engine = "$root/bin/Release"
         }
+        if ([int]$env:CAPTURE_FRAMES -lt 1 -or [int]$env:CAPTURE_FRAMES -gt 1000) { throw 'Capture frames must be between 1 and 1000' }
         Remove-Item -LiteralPath "$root/scene-references" -Recurse -Force -ErrorAction SilentlyContinue
         $output = New-Item -ItemType Directory -Force -Path "$root/scene-references"
         foreach ($scene in $env:CAPTURE_SCENES.Split(',')) {
           if ($scene -notmatch '^[a-z0-9_]+$') { throw 'Invalid scene name' }
-          $arguments = @('--render-engine-dir', $engine, '--rasterizer', 'sdlgpu', '--scene', $scene, '--size', '640x480', '--frames', '5', '--out', $output.FullName)
+          $arguments = @('--render-engine-dir', $engine, '--rasterizer', 'sdlgpu', '--scene', $scene, '--size', '640x480', '--frames', $env:CAPTURE_FRAMES, '--out', $output.FullName)
           if ($IsLinux) { xvfb-run -a $tool @arguments 2>&1 | Tee-Object -FilePath "$output/$scene.log" }
           else { & $tool @arguments 2>&1 | Tee-Object -FilePath "$output/$scene.log" }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
