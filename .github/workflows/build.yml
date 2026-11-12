@@ -218,7 +218,8 @@ jobs:
         $architecture = '${{ matrix.platform.name }}'.Substring(8)
         ./cmake/SetupWindowsWarp.ps1 -Architecture $architecture -DestinationDirectory $binary
         ./cmake/SetupWindowsD3D12.ps1 -Architecture $architecture -DestinationDirectory "$binary/D3D12"
-        & "$binary/D3D12/d3dconfig.exe" apps --add "$binary/ckre_scene_capture.exe"
+        # The app selector stores an exact Windows executable path.
+        & "$binary/D3D12/d3dconfig.exe" apps --add (Join-Path $binary 'ckre_scene_capture.exe')
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         & "$binary/D3D12/d3dconfig.exe" device force-warp=true
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

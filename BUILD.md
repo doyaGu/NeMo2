@@ -171,6 +171,10 @@ uploads candidate frames for review; it does not run test suites or update fixtu
 gh workflow run build.yml --ref main -f target=sdl-linux-x64-runtime -f capture-scenes=sprites_text,present_fxaa
 ```
 
+`capture-frames` defaults to five; `capture-validation=true` enables the GPU
+validation layer. Static scenes can be captured with one requested frame to
+review their inputs without presenting preceding frames.
+
 ## Application integration
 
 ```cmake
