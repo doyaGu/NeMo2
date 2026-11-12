@@ -1,0 +1,52 @@
+cmake_minimum_required(VERSION 3.25)
+
+string(RANDOM LENGTH 12 ALPHABET 0123456789abcdef test_id)
+set(fixture "${TEST_BINARY_DIR}/subproject-${test_id}")
+file(MAKE_DIRECTORY "${fixture}/source")
+file(TO_CMAKE_PATH "${TEST_SOURCE_DIR}" nemo_source)
+file(TO_CMAKE_PATH "${fixture}/parent-install" parent_install)
+file(WRITE "${fixture}/source/CMakeLists.txt"
+"cmake_minimum_required(VERSION 3.25)
+project(EngineConsumer LANGUAGES C CXX)
+set(CMAKE_BUILD_TYPE Debug CACHE STRING \"\" FORCE)
+set(CMAKE_INSTALL_PREFIX \"${parent_install}\" CACHE PATH \"\" FORCE)
+set(CMAKE_CXX_STANDARD 20)
+set(BUILD_TESTING OFF CACHE BOOL \"\" FORCE)
+set(NEMO_BUILD_TESTS OFF CACHE BOOL \"\" FORCE)
+set(VXMATH_BUILD_STATIC ON CACHE BOOL \"\" FORCE)
+add_subdirectory(\"${nemo_source}\" engine)
+if (NOT CMAKE_BUILD_TYPE STREQUAL \"Debug\" OR
+        NOT CMAKE_INSTALL_PREFIX STREQUAL \"${parent_install}\" OR
+        NOT CMAKE_CXX_STANDARD EQUAL 20)
+    message(FATAL_ERROR \"NeMo2 changed parent project settings\")
+endif ()
+if (TARGET Player OR NOT TARGET CK2 OR NOT TARGET VxMathStatic)
+    message(FATAL_ERROR \"Unexpected engine consumer targets\")
+endif ()
+get_property(manifest GLOBAL PROPERTY NEMO_RUNTIME_COMPONENT_MANIFEST)
+if (NOT EXISTS \"\${manifest}\")
+    message(FATAL_ERROR \"Engine runtime manifest was not published\")
+endif ()
+include(\"\${manifest}\")
+if (NOT \"CK2\" IN_LIST NEMO_CORE_RUNTIME_TARGETS OR
+        NOT \"SdlInputManager\" IN_LIST NEMO_MODULE_RUNTIME_TARGETS OR
+        \"Player\" IN_LIST NEMO_RUNTIME_TARGETS)
+    message(FATAL_ERROR \"Unexpected engine runtime manifest\")
+endif ()
+")
+set(configure "${CMAKE_COMMAND}" -S "${fixture}/source" -B "${fixture}/build"
+        -G "${TEST_GENERATOR}" "-DSDL3_DIR=${TEST_SDL3_DIR}"
+        "-DVXMATH_FONT_DIR=${TEST_FONT_DIR}")
+if (TEST_PLATFORM)
+    list(APPEND configure -A "${TEST_PLATFORM}")
+endif ()
+if (TEST_TOOLSET)
+    list(APPEND configure -T "${TEST_TOOLSET}")
+endif ()
+execute_process(COMMAND ${configure}
+        RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+file(WRITE "${fixture}/configure.log" "${output}${error}")
+if (NOT result EQUAL 0)
+    message(FATAL_ERROR "Engine consumer configure failed:\n${output}${error}")
+endif ()
+message(STATUS "NeMo2 preserved parent settings and published engine targets")

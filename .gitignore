@@ -13,3 +13,6 @@ _deps
 /.vs
 /.idea
 /cmake-build-*
+
+/.link-cache/
+__pycache__/

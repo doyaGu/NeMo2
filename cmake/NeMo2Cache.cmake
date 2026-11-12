@@ -1,0 +1,5 @@
+function(nemo_set_cache_default var value type doc)
+    if (NOT DEFINED ${var})
+        set(${var} "${value}" CACHE ${type} "${doc}")
+    endif ()
+endfunction()

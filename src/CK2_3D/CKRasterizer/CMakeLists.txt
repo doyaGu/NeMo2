@@ -1,3 +1,0 @@
-# CKRasterizer
-add_subdirectory(CKRasterizerLib)
-add_subdirectory(CKDX9Rasterizer)

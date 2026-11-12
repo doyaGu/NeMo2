@@ -1,0 +1,34 @@
+# Root-only compiler defaults for the superproject.
+#
+# Component projects own their language-standard requirements. Keeping the
+# standard unset here preserves the C++ language version selected by each
+# component for both superproject and standalone builds.
+
+add_compile_definitions(
+        $<$<C_COMPILER_ID:MSVC>:_CRT_SECURE_NO_WARNINGS>
+        $<$<C_COMPILER_ID:MSVC>:_CRT_NONSTDC_NO_WARNINGS>
+        $<$<CONFIG:Debug>:DEBUG>
+)
+
+if (MSVC)
+    add_compile_definitions(_MBCS)
+    remove_definitions(-DUNICODE -D_UNICODE)
+
+    set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD ON)
+
+    if (CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
+        string(REGEX REPLACE "/W[0-4]" "/W3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    else ()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
+    endif ()
+
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/MP>)
+
+    if (NEMO_BUILD_STATIC)
+        nemo_set_cache_default(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" STRING
+                "MSVC runtime library for static engine builds (default: /MT, /MTd)")
+    else ()
+        nemo_set_cache_default(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" STRING
+                "MSVC runtime library (default: /MD, /MDd)")
+    endif ()
+endif ()

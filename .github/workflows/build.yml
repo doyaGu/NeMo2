@@ -1,60 +1,217 @@
-name: Build
+name: Build engine
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  # Nightly, and only when main has commits the last nightly did not build.
+  schedule:
+    - cron: "0 19 * * *"
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Build target"
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - sdl-windows-x86-runtime
+          - sdl-windows-x64-runtime
+          - sdl-windows-arm64-runtime
+          - sdl-linux-x64-runtime
+          - sdl-linux-arm64-runtime
+          - sdl-macos-x64-runtime
+          - sdl-macos-arm64-runtime
+          - sdl-windows-x86-static
+          - sdl-windows-x64-static
+          - sdl-windows-arm64-static
+          - sdl-linux-x64-static
+          - sdl-linux-arm64-static
+          - sdl-macos-x64-static
+          - sdl-macos-arm64-static
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}-${{ inputs.target || 'all' }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: windows-latest
+  changes:
+    name: Check for new commits
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
 
-    strategy:
-      matrix:
-        configuration: [Release, Debug]
+    permissions:
+      actions: read
 
-    env:
-      PROJECT_NAME: NeMo2
-      BASE_BUILD_DIR: ${{ github.workspace }}/build
-      BASE_DIST_DIR: ${{ github.workspace }}/dist
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
 
     steps:
-    - name: Checkout source code
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Get current branch and commit hash
-      shell: bash
+    - name: Compare with the last nightly build
+      id: check
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        echo "GIT_BRANCH=$(echo ${GITHUB_REF#refs/heads/})" >> "$GITHUB_ENV"
-        echo "GIT_SHA=$(git rev-parse --short "$GITHUB_SHA")" >> "$GITHUB_ENV"
+        built=$(gh run list -R "$GITHUB_REPOSITORY" --workflow build.yml --event schedule --limit 30 \
+          --json headSha,conclusion --jq 'map(select(.conclusion == "success" or .conclusion == "failure"))[0].headSha // ""')
+        echo "changed=$([ "$built" != "$GITHUB_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-    - name: Setup CMake
-      uses: lukka/get-cmake@latest
+  build:
+    name: sdl-${{ matrix.platform.name }}-${{ matrix.linkage.name }}
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'schedule' || needs.changes.outputs.changed == 'true') }}
+    runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 180
 
-    - name: Setup MSVC
-      uses: TheMrMilchmann/setup-msvc-dev@v3.0.0
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: windows-x86
+            os: windows-2022
+            preset: windows-x86
+            archive_ext: .zip
+            sdl_discriminator: Windows-X86
+            sdl_cmake_generator: Visual Studio 17 2022
+            sdl_cmake_arguments: -A Win32 --no-warn-unused-cli
+
+          - name: windows-x64
+            os: windows-2022
+            archive_ext: .zip
+            preset: windows-x64
+            sdl_discriminator: Windows-X64
+            sdl_cmake_generator: Visual Studio 17 2022
+            sdl_cmake_arguments: -A x64 --no-warn-unused-cli
+
+          - name: windows-arm64
+            os: windows-11-arm
+            archive_ext: .zip
+            preset: windows-arm64
+            sdl_discriminator: Windows-ARM64
+            # VS 2026's ARM64 optimizer crashes in SIMDe's NEON load path.
+            # The image also supplies the supported MSVC 14.44 ARM64 toolset.
+            sdl_cmake_generator: Visual Studio 18 2026
+            sdl_cmake_arguments: -A ARM64 -T "v143,version=14.44" --no-warn-unused-cli
+            configure_arguments: -G "Visual Studio 18 2026" -T "v143,version=14.44"
+
+          - name: linux-x64
+            os: ubuntu-26.04
+            archive_ext: .tar.gz
+            preset: linux-x64
+            sdl_discriminator: Linux-X64
+            sdl_cmake_generator: ""
+            sdl_cmake_arguments: --no-warn-unused-cli
+
+          - name: linux-arm64
+            os: ubuntu-26.04-arm
+            archive_ext: .tar.gz
+            preset: linux-arm64
+            sdl_discriminator: Linux-ARM64
+            sdl_cmake_generator: ""
+            sdl_cmake_arguments: --no-warn-unused-cli
+
+          - name: macos-x64
+            # Build x86_64 binaries on the ARM VM; Test covers Rosetta execution.
+            os: macos-26
+            archive_ext: .tar.gz
+            preset: macos-x64
+            sdl_discriminator: macOS-X64
+            sdl_cmake_generator: ""
+            sdl_cmake_arguments: -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 --no-warn-unused-cli
+            configure_arguments: '"-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0"'
+
+          - name: macos-arm64
+            os: macos-26
+            archive_ext: .tar.gz
+            preset: macos-arm64
+            sdl_discriminator: macOS-ARM64
+            sdl_cmake_generator: ""
+            sdl_cmake_arguments: -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 --no-warn-unused-cli
+            configure_arguments: '"-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0"'
+        linkage:
+          - name: runtime
+            ballance_build_static: "OFF"
+
+          - name: static
+            ballance_build_static: "ON"
+
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+    - name: Checkout
+      if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
+      uses: actions/checkout@v6.0.2
+
+    - name: Checkout submodules
+      if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
+      run: ./cmake/UpdateSubmodules.ps1
+
+    - name: Setup current wayland-scanner
+      if: ${{ (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) && startsWith(matrix.platform.name, 'linux-') }}
+      shell: bash
+      run: ./cmake/SetupWaylandScanner.sh
+
+    - name: Setup SDL3
+      if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
+      id: sdl
+      uses: libsdl-org/setup-sdl@a966470e7d9b6a5c93eec3f08d5dac370325c860
       with:
-        arch: x86
+        version: 3.4.20
+        cmake-generator: ${{ matrix.platform.sdl_cmake_generator }}
+        cmake-arguments: ${{ matrix.platform.sdl_cmake_arguments }}
+        discriminator: ${{ matrix.platform.sdl_discriminator }}
+        build-type: Release
+        install-linux-dependencies: true
 
-    - name: Configure CMake
-      run: >
-        cmake -A Win32 -B ${{ env.BASE_BUILD_DIR }}/${{ matrix.configuration }}
-        -DCMAKE_BUILD_TYPE=${{ matrix.configuration }}
-        -DCMAKE_INSTALL_PREFIX=${{ env.BASE_DIST_DIR }}/${{ matrix.configuration }}
+    - name: Prepare build cache key
+      if: ${{ (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) }}
+      id: cache-key
+      run: |
+        $imageVersion = $env:ImageVersion
+        "prefix=nemo-build-v1-${{ matrix.platform.name }}-${{ matrix.linkage.name }}-${imageVersion}-${{ hashFiles('CMakePresets.json', '.github/workflows/build.yml', '.github/scripts/build_cache_state.py', 'cmake/NeMo2Compiler.cmake', 'cmake/NeMo2LinkCache.cmake') }}-" >> $env:GITHUB_OUTPUT
 
-    - name: Build the project
-      run: cmake --build ${{ env.BASE_BUILD_DIR }}/${{ matrix.configuration }} --config ${{ matrix.configuration }}
-
-    - name: Install binaries to distribution folder
-      run: >
-        cmake --install ${{ env.BASE_BUILD_DIR }}/${{ matrix.configuration }}
-        --prefix ${{ env.BASE_DIST_DIR }}/${{ matrix.configuration }}  --config ${{ matrix.configuration }}
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4.3.3
+    - name: Restore incremental build
+      if: ${{ steps.cache-key.outcome == 'success' }}
+      id: build-cache
+      continue-on-error: true
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
       with:
-        name: ${{ env.PROJECT_NAME }}-${{ env.GIT_BRANCH }}-${{ env.GIT_SHA }}-${{ matrix.configuration }}
-        path: ${{ env.BASE_DIST_DIR }}/${{ matrix.configuration }}
+        path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
+        key: ${{ steps.cache-key.outputs.prefix }}${{ github.sha }}
+        restore-keys: ${{ steps.cache-key.outputs.prefix }}
+
+    - name: Restore unchanged source timestamps
+      if: ${{ steps.cache-key.outcome == 'success' }}
+      run: python3 -B .github/scripts/build_cache_state.py restore --build-dir build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
+
+    - name: Configure
+      if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
+      run: |
+        cmake --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }} `
+          ${{ matrix.platform.configure_arguments }} `
+          "-DCMAKE_PREFIX_PATH=${{ steps.sdl.outputs.prefix }}" `
+          -DBUILD_TESTING=OFF
+
+    - name: Build
+      if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name) }}
+      run: cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-stage-release --parallel $([Environment]::ProcessorCount)
+
+    - name: Save source timestamps for incremental builds
+      if: ${{ !cancelled() && steps.cache-key.outcome == 'success' }}
+      run: python3 -B .github/scripts/build_cache_state.py save --build-dir build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
+
+    - name: Save incremental build
+      if: ${{ !cancelled() && steps.cache-key.outcome == 'success' && steps.build-cache.outputs.cache-primary-key != '' && steps.build-cache.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: build/${{ matrix.platform.preset }}-${{ matrix.linkage.name }}
+        key: ${{ steps.build-cache.outputs.cache-primary-key }}
