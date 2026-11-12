@@ -111,10 +111,25 @@ with `SetRegistryFile`; all its registry behaviors use that file.
 Rendering hosts can call `CKSetRenderSettingsFile(context, iniFile)` from
 `CKRenderConfiguration.h` after the render manager exists and before creating
 render contexts. The file is parsed into context-owned storage, and a failed
-load preserves the previous settings. Passing null restores the legacy file
-lookup. The selected options and defaults apply to future resources; existing
-resources keep their properties. Low-level aggregate diagnostic counters and
-the debug output sink retain their process-wide lifetime.
+load preserves the previous settings. Passing null takes a new snapshot of the
+legacy file lookup. The selected options and defaults apply to future resources;
+existing resources keep their properties.
+
+Each context owns its debug output gate, log file, render counters, frame-cost
+sampling window and diagnostic log limits. Calls through the renderer and its
+rasterizer modules select that context and restore the caller's scope on return.
+Without an explicit `Debug.LogPath`, contexts use separate
+`CK2_3D_Debug.context-<id>.log` files beside the renderer module. An explicit path
+is honored and opened for append; selecting the same path deliberately combines
+the output. Unbound diagnostic calls retain the legacy fallback.
+
+`CKGetRenderDiagnostics(context, &snapshot, sizeof(snapshot))` from
+`CKRenderDiagnostics.h` copies that context's render and frame-cost counters;
+diagnostic families disabled at compile time return zeros. Read counters on the
+context's render thread or while rendering is idle. Independent contexts may run
+on different threads. Diagnostics are reset with a new configuration and released
+with their context. The private rasterizer interface revision is `0x00080000`;
+rebuild providers together with the renderer.
 
 ## Incremental builds and CI
 
