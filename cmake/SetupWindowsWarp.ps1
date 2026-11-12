@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $destination = (New-Item -ItemType Directory -Force -Path $DestinationDirectory).FullName
-$packagePath = Join-Path ([IO.Path]::GetTempPath()) "Ballanced-WARP-$Version.nupkg"
+$packagePath = Join-Path ([IO.Path]::GetTempPath()) "NeMo2-WARP-$Version.nupkg"
 Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/microsoft.direct3d.warp/$Version/microsoft.direct3d.warp.$Version.nupkg" -OutFile $packagePath
 $expectedHash = @{
     '1.0.20' = 'E5FE5DE661CE98B58EF9CFB736E73C0A7A2623D3BBF5F14839B2D55566D87E40'

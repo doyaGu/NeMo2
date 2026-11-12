@@ -112,9 +112,9 @@ NeMo2 does not change a parent's build type, installation prefix, or language
 standard, and creates its standalone `stage` target only at the top level.
 Applications requiring the shared project/compiler defaults can include the
 `NeMo2Cache`, `NeMo2Project`, `NeMo2Compiler`, and `NeMo2LinkCache` helpers before
-adding their application and engine subdirectories. Ballanced uses these helpers
-to keep Player and the engine on the same MSVC runtime.
+adding application and engine subdirectories to use the same MSVC runtime
+throughout the project.
 
-Modules keep their own versions and existing version-override options. Use their
-individual package configurations when consuming an installed module; this
-aggregator does not provide the former unified `find_package(NeMo2)` interface.
+Modules keep their own versions and version-override options. Installed modules
+provide individual CMake package configurations. Use `add_subdirectory` to
+integrate the complete engine into an application build.

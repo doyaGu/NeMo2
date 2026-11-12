@@ -96,7 +96,7 @@ jobs:
             $output = Get-Content -LiteralPath $log -Raw
             return $code -eq 5 -and $output -match '(?m)^SDL present mode=\d+ submit:'
           }
-          logman start BallancedNativePresent -p Microsoft-Windows-DXGI 0xffffffffffffffff -o build/gpu-crash/d3d12-native-present.etl -ets
+          logman start NeMo2NativePresent -p Microsoft-Windows-DXGI 0xffffffffffffffff -o build/gpu-crash/d3d12-native-present.etl -ets
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($runtime in @('system', 'agility')) { foreach ($fence in @(0, 1, 2)) {
             & "$binary/probe-$runtime.exe" 0 32 $fence *> "build/gpu-crash/d3d12-$runtime-fence-$fence-0.log"
@@ -127,7 +127,7 @@ jobs:
               }
             }
           } }
-          logman stop BallancedNativePresent -ets
+          logman stop NeMo2NativePresent -ets
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           tracerpt build/gpu-crash/d3d12-native-present.etl -o build/gpu-crash/d3d12-native-present.xml -of XML -y
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -293,7 +293,7 @@ jobs:
         id: present-events
         if: ${{ !cancelled() && startsWith(inputs.platform, 'windows-') && steps.debugger.outcome == 'success' }}
         shell: pwsh
-        run: logman start BallancedGpuPresent -p Microsoft-Windows-DXGI 0xffffffffffffffff -o build/gpu-crash/dxgi-present.etl -ets
+        run: logman start NeMo2GpuPresent -p Microsoft-Windows-DXGI 0xffffffffffffffff -o build/gpu-crash/dxgi-present.etl -ets
       - name: Verify scene images
         if: ${{ !cancelled() && (startsWith(inputs.platform, 'macos-') || steps.debugger.outcome == 'success') }}
         shell: pwsh
@@ -317,7 +317,7 @@ jobs:
         if: ${{ !cancelled() && steps.present-events.outcome == 'success' }}
         shell: pwsh
         run: |
-          logman stop BallancedGpuPresent -ets
+          logman stop NeMo2GpuPresent -ets
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           tracerpt build/gpu-crash/dxgi-present.etl -o build/gpu-crash/dxgi-present.xml -of XML -y
       - name: Verify JIT replay

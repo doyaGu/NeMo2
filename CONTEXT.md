@@ -1,12 +1,12 @@
 # NeMo2 engine
 
-NeMo2 assembles the Virtools runtime independently of its application host.
+NeMo2 implements the Virtools runtime and assembles its modules through CMake.
 
 ## Language
 
 **Engine runtime**:
 The Virtools libraries, rasterizer, manager plugins, file readers, and building
-blocks. BallancePlayer and game assets belong to the application repository.
+blocks.
 
 **Runtime component manifest**:
 The configured engine module declarations published for an application to

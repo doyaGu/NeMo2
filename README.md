@@ -1,28 +1,41 @@
 # NeMo2
 
-Virtools engine reimplementation using SDL3. NeMo2 assembles VxMath, CK2,
-the render engine, managers, file readers, and building blocks from their
-independently versioned Git repositories. It builds without BallancePlayer or
-game assets.
+NeMo2 is a C++ reimplementation of the Virtools runtime. It includes the behavior
+engine, math library, SDL_GPU rasterizer, input and sound managers, file readers,
+and building blocks.
+
+## Build
+
+Requirements: CMake 3.25+, SDL3 3.4.20+, and a C/C++ toolchain. Linux and macOS
+presets use Ninja; Windows presets use Visual Studio.
 
 ```bash
 git clone --recurse-submodules https://github.com/doyaGu/NeMo2.git
 cd NeMo2
-cmake --preset macos-arm64-runtime
-cmake --build --preset macos-arm64-runtime-release
-ctest --preset macos-arm64-runtime-release
+cmake --preset linux-x64-runtime
+cmake --build --preset linux-x64-runtime-release
 ```
 
-Use the corresponding Windows or Linux preset for your platform. CMake 3.25+
-and SDL3 3.4.20+ are required. See [BUILD.md](BUILD.md) for the platform matrix,
-static builds, offline dependencies, and integration with an application.
+Choose the preset for your platform and architecture: `windows-x86`,
+`windows-x64`, `windows-arm64`, `linux-x64`, `linux-arm64`, `macos-x64`, or
+`macos-arm64`, followed by `-runtime` or `-static`. Set `CMAKE_PREFIX_PATH` when
+SDL3 is outside the default package search path.
 
-## Repositories
+After updating the repository, initialize its nested dependencies:
+
+```bash
+git submodule update --init --recursive
+```
+
+See [BUILD.md](BUILD.md) for the complete preset matrix, dependency setup,
+staging, and incremental builds.
+
+## Modules
 
 | Path | Repository | Purpose |
 |------|------------|---------|
 | `Source/VxMath` | [VxMath](https://github.com/doyaGu/VxMath) | Math, platform utilities, configuration, fonts |
-| `Source/CK2` | [CK2](https://github.com/doyaGu/CK2) | Virtools behavior engine and serialization |
+| `Source/CK2` | [CK2](https://github.com/doyaGu/CK2) | Behavior engine and serialization |
 | `Source/RenderEngine` | [CKRenderEngine](https://github.com/doyaGu/CKRenderEngine) | Rendering and SDL_GPU rasterizer |
 | `Source/Managers/ParameterOperations` | [CKParameterOperations](https://github.com/doyaGu/CKParameterOperations) | Parameter operations |
 | `Source/Managers/SdlInputManager` | [SdlInputManager](https://github.com/doyaGu/SdlInputManager) | Input |
@@ -30,33 +43,34 @@ static builds, offline dependencies, and integration with an application.
 | `Source/Plugins` | [CKPlugins](https://github.com/doyaGu/CKPlugins) | File readers |
 | `Source/BuildingBlocks` | [CKBuildingBlocks](https://github.com/doyaGu/CKBuildingBlocks) | Behaviors, TT modules, physics |
 
-`git submodule update --init --recursive` checks out the recorded revisions.
-Module histories, dependencies, C++ interfaces, and target names are retained.
+## Application integration
 
-## Applications and compatibility
+Add NeMo2 to a CMake project and link the module targets your application uses:
 
-[Ballanced](https://github.com/doyaGu/Ballanced) supplies BallancePlayer, original
-game asset staging, Player acceptance tests, and game release packages. It
-consumes NeMo2 through `add_subdirectory` and pins an engine commit.
+```cmake
+add_subdirectory(NeMo2)
+target_link_libraries(MyApplication PRIVATE CK2 VxMath)
+```
 
-The first split preserves existing configuration behavior, including the
-Ballance configuration directory, `BALLANCE_USER_CONFIG_HOME`, and TT defaults.
-It does not introduce a generic player host. The previous NeMo2 implementation
-remains available at `legacy/pre-ballanced-split`; its source layout and unified
-package interface have been replaced by the module repositories.
+`NEMO_BUILD_STATIC` selects static libraries and modules; `NEMO_BUILD_TESTS`
+enables the engine test suite. Both default to `OFF`. Module-specific options
+remain available. Applications can use the `NEMO_RUNTIME_COMPONENT_MANIFEST`
+global property to obtain the configured runtime module list.
 
 ## Tests and rendering tools
 
-`NEMO_BUILD_TESTS=ON` enables the complete engine suite. The Test workflow covers
-the supported platform/linkage matrix and a full Linux x64 configuration. Its
+```bash
+cmake --preset linux-x64-tests
+cmake --build --preset linux-x64-tests-release
+ctest --preset linux-x64-tests-release --output-on-failure
+```
+
+CI tests the supported platform and linkage combinations. The Test workflow's
 `gpu-debug` input captures rendering evidence for the GPU replay workflow.
-Player JIT scripts and the Ballance level route live in Ballanced.
 
 [CONTEXT.md](CONTEXT.md) defines engine terms;
-[docs/RENDERING.md](docs/RENDERING.md) records rendering implementation guidance.
+[docs/RENDERING.md](docs/RENDERING.md) covers rendering implementation.
 
-## Licenses
+## License
 
-NeMo2 retains its [Apache 2.0 license](LICENSE). Submodules retain their own
-licenses. Build orchestration and CI helpers migrated from Ballanced retain
-the [Ballanced MIT notice](LICENSES/Ballanced-MIT.txt).
+NeMo2 is licensed under [Apache 2.0](LICENSE). Each module provides its own license.

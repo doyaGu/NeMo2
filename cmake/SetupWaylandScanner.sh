@@ -12,7 +12,7 @@ if [[ -z "${GITHUB_PATH:-}" ]]; then
     exit 1
 fi
 
-work_root="$(mktemp -d "${RUNNER_TEMP:-/tmp}/ballanced-wayland-scanner.XXXXXX")"
+work_root="$(mktemp -d "${RUNNER_TEMP:-/tmp}/nemo2-wayland-scanner.XXXXXX")"
 archive_path="${work_root}/${WAYLAND_ARCHIVE}"
 source_root="${work_root}/wayland-${WAYLAND_VERSION}"
 build_root="${work_root}/build"

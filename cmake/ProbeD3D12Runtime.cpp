@@ -53,7 +53,7 @@ static HRESULT ProbePresents(IDXGIFactory4 *factory, ID3D12Device *device, int w
     WNDCLASSW windowClass = {};
     windowClass.lpfnWndProc = DefWindowProcW;
     windowClass.hInstance = GetModuleHandleW(NULL);
-    windowClass.lpszClassName = L"BallancedD3D12Probe";
+    windowClass.lpszClassName = L"NeMo2D3D12Probe";
     if (!RegisterClassW(&windowClass)) {
         const HRESULT error = HRESULT_FROM_WIN32(GetLastError());
         if (event) CloseHandle(event);

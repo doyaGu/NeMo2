@@ -24,7 +24,7 @@ if (-not (Test-Path -LiteralPath $tool -PathType Leaf)) {
 if (-not $Debugger) {
     # Extract Microsoft's signed debugger package without installing it or
     # changing the machine's postmortem debugger settings.
-    $downloadRoot = (New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) "Ballanced-WinDbg-$([Guid]::NewGuid())")).FullName
+    $downloadRoot = (New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) "NeMo2-WinDbg-$([Guid]::NewGuid())")).FullName
     $bundlePath = Join-Path $downloadRoot 'windbg.msixbundle'
     Invoke-WebRequest -Uri 'https://windbg.download.prss.microsoft.com/dbazure/prod/1-2611-4001-0/windbg.msixbundle' -OutFile $bundlePath
     $expectedHash = '158F6365F365A939429977F7BC4CA3D15F8C2A39BC3ACD2B297FC36A31D69274'
@@ -63,7 +63,7 @@ if ($TracePresent) {
     $trace = 'sxe -c "bm /d dxgi!CDXGISwapChain::PresentImpl \"gu; r ' + $resultRegister + '; g\"; g" ld:dxgi.dll; '
     $commands = $trace + $commands
 }
-$symbolCache = Join-Path ([IO.Path]::GetTempPath()) 'Ballanced-DebugSymbols'
+$symbolCache = Join-Path ([IO.Path]::GetTempPath()) 'NeMo2-DebugSymbols'
 $arguments = @('-G', '-o', '-y', "$binaryRoot;srv*$symbolCache*https://msdl.microsoft.com/download/symbols", '-logo', 'debugger.log', '-c',
     $commands,
     $tool, '--render-engine-dir', $binaryRoot, '--rasterizer', 'sdlgpu',
