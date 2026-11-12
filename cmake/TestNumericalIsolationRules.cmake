@@ -56,4 +56,7 @@ check_isolation(Source/NeMo2/Source/VxMath/src/Owned.cpp "VxFloat80 value;\n" TR
 check_isolation(Source/NeMo2/Source/BuildingBlocks/physics_RT/ivp/Owned.cxx "IVP_X87_Control control;\n" TRUE Source/NeMo2)
 check_isolation(Source/NeMo2/Source/CK2/src/Consumer.cpp "VxFloat80 value;\n" FALSE Source/NeMo2)
 check_isolation(Source/Player/src/Consumer.cpp "#include <libx87/x87.hxx>\n" FALSE Source/NeMo2)
+check_isolation(Source/NeMo2/cmake/TestNumericalIsolation.cmake "set(pattern VXMATH_ENABLE_X87_EMULATION)\n" TRUE Source/NeMo2)
+check_isolation(Source/NeMo2/cmake/TestNumericalIsolationRules.cmake "set(pattern IVP_ENABLE_X87_EMULATION)\n" TRUE Source/NeMo2)
+check_isolation(Source/NeMo2/cmake/LinkNumerical.cmake "target_link_libraries(consumer PRIVATE libx87::x87)\n" FALSE Source/NeMo2)
 message(STATUS "Numerical ownership positive and negative cases passed")

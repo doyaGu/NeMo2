@@ -28,7 +28,8 @@ foreach (path IN LISTS paths)
     if (NOT path MATCHES "\\.(c|cc|cpp|cxx|h|hh|hpp|hxx|inl|cmake)$" AND NOT path MATCHES "(^|/)CMakeLists\\.txt$")
         continue()
     endif ()
-    if (path MATCHES "(^|/)(tests|test|tools|perf|examples|demo|diagnostics|docs|deps|third_party|havana|ivp_examples)/")
+    if (path MATCHES "(^|/)(tests|test|tools|perf|examples|demo|diagnostics|docs|deps|third_party|havana|ivp_examples)/"
+            OR path MATCHES "(^|/)cmake/Test[^/]*\\.cmake$")
         continue()
     endif ()
     if (path MATCHES "/3DTrans/qhull/" OR path MATCHES "/ivp_compact_builder/(geompack|qhull)(_|\\.)"
