@@ -115,6 +115,28 @@ load preserves the previous settings. Passing null takes a new snapshot of the
 legacy file lookup. The selected options and defaults apply to future resources;
 existing resources keep their properties.
 
+GPU and JIT options can be selected in the same context-owned file:
+
+```text
+<CK2_3D>
+    <SdlGpu>
+        Driver = auto
+        Debug = 0
+        Workers = 2
+        FFJit = 1
+        FFJitCache = /path/to/project/cache
+    </SdlGpu>
+</CK2_3D>
+```
+
+Each explicit entry takes precedence over its existing `CKRE_SDL_GPU_*`
+environment variable. Missing entries use the environment and then the original
+built-in defaults. Values are captured at device initialization and remain
+owned by that rasterizer context. The shipped INI leaves the options commented
+so existing environment-based launches retain their behavior. See the
+[rasterizer configuration reference](Source/RenderEngine/src/CKRasterizer/CKSdlGpuRasterizer/README.md#runtime-configuration)
+for the complete list, vertex JIT, cache and statistics controls.
+
 Each context owns its debug output gate, log file, render counters, frame-cost
 sampling window and diagnostic log limits. Calls through the renderer and its
 rasterizer modules select that context and restore the caller's scope on return.
