@@ -13,6 +13,14 @@ from ctest_selection import select_tests, select_indices
 
 
 class SelectionTest(unittest.TestCase):
+    def test_parameter_operations_select_only_their_own_suite(self):
+        scope = classify(['Source/Managers/ParameterOperations/ParameterOperationFunctions.cpp'])
+        self.assertEqual(scope['modules'], ['paramops'])
+        options = flags(scope, False)
+        self.assertIn('-DCKPARAMOP_BUILD_TESTS=ON', options)
+        for prefix in ('VXMATH', 'CK2', 'CKRE', 'CKBB', 'CKPLUGINS', 'IVP'):
+            self.assertIn(f'-D{prefix}_BUILD_TESTS=OFF', options)
+
     def test_documentation_and_licenses_do_not_build_or_test(self):
         result = classify(['README.md', 'BUILD.md', 'LICENSE', 'LICENSES/notice.txt',
                            'Source/CK2/README.md', 'Source/RenderEngine/docs/design.md'])

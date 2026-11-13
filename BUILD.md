@@ -64,6 +64,30 @@ checkout through `FETCHCONTENT_SOURCE_DIR_GOOGLETEST`.
 
 ## Application configuration
 
+Each `CKContext` owns its random state. Set a seed after creating the context and
+before loading content:
+
+```cpp
+context->SetRandomSeed(12345);
+int value = context->Random(); // 0 through CK_RANDOM_MAX (32767), inclusive
+```
+
+All platforms use the original Windows runtime's 32-bit generator and 15-bit
+results. Contexts initially copy the time seed selected by `CKStartUp`; explicit
+seeds include zero and the full unsigned 32-bit range. Resetting or playing a
+scene does not rewind the stream. Random operations, array shuffling, generated
+GUIDs, particles and behavior effects use their owning context, without changing
+the application's C runtime random state. Use a context's generator on its own
+thread or synchronize access to that context.
+
+Legacy scaling, modulo, endpoints and draw counts are retained. The fixed seeds
+used by PMS mesh deformation (`10`) and lightmap debug colors (`1`) now reseed
+only their owning context. Noise tables are initialized lazily per module and
+context, remain stable across scene resets and subsequent seed changes, and are
+released when that context closes. Set the seed before the first noise use to
+reproduce a field in a fresh context. Random state and noise tables are runtime
+state; existing serialized behavior formats are unchanged.
+
 Select the application's configuration profile before opening `VxConfig`
 sections or starting worker threads:
 
@@ -189,7 +213,7 @@ keep caching disabled so their diagnostic compiler settings cannot leak into rel
 
 Build and Test remain independently dispatchable. Test defaults to
 `modules=changed`; use `modules=vxmath`, `ck2`, `renderengine`, `plugins`,
-`buildingblocks`, or `ivp` to request one module. `modules=integration` selects
+`buildingblocks`, `paramops`, or `ivp` to request one module. `modules=integration` selects
 aggregator checks. A complete engine test run requires an explicit
 `modules=all` or the `sdl-linux-x64-full-tests` target. Neither is selected
 automatically. The platform selector `target=all` covers the platform matrix

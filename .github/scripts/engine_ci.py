@@ -14,11 +14,12 @@ OWNERS = {
     'renderengine': 'Source/RenderEngine', 'plugins': 'Source/Plugins',
     'buildingblocks': 'Source/BuildingBlocks',
     'ivp': 'Source/BuildingBlocks/physics_RT/ivp',
+    'paramops': 'Source/Managers/ParameterOperations',
 }
 CHECKS = ['NumericalIsolation', 'NumericalIsolationRules', 'NeMo2Subproject',
           'NeMo2StageInstall', 'CMakeRegeneration', 'NeMo2RuntimeManifest']
 TEST_OPTIONS = {'vxmath': 'VXMATH', 'ck2': 'CK2', 'renderengine': 'CKRE',
-                'plugins': 'CKPLUGINS', 'buildingblocks': 'CKBB', 'ivp': 'IVP'}
+                'plugins': 'CKPLUGINS', 'buildingblocks': 'CKBB', 'ivp': 'IVP', 'paramops': 'CKPARAMOP'}
 GROUPS = {'bb': 'buildingblocks', 'plugin': 'plugins'}
 
 

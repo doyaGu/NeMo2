@@ -38,6 +38,7 @@ else ()
 endif ()
 nemo_set_cache_default(CKBB_INSTALL ON BOOL "")
 nemo_set_cache_default(CKBB_BUILD_TESTS ${NEMO_BUILD_TESTS} BOOL "")
+nemo_set_cache_default(CKPARAMOP_BUILD_TESTS ${NEMO_BUILD_TESTS} BOOL "")
 
 include(NeMo2TestDependencies)
 nemo_bb_test_dependencies(_nemo_bb_test_dependencies)
