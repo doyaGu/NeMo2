@@ -38,6 +38,9 @@ add_subdirectory(Source)
 include(NeMo2ComponentRegistry)
 file(WRITE "${{CMAKE_BINARY_DIR}}/selection.txt"
     "targets=${{NEMO_RUNTIME_TARGETS}}\\n"
+    "libraries=${{NEMO_RUNTIME_LIBRARY_TARGETS}}\\n"
+    "test_only=${{NEMO_TEST_ONLY_TARGETS}}\\n"
+    "renderer_install=${{CKRE_INSTALL}}\\n"
     "supported=${{NEMO_SUPPORTED_MODULE_RUNTIME_TARGETS}}\\n"
     "renderer_static=${{CKRE_BUILD_STATIC}}\\n"
     "renderer_tests=${{CKRE_BUILD_TESTS}}\\n"
@@ -130,6 +133,8 @@ endforeach()
             with self.subTest(modules=modules):
                 result = self.configure(modules)
                 expected = {'VxMath', 'CK2'} | (set(modules.split(';')) - {'NONE', ''})
+                if 'Materials' in expected:
+                    expected.add('CK2_3D')
                 self.assertEqual(set(result['targets'].split(';')), expected)
                 self.assertIn('TT_Gravity_RT', result['supported'].split(';'))
                 self.assertEqual(result['renderer_static'], 'OFF')
@@ -156,8 +161,10 @@ endforeach()
         from engine_ci import classify
         result = classify(['cmake/NeMo2Modules.cmake'])
         self.assertEqual(result['modules'], [])
-        self.assertIn('NeMo2RuntimeManifest', result['checks'])
+        self.assertEqual(result['checks'], ['NeMo2RuntimeManifest', 'NeMo2StageInstall', 'NeMo2Subproject'])
         self.assertEqual(result['scripts'], ['ci'])
+        dependencies = classify(['cmake/NeMo2ModuleDependencies.json'])
+        self.assertEqual(result, dependencies)
 
     def test_static_composition_uses_the_same_module_names(self):
         result = self.configure('SdlInputManager;ImageReader;Logics', extra=['-DNEMO_BUILD_STATIC=ON'])
@@ -173,7 +180,7 @@ endforeach()
         self.assertIn('Logics', legacy)
         self.assertNotIn('Cameras', legacy)
         selected = self.configure('SdlInputManager;Cameras')
-        self.assertEqual(set(selected['targets'].split(';')), {'VxMath', 'CK2', 'SdlInputManager', 'Cameras'})
+        self.assertEqual(set(selected['targets'].split(';')), {'VxMath', 'CK2', 'CK2_3D', 'SdlInputManager', 'Cameras'})
         self.assertEqual(set(self.configure('AUTO')['targets'].split(';')), legacy)
 
     def test_test_dependencies_only_follow_selected_modules(self):
@@ -199,6 +206,85 @@ endforeach()
                       extra=['-DCKBB_BUILD_TESTS=ON', '-DCKBB_TEST_MODULES=physics_RT']))
         self.assertIn('which NEMO_MODULES excludes', self.configure('ImageReader', build='reader', success=False,
                       extra=['-DCKPLUGINS_BUILD_TESTS=ON', '-DCKPLUGINS_TEST_MODULES=AVIReader']))
+
+    def test_newly_selected_module_inherits_tests_on_reconfiguration(self):
+        self.configure('NONE', extra=['-DNEMO_BUILD_TESTS=ON'])
+        reused = self.configure('ImageReader', extra=['-DNEMO_BUILD_TESTS=ON'])
+        fresh = self.configure('ImageReader', build='fresh', extra=['-DNEMO_BUILD_TESTS=ON'])
+        self.assertEqual(reused['plugins_tests'], 'ON')
+        self.assertEqual(reused['plugins_tests'], fresh['plugins_tests'])
+
+    def test_test_dependencies_do_not_persist_after_tests_are_disabled(self):
+        self.configure('TT_InterfaceManager_RT', extra=['-DCKBB_BUILD_TESTS=ON', '-DCK2_BUILD_STATIC=OFF'])
+        reused = self.configure('Logics', extra=['-DCKBB_BUILD_TESTS=OFF'])
+        fresh = self.configure('Logics', build='fresh', extra=['-DCKBB_BUILD_TESTS=OFF'])
+        self.assertEqual(reused['ck2_static'], 'OFF')
+        self.assertEqual(reused['ck2_static'], fresh['ck2_static'])
+
+    def test_runtime_dependencies_are_resolved_without_enabling_tests(self):
+        result = self.configure('TT_ParticleSystems_RT;Sounds')
+        self.assertIn('CK2_3D', result['targets'].split(';'))
+        self.assertIn('SdlSoundManager', result['targets'].split(';'))
+        self.assertNotIn('CKSdlGpuRasterizer', result['targets'].split(';'))
+        result = self.configure('TT_Toolbox_RT')
+        self.assertEqual(set(result['targets'].split(';')),
+                         {'VxMath', 'CK2', 'TT_Toolbox_RT', 'CK2_3D',
+                          'SdlInputManager', 'SdlSoundManager'})
+
+    def test_test_libraries_do_not_change_runtime_composition(self):
+        runtime = self.configure('physics_RT')
+        tested = self.configure('physics_RT', extra=['-DCKBB_BUILD_TESTS=ON'])
+        self.assertEqual(runtime['targets'], tested['targets'])
+        self.assertEqual(runtime['libraries'], tested['libraries'])
+        self.assertIn('CK2_3DStatic', tested['test_only'].split(';'))
+        self.assertNotIn('CK2_3DStatic', tested['libraries'].split(';'))
+
+    def test_legacy_granular_selection_limits_test_dependencies(self):
+        result = self.configure('AUTO', extra=['-DCKBB_BUILD_ALL_MODULES=OFF',
+                                '-DCKBB_BUILD_Logics=ON', '-DCKBB_BUILD_TESTS=ON'])
+        self.assertEqual(result['ck2_static'], 'OFF')
+        self.assertEqual(result['renderer_static'], 'OFF')
+
+    def test_test_only_renderer_is_not_a_runtime_module(self):
+        overrides = self.source / 'overrides'
+        overrides.mkdir()
+        (overrides / 'NeMo2TestDependencies.cmake').write_text(
+            'function(nemo_bb_test_dependencies result)\n'
+            'set(${result} renderengine PARENT_SCOPE)\nendfunction()\n')
+        project = self.source / 'CMakeLists.txt'
+        project.write_text(project.read_text().replace('include(NeMo2Options)',
+            'list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/overrides")\ninclude(NeMo2Options)'))
+        result = self.configure('Logics', extra=['-DCKBB_BUILD_TESTS=ON'])
+        self.assertEqual(set(result['targets'].split(';')), {'VxMath', 'CK2', 'Logics'})
+        self.assertIn('CK2_3DStatic', result['test_only'].split(';'))
+        self.assertEqual(result['renderer_install'], 'OFF')
+
+    def test_explicit_test_overrides_survive_aggregate_defaults(self):
+        result = self.configure('NONE', extra=['-DVXMATH_BUILD_TESTS=ON', '-DNEMO_BUILD_TESTS=OFF'])
+        self.assertIn('VxMathStatic', result['test_only'].split(';'))
+        result = self.configure('ImageReader', extra=['-DNEMO_BUILD_TESTS=ON', '-DCKPLUGINS_BUILD_TESTS=OFF'])
+        self.assertEqual(result['plugins_tests'], 'OFF')
+
+    def test_auto_rejects_missing_runtime_dependencies(self):
+        error = self.configure('AUTO', success=False,
+            extra=['-DCKRE_BUILD_SHARED=OFF', '-DCKRE_BUILD_STATIC=OFF'])
+        self.assertIn('requires runtime module', error)
+
+    def test_dependency_closure_is_transitive_and_rejects_cycles(self):
+        script = self.root / 'dependencies.cmake'
+        script.write_text(f'''cmake_minimum_required(VERSION 3.25)
+include("{ENGINE.as_posix()}/cmake/NeMo2Modules.cmake")
+set(_nemo_runtime_dependencies [[{{"Logics":["Sounds"],"Sounds":["SdlSoundManager"]}}]])
+nemo_resolve_modules("Logics;Sounds" resolved)
+if (NOT resolved STREQUAL "VxMath;CK2;SdlSoundManager;Sounds;Logics")
+    message(FATAL_ERROR "Incorrect recursive closure: ${{resolved}}")
+endif()
+set(_nemo_runtime_dependencies [[{{"Logics":["Sounds"],"Sounds":["Logics"]}}]])
+nemo_resolve_modules("Logics" resolved)
+''')
+        result = subprocess.run(['cmake', '-P', str(script)], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Cyclic NeMo2 module dependency', result.stderr)
 
 
 if __name__ == '__main__':

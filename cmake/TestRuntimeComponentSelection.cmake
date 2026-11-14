@@ -4,18 +4,18 @@ file(MAKE_DIRECTORY "${root}/source")
 file(WRITE "${root}/source/CMakeLists.txt" "
 cmake_minimum_required(VERSION 3.25)
 project(ComponentSelection NONE)
-add_library(VxMathStatic INTERFACE)
-add_library(CK2Static INTERFACE)
-add_library(3DTrans INTERFACE)
-set_property(TARGET 3DTrans PROPERTY OUTPUT_NAME 3DTransfo)
+add_library(VxMathStatic STATIC IMPORTED)
+add_library(CK2Static STATIC IMPORTED)
+add_library(Logics SHARED IMPORTED)
+set_property(TARGET Logics PROPERTY OUTPUT_NAME LogicBlocks)
 add_library(SdlInputManagerStatic INTERFACE)
 add_library(ImageReader INTERFACE)
 set_property(GLOBAL PROPERTY CKRE_RUNTIME_TARGETS CK2_3D)
 set_property(GLOBAL PROPERTY CKRE_SUPPORTED_RUNTIME_TARGETS CK2_3D CKSdlGpuRasterizer)
 set_property(GLOBAL PROPERTY CKRE_RUNTIME_CONFIGS CK2_3D.ini)
 include(\"${TEST_SOURCE_DIR}/cmake/NeMo2ComponentRegistry.cmake\")
-if (NOT NEMO_BUILDING_BLOCK_RUNTIME_TARGETS STREQUAL \"3DTrans\" OR
-    NOT NEMO_BUILDING_BLOCK_RUNTIME_OUTPUTS STREQUAL \"3DTransfo\" OR
+if (NOT NEMO_BUILDING_BLOCK_RUNTIME_TARGETS STREQUAL \"Logics\" OR
+    NOT NEMO_BUILDING_BLOCK_RUNTIME_OUTPUTS STREQUAL \"LogicBlocks\" OR
     NOT NEMO_MANAGER_RUNTIME_TARGETS STREQUAL \"SdlInputManager\" OR
     NOT NEMO_PLUGIN_RUNTIME_TARGETS STREQUAL \"ImageReader\" OR
     NEMO_RENDER_ENGINE_RUNTIME_TARGETS OR NEMO_RENDER_ENGINE_RUNTIME_CONFIGS)
@@ -30,7 +30,7 @@ get_property(manifest GLOBAL PROPERTY NEMO_RUNTIME_COMPONENT_MANIFEST)
 include(\"\${manifest}\")
 if (\"physics_RT\" IN_LIST NEMO_RUNTIME_TARGETS OR
     NOT \"SdlInputManager\" IN_LIST NEMO_MODULE_RUNTIME_TARGETS OR
-    NOT NEMO_BUILDING_BLOCK_REQUIRED_OUTPUTS STREQUAL \"3DTransfo\")
+    NOT NEMO_BUILDING_BLOCK_REQUIRED_OUTPUTS STREQUAL \"LogicBlocks\")
     message(FATAL_ERROR \"Exported manifest differs from configured targets\")
 endif()
 ")
@@ -38,4 +38,14 @@ execute_process(COMMAND "${CMAKE_COMMAND}" -S "${root}/source" -B "${root}/build
         RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
 if (NOT result EQUAL 0)
     message(FATAL_ERROR "Component selection failed:\n${output}${error}")
+endif ()
+
+# The manifest must retain target type/role metadata in script mode too.
+include("${root}/build/NeMo2RuntimeComponents.cmake")
+if (NOT "CK2Static" IN_LIST NEMO_RUNTIME_LIBRARY_TARGETS OR
+        "CK2" IN_LIST NEMO_RUNTIME_LIBRARY_TARGETS OR
+        NOT NEMO_LIBRARY_CK2Static_TYPE STREQUAL "STATIC_LIBRARY" OR
+        NOT NEMO_LIBRARY_Logics_TYPE STREQUAL "SHARED_LIBRARY" OR
+        NOT NEMO_LIBRARY_Logics_ROLE STREQUAL "RUNTIME")
+    message(FATAL_ERROR "Manifest lost library targets, types or roles")
 endif ()

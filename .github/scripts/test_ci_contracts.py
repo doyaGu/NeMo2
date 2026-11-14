@@ -55,8 +55,10 @@ class BuildSelectionTest(unittest.TestCase):
         self.assertEqual(subprocess.check_output(['bash', '-c', script], text=True), f'{1:040d}')
 
     def test_stage_changes_are_wired_to_lightweight_validate(self):
-        scope = classify(['cmake/NeMo2Stage.cmake'])
-        self.assertEqual(selected_checks(ENGINE, scope['checks']), ['NeMo2StageInstall'])
+        for path in ('cmake/NeMo2Stage.cmake', 'cmake/NeMo2StageInstall.cmake'):
+            scope = classify([path])
+            self.assertEqual(scope['modules'], [])
+            self.assertEqual(selected_checks(ENGINE, scope['checks']), ['NeMo2StageInstall'])
         workflow = (ENGINE / '.github/workflows/validate.yml').read_text()
         self.assertIn("needs.changes.outputs.light_checks != '[]'", workflow)
         self.assertIn("run_cmake_checks.py --checks '${{ needs.changes.outputs.light_checks }}'", workflow)

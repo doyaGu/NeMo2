@@ -1,0 +1,22 @@
+{
+  "CKSdlGpuRasterizer": ["CK2_3D"],
+  "3DTrans": ["CK2_3D"],
+  "BuildingBlocksAddons1": ["CK2_3D", "SdlInputManager", "SdlSoundManager"],
+  "Cameras": ["CK2_3D", "SdlInputManager"],
+  "Characters": ["CK2_3D"],
+  "Collision": ["CK2_3D"],
+  "Controllers": ["CK2_3D", "SdlInputManager"],
+  "Grids": ["CK2_3D"],
+  "Interface": ["CK2_3D", "SdlInputManager"],
+  "Lights": ["CK2_3D"],
+  "Materials": ["CK2_3D"],
+  "MeshModifiers": ["CK2_3D"],
+  "Narratives": ["CK2_3D"],
+  "Sounds": ["SdlSoundManager"],
+  "Visuals": ["CK2_3D", "SdlInputManager"],
+  "WorldEnvironment": ["CK2_3D"],
+  "physics_RT": ["CK2_3D"],
+  "TT_Gravity_RT": ["CK2_3D"],
+  "TT_ParticleSystems_RT": ["CK2_3D"],
+  "TT_Toolbox_RT": ["CK2_3D", "SdlInputManager", "SdlSoundManager"]
+}

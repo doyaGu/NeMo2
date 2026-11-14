@@ -28,7 +28,7 @@ The configure matrix is `<platform>-<mode>`:
 
 Modes are `runtime`, `static`, and `tests`. Build presets append `-release`;
 `-stage-release` builds and installs the selected libraries and modules using
-their existing Runtime and Development install rules. The default destination
+their existing Runtime and Development install rules. The destination is always
 is `build/<configure-preset>/stage`. NeMo2 stages libraries, headers, module
 configuration, fonts, and SDL3; application packages are assembled downstream.
 
@@ -91,9 +91,14 @@ cmake -S . -B build/static-logic -G Ninja -DNEMO_BUILD_STATIC=ON \
   "-DNEMO_MODULES=ParameterOperations;VirtoolsLoader;Logics"
 ```
 
-The SDL_GPU rasterizer adds `CK2_3D` automatically. Test dependencies are limited
-to selected modules; selected BB tests can additionally require the renderer's
-static implementation without enabling the GPU rasterizer or renderer tests.
+Runtime dependencies are declared in `cmake/NeMo2ModuleDependencies.json` and
+resolved recursively. For example, `TT_ParticleSystems_RT` adds `CK2_3D`,
+`Sounds` adds `SdlSoundManager`, and `TT_Toolbox_RT` adds rendering, input and
+sound modules. Selecting a renderer-dependent behavior does not select a GPU
+rasterizer. Select `CKSdlGpuRasterizer` explicitly when needed; it adds `CK2_3D`.
+`AUTO` validates the granular combination and reports missing runtime modules.
+Test dependencies are limited to selected modules; selected BB tests can
+additionally require static implementations without enabling their test suites.
 Unselected groups are not configured. Unknown module names, explicitly selected
 MIDI on unsupported platforms, and selected modules with both library forms
 disabled fail configuration with a diagnostic.
@@ -104,6 +109,12 @@ existing granular choices. Linkage, version overrides, installation and other
 module options remain available. Test-module filters must refer to selected
 modules. The runtime manifest retains the supported catalogue separately from
 the resolved targets and records the requested selection as `NEMO_REQUESTED_MODULES`.
+Derived test defaults and additional static test libraries apply only to the
+current configuration. Changing the selection or disabling tests does not save
+those temporary choices as cache overrides. Explicit module test and linkage
+options remain authoritative. Caches created by older versions may already
+contain derived overrides; remove those specific cache entries with CMake's
+`-U` option if they were not intentional user settings.
 
 Each application can keep its selection in its own CMake presets or set it
 before adding NeMo2:
@@ -117,9 +128,13 @@ target_link_libraries(MyApplication PRIVATE CK2 VxMath)
 Static applications continue to link and register their selected plugins through
 the existing CK2 interfaces.
 
-Use separate build/install directories for independently shipped combinations.
-Ordinary CMake installation is additive; changing the selection does not remove
-artifacts installed by an earlier combination. Module selection determines
+The `stage` target creates a new Runtime/Development snapshot in the build
+directory and replaces `build/stage` only after installation succeeds. Changing
+the combination removes old staged artifacts; a failed install preserves the
+previous stage. The stage directory is owned by the build and must not be a
+symlink. A custom `CMAKE_INSTALL_PREFIX` applies to ordinary `cmake --install`,
+which retains additive installation semantics. Use separate install prefixes for
+independently shipped combinations. Module selection determines
 which engine functionality is available; the application still declares what
 its content requires.
 
@@ -343,6 +358,15 @@ runtime output names, and render-engine configuration/disabled-output lists.
 `NEMO_RUNTIME_TARGETS` combines the configured core and module targets. Disabled
 modules are omitted, and output names come from the selected CMake targets.
 `NEMO_SUPPORTED_*_TARGETS` records the separate supported module catalogue.
+`NEMO_RUNTIME_LIBRARY_TARGETS` lists the actual selected library targets,
+including `Static` suffixes. `NEMO_TEST_DEPENDENCY_TARGETS` records direct test
+dependencies, and `NEMO_TEST_ONLY_TARGETS` lists built libraries omitted from the
+runtime selection. `NEMO_MODULE_<name>_LIBRARY_TARGETS` and
+`NEMO_MODULE_<name>_REQUIRES` describe each runtime module.
+`NEMO_LIBRARY_<target>_TYPE` records the CMake target type, and
+`NEMO_LIBRARY_<target>_ROLE` is `RUNTIME` or `TEST_ONLY`. These fields are serialized
+and remain available to script-mode consumers. Enabling tests does not add test
+libraries to the runtime list or change the selected library forms.
 Applications decide which enabled modules they require. The legacy
 `NEMO_BUILDING_BLOCK_REQUIRED_OUTPUTS` name now means all selected BB outputs;
 `NEMO_BUILDING_BLOCK_OPTIONAL_OUTPUTS` is empty.
