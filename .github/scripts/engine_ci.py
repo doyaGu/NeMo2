@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 
 from change_detection import baseline, changed_paths, documentation, emit
+from run_cmake_checks import selected_checks
 
 
 OWNERS = {
@@ -112,7 +113,7 @@ def classify(paths):
             if owner == 'ivp':
                 modules.add('bb:physics_RT')
                 whole_modules.add('bb:physics_RT')
-            build = True
+            build |= '/tests/' not in path and '/test/' not in path
             resources_only = False
             layout |= path.endswith(('.cmake', 'CMakeLists.txt', '.gitmodules'))
             if '/tests/' not in path and '/test/' not in path:
@@ -137,6 +138,8 @@ def classify(paths):
             scripts.add('ci')
             build = layout = True
             resources_only = False
+        elif path == 'cmake/NeMo2TestTargets.cmake':
+            scripts.add('ci')
         elif path in {'cmake/NeMo2Stage.cmake', 'cmake/TestStageInstall.cmake'}:
             checks.add('NeMo2StageInstall')
         elif path == 'cmake/TestRuntimeComponentSelection.cmake':
@@ -158,10 +161,13 @@ def classify(paths):
                 test_targets={name: sorted(targets) for name, targets in test_targets.items() if name not in whole_modules})
 
 
-def selection(modules, checks, test_targets=None):
+def selection(modules, checks, test_targets=None, build_runtime=False):
     if any(name not in OWNERS and not re.fullmatch(r'(bb|plugin):[A-Za-z0-9_-]+', name) for name in modules) or set(checks) - set(CHECKS):
         raise ValueError('unknown test module or aggregator check')
-    result = {'modules': sorted(set(modules)), 'checks': sorted(set(checks))}
+    if not isinstance(build_runtime, bool):
+        raise ValueError('build_runtime must be boolean')
+    result = {'modules': sorted(set(modules)), 'checks': sorted(set(checks)),
+              'build_runtime': build_runtime}
     if test_targets:
         if set(test_targets) - set(modules) or any(not re.fullmatch(r'[A-Za-z0-9_-]+', target) for targets in test_targets.values() for target in targets):
             raise ValueError('unknown test target or owner')
@@ -225,7 +231,7 @@ def main():
         return
     if args.selection:
         scope = selection(**json.loads(args.selection))
-        result = dict(scope, build=bool(scope['modules']), layout=False, scripts=[])
+        result = dict(scope, build=scope['build_runtime'], layout=False, scripts=[])
     else:
         result = classify(changed_paths(Path.cwd(), baseline(Path.cwd(), args.base, '.github/scripts/engine_ci.py'), args.head))
         if args.modules != 'changed':
@@ -235,10 +241,12 @@ def main():
             result.update(scope)
             result.pop('test_targets', None)
             result['resources_only'] = False
-    scope = selection(result['modules'], result['checks'], result.get('test_targets'))
+            result['build'] = bool(scope['modules'])
+    scope = selection(result['modules'], result['checks'], result.get('test_targets'), result['build'])
     encoded = json.dumps(scope, separators=(',', ':'))
     result.update(selection=encoded, test=bool(scope['modules'] or scope['checks']),
                   compile=bool(scope['modules']), cache_scope=hashlib.sha256(encoded.encode()).hexdigest()[:12],
+                  light_checks=selected_checks(Path(__file__).resolve().parents[2], scope['checks']),
                   matrix=job_matrix(args.target, result.get('resources_only', False) and args.target == 'all', scope))
     emit(result)
 

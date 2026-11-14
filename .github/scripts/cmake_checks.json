@@ -1,0 +1,6 @@
+{
+  "NeMo2StageInstall": {"script": "cmake/TestStageInstall.cmake"},
+  "NeMo2RuntimeManifest": {"script": "cmake/TestRuntimeComponentSelection.cmake"},
+  "NumericalIsolation": {"script": "cmake/TestNumericalIsolation.cmake"},
+  "NumericalIsolationRules": {"script": "cmake/TestNumericalIsolationRules.cmake"}
+}

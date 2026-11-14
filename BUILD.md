@@ -194,7 +194,8 @@ cache family. Source content hashes restore unchanged checkout timestamps;
 changed inputs are marked newer than cached outputs. Configure always runs,
 and stage directories and test reports are regenerated.
 
-The nightly Build compares source changes with the previous completed nightly.
+The nightly Build compares source changes with the previous successful nightly;
+failed runs do not advance the baseline.
 Changed submodule revisions are inspected recursively, so documentation-only
 updates do not trigger builds or tests. Build calls Test at the same commit after
 saving its caches. Test enables only the changed modules' test options and their
@@ -207,6 +208,12 @@ Building blocks and readers are selected individually: changing
 changing `AVIReader` does not register the other readers' tests. Module-wide
 selections remain available for shared build changes. Verified core test-only
 edits build and run the corresponding executables rather than the entire suite.
+Test-source-only changes skip runtime staging and build `nemo_ci_tests`, which
+depends on the enabled test executables and their library dependencies.
+Validate runs selected script-mode CMake checks without configuring the engine.
+Missing requested modules, targets or named checks fail test selection. Known
+modules without a suite and platform restrictions are explicitly recorded in
+`.github/scripts/testless_modules.json` and reported with their reason.
 CTest cases are selected by the source directory that registered them. Build
 disables test options again when restoring a Test snapshot. GPU diagnostic builds
 keep caching disabled so their diagnostic compiler settings cannot leak into release builds.

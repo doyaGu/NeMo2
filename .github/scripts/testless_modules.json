@@ -1,0 +1,23 @@
+{
+  "bb:3DTrans": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Cameras": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Collision": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Controllers": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Grids": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Lights": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Materials": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:MidiManager": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Narratives": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Sounds": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Visuals": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:WorldEnvironment": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:TT_DatabaseManager_RT": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:TT_ParticleSystems_RT": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:TT_Toolbox_RT": {"platforms": ["*"], "reason": "This module has no registered unit suite."},
+  "bb:Interface": {"platforms": ["win32"], "reason": "The font backend suite is registered only on non-Windows platforms."},
+  "plugins": {"platforms": ["*"], "cache": {"CKPLUGINS_BUILD_SHARED": "OFF", "CKPLUGINS_BUILD_TESTS": "ON"}, "reason": "Reader path tests require shared plugin modules."},
+  "plugin:AVIReader": {"platforms": ["*"], "cache": {"CKPLUGINS_BUILD_SHARED": "OFF", "CKPLUGINS_BUILD_TESTS": "ON"}, "reason": "Reader path tests require shared plugin modules."},
+  "plugin:ImageReader": {"platforms": ["*"], "cache": {"CKPLUGINS_BUILD_SHARED": "OFF", "CKPLUGINS_BUILD_TESTS": "ON"}, "reason": "Reader path tests require shared plugin modules."},
+  "plugin:WavReader": {"platforms": ["*"], "cache": {"CKPLUGINS_BUILD_SHARED": "OFF", "CKPLUGINS_BUILD_TESTS": "ON"}, "reason": "Reader path tests require shared plugin modules."},
+  "plugin:VirtoolsLoader": {"platforms": ["*"], "cache": {"CKPLUGINS_BUILD_SHARED": "OFF", "CKPLUGINS_BUILD_TESTS": "ON"}, "reason": "Reader path tests require shared plugin modules."}
+}
