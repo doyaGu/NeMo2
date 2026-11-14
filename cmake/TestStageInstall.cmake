@@ -14,6 +14,8 @@ add_custom_target(Core COMMAND \"\${CMAKE_COMMAND}\" -E touch \"\${CMAKE_BINARY_
 install(FILES \"\${CMAKE_BINARY_DIR}/core.runtime\" DESTINATION Bin COMPONENT Runtime)
 add_custom_target(ckre_scene_capture COMMAND \"\${CMAKE_COMMAND}\" -E touch \"\${CMAKE_BINARY_DIR}/scene.tool\")
 install(FILES \"\${CMAKE_BINARY_DIR}/scene.tool\" DESTINATION tools COMPONENT Development)
+# Test dependencies can register install rules before their libraries are built.
+install(FILES \"\${CMAKE_BINARY_DIR}/unbuilt-gmock.lib\" DESTINATION lib COMPONENT gmock)
 include(\"${stage_script}\")
 ")
 set(configure "${CMAKE_COMMAND}" -S "${fixture}/source" -B "${fixture}/build"
@@ -38,5 +40,8 @@ endif ()
 if (NOT EXISTS "${fixture}/build/stage/Bin/core.runtime" OR
         NOT EXISTS "${fixture}/build/stage/tools/scene.tool")
     message(FATAL_ERROR "Stage omitted a runtime or development artifact")
+endif ()
+if (EXISTS "${fixture}/build/stage/lib/unbuilt-gmock.lib")
+    message(FATAL_ERROR "Stage installed a test-only dependency")
 endif ()
 message(STATUS "Stage built and installed its runtime and development inputs")

@@ -31,7 +31,10 @@ if (_nemo_sdl_runtime)
 endif ()
 
 add_custom_target(stage
-        COMMAND "${CMAKE_COMMAND}" --install "${CMAKE_BINARY_DIR}" --config "$<CONFIG>"
+        # Test dependencies have their own install components and may not have
+        # been built when staging precedes the selected test-target build.
+        COMMAND "${CMAKE_COMMAND}" --install "${CMAKE_BINARY_DIR}" --config "$<CONFIG>" --component Runtime
+        COMMAND "${CMAKE_COMMAND}" --install "${CMAKE_BINARY_DIR}" --config "$<CONFIG>" --component Development
         COMMENT "Installing NeMo2 modules to ${CMAKE_INSTALL_PREFIX}"
         USES_TERMINAL VERBATIM)
 foreach (_target IN LISTS NEMO_RUNTIME_TARGETS)
