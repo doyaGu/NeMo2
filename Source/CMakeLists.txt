@@ -1,5 +1,5 @@
 # Source - Component Aggregator
-# Adds all Virtools modules and configures output directories
+# Adds selected Virtools modules and configures output directories
 # to match the Virtools runtime layout.
 
 # --- Helpers ---
@@ -29,16 +29,20 @@ if (MSVC)
 endif ()
 
 # Render Engine -> RenderEngines/
-message(STATUS "[NeMo2] Adding render engine...")
-add_subdirectory(RenderEngine)
+if (_NEMO_WITH_RENDER_ENGINE)
+    message(STATUS "[NeMo2] Adding render engine...")
+    add_subdirectory(RenderEngine)
+endif ()
 if (MSVC)
     _set_vs_folder(CK2_3D "Core")
     _set_vs_folder(CK2_3DStatic "Core")
 endif ()
 
 # Managers -> Managers/
-message(STATUS "[NeMo2] Adding managers...")
-add_subdirectory(Managers)
+if (_NEMO_WITH_MANAGERS)
+    message(STATUS "[NeMo2] Adding managers...")
+    add_subdirectory(Managers)
+endif ()
 if (MSVC)
     foreach (_mgr IN ITEMS
             SdlInputManager SdlInputManagerStatic
@@ -49,8 +53,10 @@ if (MSVC)
 endif ()
 
 # Plugins -> Plugins/
-message(STATUS "[NeMo2] Adding plugins...")
-add_subdirectory(Plugins)
+if (_NEMO_WITH_PLUGINS)
+    message(STATUS "[NeMo2] Adding plugins...")
+    add_subdirectory(Plugins)
+endif ()
 foreach (_plugin IN ITEMS AVIReader ImageReader WavReader VirtoolsLoader)
     if (MSVC)
         _set_vs_folder(${_plugin} "Plugins")
@@ -58,16 +64,13 @@ foreach (_plugin IN ITEMS AVIReader ImageReader WavReader VirtoolsLoader)
 endforeach ()
 
 # Building Blocks -> BuildingBlocks/
-message(STATUS "[NeMo2] Adding building blocks...")
-add_subdirectory(BuildingBlocks)
+if (_NEMO_WITH_BUILDING_BLOCKS)
+    message(STATUS "[NeMo2] Adding building blocks...")
+    add_subdirectory(BuildingBlocks)
+endif ()
 if (MSVC)
     # Organize building block modules
-    foreach (_bb_module IN ITEMS
-            3DTrans BuildingBlocksAddons1 Cameras Characters Collision Controllers
-            Grids Interface Lights Logics Materials MeshModifiers
-            MidiManager Narratives Sounds Visuals WorldEnvironment
-            physics_RT TT_DatabaseManager_RT TT_Gravity_RT TT_InterfaceManager_RT
-            TT_ParticleSystems_RT TT_Toolbox_RT)
+    foreach (_bb_module IN LISTS _nemo_bb_modules)
         _set_vs_folder(${_bb_module} "BuildingBlocks")
         _set_vs_folder(${_bb_module}Static "BuildingBlocks")
     endforeach ()

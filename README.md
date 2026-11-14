@@ -45,6 +45,17 @@ staging, and incremental builds.
 
 ## Application integration
 
+Select a module combination with `NEMO_MODULES`, using target names separated
+by semicolons. `NONE` keeps only `VxMath` and `CK2`; `AUTO` (the default) retains
+the existing per-module options. For example:
+
+```bash
+cmake --preset linux-x64-runtime "-DNEMO_MODULES=SdlInputManager;ParameterOperations;VirtoolsLoader;Logics"
+```
+
+See [module combinations](BUILD.md#module-combinations) for rendering, static
+builds, dependency handling and application-owned presets.
+
 Add NeMo2 to a CMake project and link the module targets your application uses:
 
 ```cmake

@@ -4,10 +4,9 @@
 # registry only describes how the engine aggregator assembles and verifies them.
 
 include_guard(GLOBAL)
+include("${CMAKE_CURRENT_LIST_DIR}/NeMo2Modules.cmake")
 
-set(NEMO_CORE_RUNTIME_TARGETS
-        VxMath CK2
-)
+set(NEMO_CORE_RUNTIME_TARGETS ${_nemo_core_modules})
 
 # Keep the supported catalogue separate from the configured engine. Consumers
 # decide which selected modules their application requires.
@@ -34,25 +33,14 @@ function(nemo_resolve_runtime_group group)
     set(NEMO_${group}_OUTPUTS "${outputs}" PARENT_SCOPE)
 endfunction()
 
-get_property(NEMO_RENDER_ENGINE_RUNTIME_TARGETS GLOBAL PROPERTY CKRE_RUNTIME_TARGETS)
+set(NEMO_RENDER_ENGINE_RUNTIME_TARGETS ${_nemo_render_modules})
 get_property(_nemo_supported_render_targets GLOBAL PROPERTY CKRE_SUPPORTED_RUNTIME_TARGETS)
 get_property(NEMO_RENDER_ENGINE_DISABLED_OUTPUTS GLOBAL PROPERTY CKRE_DISABLED_RUNTIME_OUTPUTS)
 get_property(NEMO_RENDER_ENGINE_RUNTIME_CONFIGS GLOBAL PROPERTY CKRE_RUNTIME_CONFIGS)
 
-set(NEMO_MANAGER_RUNTIME_TARGETS
-        SdlInputManager SdlSoundManager ParameterOperations
-)
-
-set(NEMO_PLUGIN_RUNTIME_TARGETS
-        AVIReader ImageReader WavReader VirtoolsLoader
-)
-
-set(NEMO_BUILDING_BLOCK_RUNTIME_TARGETS
-        3DTrans BuildingBlocksAddons1 Cameras Characters Collision Controllers
-        Grids Interface Lights Logics Materials MeshModifiers MidiManager Narratives
-        Sounds Visuals WorldEnvironment physics_RT TT_DatabaseManager_RT
-        TT_Gravity_RT TT_InterfaceManager_RT TT_ParticleSystems_RT TT_Toolbox_RT
-)
+set(NEMO_MANAGER_RUNTIME_TARGETS ${_nemo_manager_modules})
+set(NEMO_PLUGIN_RUNTIME_TARGETS ${_nemo_plugin_modules})
+set(NEMO_BUILDING_BLOCK_RUNTIME_TARGETS ${_nemo_bb_modules})
 foreach (group IN ITEMS CORE_RUNTIME RENDER_ENGINE_RUNTIME MANAGER_RUNTIME
         PLUGIN_RUNTIME BUILDING_BLOCK_RUNTIME)
     nemo_resolve_runtime_group(${group})
@@ -84,6 +72,13 @@ set(NEMO_RUNTIME_TARGETS
         ${NEMO_CORE_RUNTIME_TARGETS}
         ${NEMO_MODULE_RUNTIME_TARGETS}
 )
+if (NEMO_MODULE_SELECTION_EXPLICIT)
+    foreach (_module IN LISTS NEMO_SELECTED_MODULES)
+        if (NOT _module IN_LIST NEMO_RUNTIME_TARGETS)
+            message(FATAL_ERROR "Selected NeMo2 module '${_module}' produced no target; check its shared/static build options")
+        endif ()
+    endforeach ()
+endif ()
 
 set(_nemo_component_manifest "${CMAKE_CURRENT_BINARY_DIR}/NeMo2RuntimeComponents.cmake")
 configure_file("${CMAKE_CURRENT_LIST_DIR}/NeMo2RuntimeComponents.cmake.in"

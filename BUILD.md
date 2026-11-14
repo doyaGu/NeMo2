@@ -37,13 +37,15 @@ configuration, fonts, and SDL3; application packages are assembled downstream.
 | Option | Default | Effect |
 |--------|---------|--------|
 | `NEMO_BUILD_STATIC` | `OFF` | Default module linkage to static |
-| `NEMO_BUILD_TESTS` | `OFF` | Enable all engine module and IVP tests |
+| `NEMO_BUILD_TESTS` | `OFF` | Default selected module and IVP tests to enabled |
 | `NEMO_TARGET_ARCH` | empty | Architecture label used in manager summaries |
+| `NEMO_MODULES` | `AUTO` | Existing module options, `ALL`, `NONE`, or an explicit target list |
 | `BUILD_TESTING` | `ON` | Register aggregator checks through CTest |
 
 Existing module options such as `CKRE_BUILD_TESTS`, `VXMATH_BUILD_STATIC`, and
-`CKBB_BUILD_physics_RT` remain available. Explicit module cache values take
-precedence over aggregator defaults. Engine tests select the additional static
+`CKBB_BUILD_physics_RT` remain available. `AUTO` leaves module-enable options
+authoritative; an explicit module list controls those switches. Other module
+cache values take precedence over aggregator defaults. Engine tests select the additional static
 libraries needed to access internal CK2 and render-engine functions.
 
 ```bash
@@ -61,6 +63,65 @@ VxMath downloads and verifies its font assets when installation is enabled.
 For offline builds, set `VXMATH_FONT_DIR` to a directory containing the files
 listed in `Source/VxMath/fonts/sources.json`. Tests also accept a local GoogleTest
 checkout through `FETCHCONTENT_SOURCE_DIR_GOOGLETEST`.
+
+## Module combinations
+
+`VxMath` and `CK2` are always included. Choose the optional modules through
+`NEMO_MODULES`:
+
+- `AUTO` keeps the existing defaults and granular module-enable options.
+- `ALL` enables the available catalogue, excluding Windows-only MIDI on other
+  platforms.
+- `NONE` or an empty value includes only the two core libraries.
+- A semicolon-separated list selects modules by their existing CMake target
+  names, such as `CK2_3D`, `CKSdlGpuRasterizer`, `SdlInputManager`,
+  `ParameterOperations`, `VirtoolsLoader`, `ImageReader`, `Logics`, or
+  `TT_InterfaceManager_RT`. Use `Materials` for the `Materials-Textures` directory.
+
+```bash
+# Core libraries only; SDL3 remains a platform dependency.
+cmake --preset linux-x64-runtime -DNEMO_MODULES=NONE
+
+# Rendering, input and selected readers/behaviors.
+cmake -S . -B build/rendering -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  "-DNEMO_MODULES=CKSdlGpuRasterizer;SdlInputManager;ParameterOperations;VirtoolsLoader;ImageReader;Logics"
+
+# The same selection mechanism applies to static builds.
+cmake -S . -B build/static-logic -G Ninja -DNEMO_BUILD_STATIC=ON \
+  "-DNEMO_MODULES=ParameterOperations;VirtoolsLoader;Logics"
+```
+
+The SDL_GPU rasterizer adds `CK2_3D` automatically. Test dependencies are limited
+to selected modules; selected BB tests can additionally require the renderer's
+static implementation without enabling the GPU rasterizer or renderer tests.
+Unselected groups are not configured. Unknown module names, explicitly selected
+MIDI on unsupported platforms, and selected modules with both library forms
+disabled fail configuration with a diagnostic.
+
+An explicit selection controls module-enable options for that configuration.
+It does not rewrite their cache entries: switching back to `AUTO` restores the
+existing granular choices. Linkage, version overrides, installation and other
+module options remain available. Test-module filters must refer to selected
+modules. The runtime manifest retains the supported catalogue separately from
+the resolved targets and records the requested selection as `NEMO_REQUESTED_MODULES`.
+
+Each application can keep its selection in its own CMake presets or set it
+before adding NeMo2:
+
+```cmake
+set(NEMO_MODULES "SdlInputManager;ParameterOperations;VirtoolsLoader;Logics")
+add_subdirectory(NeMo2)
+target_link_libraries(MyApplication PRIVATE CK2 VxMath)
+```
+
+Static applications continue to link and register their selected plugins through
+the existing CK2 interfaces.
+
+Use separate build/install directories for independently shipped combinations.
+Ordinary CMake installation is additive; changing the selection does not remove
+artifacts installed by an earlier combination. Module selection determines
+which engine functionality is available; the application still declares what
+its content requires.
 
 ## Application configuration
 

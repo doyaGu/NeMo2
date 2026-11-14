@@ -98,6 +98,10 @@ def classify(paths):
     for path in paths:
         if documentation(path):
             continue
+        if path in {'cmake/NeMo2Modules.cmake', 'cmake/NeMo2Options.cmake',
+                    'cmake/NeMo2ComponentRegistry.cmake', 'cmake/NeMo2RuntimeComponents.cmake.in',
+                    'Source/CMakeLists.txt'}:
+            scripts.add('ci')
         if path.startswith('Source/') and path.endswith('/Version.rc.in'):
             # Version resources affect Windows binaries, not engine behavior.
             build = True
@@ -144,6 +148,10 @@ def classify(paths):
             checks.add('NeMo2StageInstall')
         elif path == 'cmake/TestRuntimeComponentSelection.cmake':
             checks.add('NeMo2RuntimeManifest')
+        elif path == 'cmake/NeMo2RuntimeComponents.cmake.in':
+            checks.add('NeMo2RuntimeManifest')
+            build = layout = True
+            resources_only = False
         elif path in {'cmake/TestSubproject.cmake'}:
             checks.add('NeMo2Subproject')
         elif path in {'cmake/TestBuildRegeneration.cmake'}:
