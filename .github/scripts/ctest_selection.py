@@ -110,10 +110,15 @@ def main():
         print(f'Skipping {module} on {sys.platform}: {reason}', flush=True)
     indices = select_indices(metadata, owners, scope['modules'], scope['checks'],
                               args.build_dir.resolve(), Path.cwd(), scope.get('test_targets'))
+    test_name = scope.get('test_name')
+    if test_name:
+        indices = [index for index in indices if metadata['tests'][index - 1]['name'] == test_name]
+        if len(indices) != 1:
+            parser.error(f'Expected exactly one selected CTest case named {test_name}, found {len(indices)}')
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
             output.write(f'has_tests={str(bool(indices)).lower()}\n')
-            require_gtest = any(module not in skipped and (
+            require_gtest = not test_name and any(module not in skipped and (
                 module in {'vxmath', 'ck2', 'renderengine', 'plugins', 'player'} or module.startswith('plugin:'))
                 for module in scope['modules'])
             output.write(f'require_gtest={str(require_gtest).lower()}\n')

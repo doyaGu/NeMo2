@@ -177,13 +177,21 @@ def classify(paths):
                 test_targets={name: sorted(targets) for name, targets in test_targets.items() if name not in whole_modules})
 
 
-def selection(modules, checks, test_targets=None, build_runtime=False):
+def selection(modules, checks, test_targets=None, build_runtime=False, test_name=None):
     if any(name not in OWNERS and not re.fullmatch(r'(bb|plugin):[A-Za-z0-9_-]+', name) for name in modules) or set(checks) - set(CHECKS):
         raise ValueError('unknown test module or aggregator check')
     if not isinstance(build_runtime, bool):
         raise ValueError('build_runtime must be boolean')
     result = {'modules': sorted(set(modules)), 'checks': sorted(set(checks)),
               'build_runtime': build_runtime}
+    if test_name is not None:
+        if len(result['modules']) != 1 or checks or build_runtime or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_-]*', test_name):
+            raise ValueError('a named test requires one module and a CTest name matching its executable target')
+        named_target = {result['modules'][0]: [test_name]}
+        if test_targets and test_targets != named_target:
+            raise ValueError('named test and executable target must match')
+        test_targets = named_target
+        result['test_name'] = test_name
     if test_targets:
         if set(test_targets) - set(modules) or any(not re.fullmatch(r'[A-Za-z0-9_-]+', target) for targets in test_targets.values() for target in targets):
             raise ValueError('unknown test target or owner')
@@ -239,13 +247,19 @@ def main():
     parser.add_argument('--head', default='HEAD')
     parser.add_argument('--modules', default='changed')
     parser.add_argument('--selection', default='')
+    parser.add_argument('--test-name', default='')
     parser.add_argument('--static', default='runtime')
     parser.add_argument('--target', default='all')
     args = parser.parse_args()
     if args.mode == 'flags':
         print('\n'.join(flags(json.loads(args.selection), args.static == 'static')))
         return
-    if args.selection:
+    if args.test_name:
+        if args.selection or args.target in {'all', 'sdl-linux-x64-full-tests'}:
+            parser.error('--test-name requires an explicit matrix target and cannot be combined with --selection')
+        scope = selection([args.modules], [], test_name=args.test_name)
+        result = dict(scope, build=False, layout=False, scripts=[])
+    elif args.selection:
         scope = selection(**json.loads(args.selection))
         result = dict(scope, build=scope['build_runtime'], layout=False, scripts=[])
     else:
@@ -258,7 +272,8 @@ def main():
             result.pop('test_targets', None)
             result['resources_only'] = False
             result['build'] = bool(scope['modules'])
-    scope = selection(result['modules'], result['checks'], result.get('test_targets'), result['build'])
+    scope = selection(result['modules'], result['checks'], result.get('test_targets'), result['build'],
+                      result.get('test_name'))
     encoded = json.dumps(scope, separators=(',', ':'))
     result.update(selection=encoded, test=bool(scope['modules'] or scope['checks']),
                   compile=bool(scope['modules']), cache_scope=hashlib.sha256(encoded.encode()).hexdigest()[:12],

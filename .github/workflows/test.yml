@@ -14,6 +14,10 @@ on:
         description: "changed, all, module, bb:TT_InterfaceManager_RT, plugin:AVIReader (comma-separated)"
         type: string
         default: changed
+      test-name:
+        description: "Optional exact CTest name matching its executable target. Choose one module and platform."
+        type: string
+        required: false
       target:
         description: "Test target"
         required: false
@@ -77,11 +81,16 @@ jobs:
         TARGET: ${{ inputs.target || 'all' }}
         MODULES: ${{ inputs.modules || 'changed' }}
         SELECTION: ${{ inputs.selection }}
+        TEST_NAME: ${{ inputs.test-name }}
         GPU_DEBUG: ${{ inputs.gpu-debug }}
       run: |
+        if [ -n "$TEST_NAME" ] && [ "$GPU_DEBUG" = true ]; then
+          echo "A named test cannot be combined with GPU diagnostic capture." >&2
+          exit 1
+        fi
         if [ "${{ inputs.target }}" = sdl-linux-x64-full-tests ]; then MODULES=all; fi
         if [ "$GPU_DEBUG" = true ] && [ "$MODULES" = changed ]; then MODULES=renderengine; fi
-        python3 -B .github/scripts/engine_ci.py select --base "$BASE" --modules "$MODULES" --target "$TARGET" --selection "$SELECTION"
+        python3 -B .github/scripts/engine_ci.py select --base "$BASE" --modules "$MODULES" --target "$TARGET" --selection "$SELECTION" --test-name "$TEST_NAME"
 
   test:
     needs: changes
@@ -278,7 +287,11 @@ jobs:
 
     - name: Build tests
       if: ${{ needs.changes.outputs.compile == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == format('sdl-{0}-{1}', matrix.platform.name, matrix.linkage.name)) }}
-      run: cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-release --target nemo_ci_tests --parallel $([Environment]::ProcessorCount)
+      env:
+        TEST_NAME: ${{ fromJSON(needs.changes.outputs.selection).test_name }}
+      run: |
+        $target = if ($env:TEST_NAME) { $env:TEST_NAME } else { 'nemo_ci_tests' }
+        cmake --build --preset ${{ matrix.platform.preset }}-${{ matrix.linkage.name }}-release --target $target --parallel $([Environment]::ProcessorCount)
 
     - name: Save source timestamps for incremental builds
       if: ${{ !cancelled() && steps.cache-key.outcome == 'success' }}

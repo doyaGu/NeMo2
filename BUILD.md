@@ -302,6 +302,13 @@ aggregator checks. A complete engine test run requires an explicit
 automatically. The platform selector `target=all` covers the platform matrix
 for the selected modules.
 
+To run a single CTest case whose name matches its executable target, specify
+`test-name`, one module, and one platform/linkage target:
+
+```bash
+gh workflow run test.yml -f modules=renderengine -f target=sdl-linux-arm64-static -f test-name=sdl_gpu_ffp_pixel_tests
+```
+
 Use `modules=bb:TT_InterfaceManager_RT` or `modules=plugin:AVIReader` to request
 one component; comma-separated selections are supported. The CMake filters
 `CKBB_TEST_MODULES` and `CKPLUGINS_TEST_MODULES` accept semicolon-separated module

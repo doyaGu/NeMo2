@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 from pathlib import Path
 import subprocess
@@ -93,6 +94,51 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(rows[0]['linkage']['name'], 'static')
         with self.assertRaises(ValueError):
             job_matrix('unknown')
+
+    def test_named_manual_test_runs_only_the_exact_ctest_case(self):
+        script = Path(__file__).with_name('engine_ci.py').resolve()
+        name = 'sdl_gpu_ffp_pixel_tests'
+        command = [sys.executable, '-B', str(script), 'select', '--modules', 'renderengine',
+                   '--test-name', name, '--target']
+        for target in ('all', 'sdl-linux-x64-full-tests'):
+            self.assertNotEqual(subprocess.run(command + [target], capture_output=True).returncode, 0)
+        fields = json.loads(subprocess.check_output(command + ['sdl-linux-arm64-static'], text=True))
+        rows = fields['matrix']['include']
+        scope = json.loads(fields['selection'])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]['platform']['name'], rows[0]['linkage']['name']), ('linux-arm64', 'static'))
+        self.assertEqual(scope['test_targets'], {'renderengine': [name]})
+        self.assertFalse(fields['build'])
+        self.assertIn(f'-DNEMO_TEST_TARGET_FILTER=Source/RenderEngine/tests={name}', flags(scope, True))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            renderer = root / 'Source/RenderEngine/tests'
+            renderer.mkdir(parents=True)
+            (root / 'CMakeLists.txt').write_text(
+                'cmake_minimum_required(VERSION 3.25)\nproject(NamedTest LANGUAGES CXX)\n'
+                'enable_testing()\nadd_subdirectory(Source/RenderEngine/tests)\n')
+            (renderer / 'CMakeLists.txt').write_text(
+                f'add_executable({name} pixel.cpp)\n'
+                f'add_test(NAME {name} COMMAND {name})\n'
+                f'add_test(NAME sampler COMMAND {name} --unexpected)\n')
+            (renderer / 'pixel.cpp').write_text('int main(int argc, char **) { return argc != 1; }\n')
+            build = root / 'build'
+            subprocess.run(['cmake', '-S', str(root), '-B', str(build)], check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(['cmake', '--build', str(build), '--config', 'Release', '--target', name],
+                           check=True, stdout=subprocess.DEVNULL)
+            output = root / 'github-output'
+            runner = [sys.executable, '-B', str(script.with_name('ctest_selection.py')),
+                      '--build-dir', str(build), '--selection']
+            env = dict(os.environ, GITHUB_OUTPUT=str(output))
+            subprocess.run(runner + [fields['selection']], cwd=root, env=env, check=True, stdout=subprocess.DEVNULL)
+            report = (build / 'ctest-results.xml').read_text()
+            self.assertIn(f'name="{name}"', report)
+            self.assertNotIn('name="sampler"', report)
+            self.assertIn('require_gtest=false', output.read_text())
+            scope['test_name'] = 'missing'
+            missing = subprocess.run(runner + [json.dumps(scope)], cwd=root, env=env, capture_output=True, text=True)
+            self.assertNotEqual(missing.returncode, 0)
+            self.assertIn('Expected exactly one', missing.stderr)
 
     def test_cache_profiles_follow_library_flags_instead_of_test_names(self):
         tt = {'modules': ['bb:TT_InterfaceManager_RT'], 'checks': []}
