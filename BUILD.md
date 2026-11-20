@@ -18,6 +18,19 @@ After updating, run `git submodule sync --recursive` and
 `git submodule update --init --recursive`. Build from the pinned revisions;
 `--remote` selects newer module commits and changes the assembled engine.
 
+The `physics_RT` sources live in a nested submodule under
+`Source/BuildingBlocks/physics_RT`. That repository pins its own `ivp`
+submodule. When upgrading a checkout that still tracks physics as ordinary
+files, deinitialize the old IVP checkout before updating the pinned
+BuildingBlocks revision:
+
+```bash
+git -C Source/BuildingBlocks submodule deinit -- physics_RT/ivp
+git pull --ff-only
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
 The configure matrix is `<platform>-<mode>`:
 
 | Platform | Architectures |

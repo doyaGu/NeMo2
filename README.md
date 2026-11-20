@@ -42,6 +42,7 @@ staging, and incremental builds.
 | `Source/Managers/SdlSoundManager` | [SdlSoundManager](https://github.com/doyaGu/SdlSoundManager) | Sound |
 | `Source/Plugins` | [CKPlugins](https://github.com/doyaGu/CKPlugins) | File readers |
 | `Source/BuildingBlocks` | [CKBuildingBlocks](https://github.com/doyaGu/CKBuildingBlocks) | Behaviors, TT modules, physics |
+| `Source/BuildingBlocks/physics_RT` | [physics_RT](https://github.com/doyaGu/physics_RT) | Physics module and pinned IVP dependency |
 
 ## Application integration
 

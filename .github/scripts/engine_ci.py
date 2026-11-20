@@ -28,10 +28,10 @@ def component_owner(path):
     owner = next((name for name, prefix in sorted(OWNERS.items(), key=lambda item: -len(item[1]))
                   if path == prefix or path.startswith(prefix + '/')), None)
     for prefix, group in GROUPS.items():
-        if owner == group:
+        if owner == group and path != OWNERS[group]:
             relative = path.removeprefix(OWNERS[group] + '/')
-            directory, separator, _ = relative.partition('/')
-            if separator and directory not in {'tests', 'test', 'cmake', 'include', 'src', 'scripts', 'Common'} and re.fullmatch(r'[A-Za-z0-9_-]+', directory):
+            directory = relative.split('/', 1)[0]
+            if directory not in {'tests', 'test', 'cmake', 'include', 'src', 'scripts', 'Common'} and re.fullmatch(r'[A-Za-z0-9_-]+', directory):
                 return prefix + ':' + directory
     return owner
 
@@ -97,6 +97,11 @@ def classify(paths):
     resources_only = True
     for path in paths:
         if documentation(path):
+            continue
+        if path.startswith('Source/') and path.endswith('/.gitmodules'):
+            # Changed gitlinks select their owners separately. Submodule
+            # metadata itself is checked by the recursive layout validation.
+            layout = True
             continue
         if path in {'cmake/NeMo2Modules.cmake', 'cmake/NeMo2Options.cmake',
                     'cmake/NeMo2Cache.cmake', 'cmake/NeMo2ModuleDependencies.json',

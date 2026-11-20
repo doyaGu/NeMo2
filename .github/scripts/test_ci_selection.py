@@ -325,6 +325,38 @@ class SelectionTest(unittest.TestCase):
             self.commit(engine)
             self.assertEqual(classify(changed_paths(engine, after_docs))['modules'], ['vxmath'])
 
+    def test_directory_to_submodule_keeps_unchanged_files_and_nested_pins_out_of_the_diff(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            engine, physics, ivp = (root / name for name in ('engine', 'physics', 'ivp'))
+            for repo in (engine, physics, ivp):
+                repo.mkdir()
+                self.git(repo, 'init', '-q')
+            (ivp / 'solver.cpp').write_text('unchanged IVP source')
+            self.commit(ivp)
+            path = 'Source/BuildingBlocks/physics_RT'
+            (engine / path).mkdir(parents=True)
+            for module in (engine / path, physics):
+                (module / 'unchanged.cpp').write_text('same source')
+                (module / 'modified.cpp').write_text('source before the move')
+            nested = path + '/ivp'
+            self.git(engine, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', str(ivp), nested)
+            self.commit(engine)
+            before = self.git(engine, 'rev-parse', 'HEAD').strip()
+            self.git(physics, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', str(ivp), 'ivp')
+            (physics / 'modified.cpp').write_text('source changed during the move')
+            self.commit(physics)
+            self.git(engine, 'submodule', 'deinit', '--', nested)
+            self.git(engine, 'rm', '-qr', '--', path)
+            self.git(engine, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q',
+                     '--name', 'physics-rt', str(physics), path)
+            self.commit(engine)
+
+            changes = set(changed_paths(engine, before))
+            self.assertEqual(changes, {'.gitmodules', path, path + '/.gitmodules', path + '/modified.cpp'})
+            self.assertEqual(classify(changes)['modules'], ['bb:physics_RT'])
+            self.assertEqual(classify(['Source/BuildingBlocks/.gitmodules'])['modules'], [])
+
     @staticmethod
     def git(root, *args):
         return subprocess.check_output(['git', '-C', str(root), *args], text=True,
